@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2022 Google, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.google.cloud.hive</groupId>
+  <artifactId>hive-bigquery-parent</artifactId>
+  <version>${revision}</version>
+  <packaging>pom</packaging>
+  <name>Hive BigQuery Connector Build Parent</name>
+  <description>Parent project for all the Hive BigQuery Connector artifacts
+  </description>
+
+  <properties>
+    <revision>2.0.0</revision>
+
+    <hadoop.version>2.10.1</hadoop.version>
+    <hive.version>3.1.2</hive.version>
+    <protobuf.version>3.20.0</protobuf.version>
+    <legacy-bigquery-connector.version>hadoop2-1.0.0</legacy-bigquery-connector.version>
+    <bigquery-connector-common.version>0.24.2</bigquery-connector-common.version>
+    <google-cloud-storage.version>2.6.0</google-cloud-storage.version>
+    <google-cloud-bigquerystorage.version>2.11.0</google-cloud-bigquerystorage.version>
+    <junit.version>4.13.2</junit.version>
+    <hamcrest.version>2.2</hamcrest.version>
+    <gcs.connector.version>hadoop2-2.1.7</gcs.connector.version>
+    <hiverunner.version>6.1.0</hiverunner.version>
+
+    <maven-spotless-plugin.version>2.22.3</maven-spotless-plugin.version>
+    <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
+    <maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
+    <maven-assembly-plugin.version>3.1.0</maven-assembly-plugin.version>
+    <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
+    <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
+    <maven-shade-plugin.version>3.3.0</maven-shade-plugin.version>
+    <maven-surefire-plugin.version>3.0.0-M6</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>3.0.0-M6</maven-failsafe-plugin.version>
+    <build-helper-maven-plugin.version>3.3.0</build-helper-maven-plugin.version>
+
+    <java.version>1.8</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+
+    <compiler.error.flag>-Werror</compiler.error.flag>
+    <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
+    <compiler.default.exclude>nothing</compiler.default.exclude>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <build>
+    <plugins>
+
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${maven-spotless-plugin.version}</version>
+        <configuration>
+          <formats>
+            <format>
+              <includes>
+                <include>*.java</include>
+              </includes>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
+            </format>
+          </formats>
+          <java>
+            <googleJavaFormat>
+              <version>1.8</version>
+              <style>GOOGLE</style>
+              <reflowLongStrings>true</reflowLongStrings>
+            </googleJavaFormat>
+
+            <licenseHeader>
+              <content>/*
+ * Copyright 2022 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */</content>
+            </licenseHeader>
+          </java>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
