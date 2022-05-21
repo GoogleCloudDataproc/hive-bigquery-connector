@@ -47,7 +47,7 @@ public class AvroSerializer {
     Schema actualSchema = schemaInfo.actualSchema;
 
     if (actualSchema.getType() == Type.ARRAY) {
-      List array = (List) avroObject;
+      List<?> array = (List<?>) avroObject;
       Object[] values = new Object[array.size()];
       int i = 0;
       for (Object value : array) {

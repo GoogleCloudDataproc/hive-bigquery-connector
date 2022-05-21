@@ -29,6 +29,8 @@ import repackaged.by.hivebqconnector.com.google.common.base.Optional;
  */
 public class HiveBigQueryProxyConfig implements BigQueryProxyConfig, Serializable {
 
+  private static final long serialVersionUID = 1L;
+
   private Optional<URI> proxyUri;
   private Optional<String> proxyUsername;
   private Optional<String> proxyPassword;

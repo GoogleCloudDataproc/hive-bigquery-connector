@@ -55,6 +55,7 @@ import org.apache.hadoop.mapred.OutputFormat;
 import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
+@SuppressWarnings({"rawtypes", "deprecated"})
 public class BigQueryStorageHandler implements HiveStoragePredicateHandler, HiveStorageHandler {
 
   Configuration conf;

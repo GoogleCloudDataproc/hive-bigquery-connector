@@ -22,6 +22,7 @@ import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
@@ -152,7 +153,7 @@ public class JobInfo {
     }
     Gson gson = new Gson();
     try {
-      infoFile.write(gson.toJson(jobInfo).getBytes());
+      infoFile.write(gson.toJson(jobInfo).getBytes(StandardCharsets.UTF_8));
       infoFile.close();
     } catch (IOException e) {
       throw new RuntimeException(e);

@@ -43,8 +43,11 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
 
 /** Main config class to interact with the bigquery-common-connector. */
+@SuppressWarnings("unchecked")
 public class HiveBigQueryConfig
     implements BigQueryConfig, BigQueryClient.LoadDataOptions, Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   public static final int DEFAULT_CACHE_EXPIRATION_IN_MINUTES = 15;
   private static final int DEFAULT_BIGQUERY_CLIENT_CONNECT_TIMEOUT = 60 * 1000;

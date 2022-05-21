@@ -80,7 +80,7 @@ public class ProtoDeserializer {
     if (fieldObjectInspector instanceof ListObjectInspector) {
       ListObjectInspector loi = (ListObjectInspector) fieldObjectInspector;
       ObjectInspector elementObjectInspector = loi.getListElementObjectInspector();
-      Iterator iterator = loi.getList(fieldValue).iterator();
+      Iterator<?> iterator = loi.getList(fieldValue).iterator();
       List<Object> protoValue = new ArrayList<>();
       while (iterator.hasNext()) {
         Object elementValue = iterator.next();

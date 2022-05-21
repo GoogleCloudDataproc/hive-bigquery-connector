@@ -32,6 +32,7 @@ import com.google.inject.Injector;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -87,7 +88,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     out.writeUTF(warehouseLocation.toString());
     out.writeUTF(streamName);
     out.writeLong(limit);
-    byte[] columnNamesAsBytes = String.join(",", columnNames).getBytes();
+    byte[] columnNamesAsBytes = String.join(",", columnNames).getBytes(StandardCharsets.UTF_8);
     out.writeInt(columnNamesAsBytes.length);
     out.write(columnNamesAsBytes, 0, columnNamesAsBytes.length);
   }
@@ -104,7 +105,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     int length = in.readInt();
     byte[] columnNamesAsBytes = new byte[length];
     in.readFully(columnNamesAsBytes);
-    columnNames = Arrays.asList((new String(columnNamesAsBytes)).split(","));
+    columnNames = Arrays.asList(new String(columnNamesAsBytes, StandardCharsets.UTF_8).split(","));
   }
 
   @Override
@@ -160,7 +161,8 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
             : String.valueOf(SerDeUtils.COMMA);
     List<String> columnNames =
         new ArrayList<>(
-            Arrays.asList(jobConf.get(serdeConstants.LIST_COLUMNS).split(columnNameDelimiter)));
+            Arrays.asList(
+                checkNotNull(jobConf.get(serdeConstants.LIST_COLUMNS)).split(columnNameDelimiter)));
     // Remove the virtual columns
     columnNames.removeAll(new HashSet<>(VirtualColumn.VIRTUAL_COLUMN_NAMES));
 

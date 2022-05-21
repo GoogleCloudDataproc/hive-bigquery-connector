@@ -35,7 +35,7 @@
     <protobuf.version>3.20.0</protobuf.version>
     <legacy-bigquery-connector.version>hadoop2-1.0.0</legacy-bigquery-connector.version>
     <bigquery-connector-common.version>0.24.2</bigquery-connector-common.version>
-    <google-cloud-storage.version>2.6.0</google-cloud-storage.version>
+    <google-cloud-storage.version>2.6.1</google-cloud-storage.version>
     <google-cloud-bigquerystorage.version>2.11.0</google-cloud-bigquerystorage.version>
     <junit.version>4.13.2</junit.version>
     <hamcrest.version>2.2</hamcrest.version>

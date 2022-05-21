@@ -66,7 +66,7 @@ public class HiveUtils {
       if (this == obj) {
         return true;
       }
-      if (obj == null || getClass() != obj.getClass()) {
+      if (!(obj instanceof TaskAttemptIDWrapper)) {
         return false;
       }
       TaskAttemptIDWrapper other = (TaskAttemptIDWrapper) obj;

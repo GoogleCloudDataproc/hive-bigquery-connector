@@ -27,6 +27,8 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
  */
 public class BigQueryConstantDesc extends ExprNodeConstantDesc {
 
+  private static final long serialVersionUID = 1L;
+
   /** Format the value of the predicate (.e. WHERE clause item) to be compatible with BigQuery. */
   private static String formatPredicateValue(TypeInfo typeInfo, Object value) {
     String typeName = typeInfo.getTypeName();

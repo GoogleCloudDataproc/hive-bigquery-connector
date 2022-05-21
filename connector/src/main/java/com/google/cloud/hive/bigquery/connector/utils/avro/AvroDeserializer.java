@@ -65,7 +65,7 @@ public class AvroDeserializer {
     if (fieldObjectInspector instanceof ListObjectInspector) {
       ListObjectInspector loi = (ListObjectInspector) fieldObjectInspector;
       ObjectInspector elementObjectInspector = loi.getListElementObjectInspector();
-      Iterator iterator = loi.getList(fieldValue).iterator();
+      Iterator<?> iterator = loi.getList(fieldValue).iterator();
       Schema elementSchema = schemaInfo.actualSchema.getElementType();
       List<Object> avroValue = new ArrayList<>();
       while (iterator.hasNext()) {

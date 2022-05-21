@@ -100,7 +100,7 @@ public class AvroUtils {
 
     public static AvroOutput initialize(JobConf jobConf, Schema schema) {
       GenericDatumWriter<GenericRecord> gdw = new GenericDatumWriter<>(schema);
-      DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter(gdw);
+      DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(gdw);
       int level = jobConf.getInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, -1);
       String codecName = jobConf.get(AvroJob.OUTPUT_CODEC, "deflate");
       CodecFactory factory =
