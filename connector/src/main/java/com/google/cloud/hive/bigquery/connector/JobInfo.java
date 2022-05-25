@@ -42,8 +42,8 @@ public class JobInfo {
   private String table;
   private String finalTable; // Only used by the 'direct' write method
   private boolean overwrite;
-  private String gcsTempPath; // Only used by the 'file-load' write method
-  private String avroSchema; // Only used by the 'file-load' write method
+  private String gcsTempPath; // Only used by the 'indirect' write method
+  private String avroSchema; // Only used by the 'indirect' write method
   private byte[] protoSchema; // Only used by the 'direct' write method
   private byte[] bigQuerySchema; // Only used by the 'direct' write method
   private Properties tableProperties;

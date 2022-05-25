@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.output.fileload;
+package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.Constants;
@@ -33,7 +33,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 
-public class FileLoadUtils {
+public class IndirectUtils {
 
   static Pattern gcsUriPattern = Pattern.compile("gs://([^/]*)(.*)?");
 

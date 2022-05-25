@@ -65,7 +65,7 @@ public class HiveBigQueryConfig
   private Optional<String> traceId = empty();
 
   /*
-   * Used for "file-load" write jobs.
+   * Used for "indirect" write jobs.
    * Indicates whether to interpret Avro logical types as the corresponding BigQuery data
    * type (for example, TIMESTAMP), instead of using the raw type (for example, LONG).
    */

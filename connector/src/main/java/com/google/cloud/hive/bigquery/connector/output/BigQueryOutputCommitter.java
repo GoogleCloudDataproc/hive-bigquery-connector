@@ -20,7 +20,7 @@ import com.google.cloud.hive.bigquery.connector.JobInfo;
 import com.google.cloud.hive.bigquery.connector.config.RunConf;
 import com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.output.fileload.FileLoadOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.FSUtils;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
@@ -37,8 +37,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     JobInfo jobInfo = JobInfo.readInfoFile(conf);
     String writeMethod = Config.WRITE_METHOD.get(conf);
     // Pick the appropriate Committer class
-    if (RunConf.WRITE_METHOD_FILE_LOAD.equals(writeMethod)) {
-      FileLoadOutputCommitter.commitJob(conf, jobInfo);
+    if (RunConf.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
+      IndirectOutputCommitter.commitJob(conf, jobInfo);
     } else if (RunConf.WRITE_METHOD_DIRECT.equals(writeMethod)) {
       DirectOutputCommitter.commitJob(conf, jobInfo);
     } else {

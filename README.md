@@ -68,13 +68,13 @@ The following table properties are required:
 
 ### Configuration
 
-| Property                  | Default value       | Description                                                                                                                                                                                         |
-|---------------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `file-load` (to stage temprary Avro files to GCS before loading into BigQuery). |
-| `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `file-load` write method                                                                                                               |
-| `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
- | `bq.work.dir.name.prefix` | `bq-hive-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
- | `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                         | 
+| Property                  | Default value       | Description                                                                                                                                                                                        |
+|---------------------------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temprary Avro files to GCS before loading into BigQuery). |
+| `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                               |
+| `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                            |
+ | `bq.work.dir.name.prefix` | `bq-hive-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                            |
+ | `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                        | 
 
 ### Data Type Mapping  
   
@@ -125,7 +125,7 @@ For example - filters like `address.city = "Sunnyvale"` will not get pushdown to
    ```sql   
    from_unixtime(cast(cast(<timestampcolumn> as bigint)/1000 as bigint), 'yyyy-MM-dd hh:mm:ss')      
    ```
-4. If a write job fails while using the Tez execution engine and the `file-load` write method, then the temporary avro
+4. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
    files might not be automatically cleaned up from the GCS bucket. The MR execution engine does not have that
    limitation. The temporary files are always cleaned up when the job is successful, regardless of the execution engine
    in use.

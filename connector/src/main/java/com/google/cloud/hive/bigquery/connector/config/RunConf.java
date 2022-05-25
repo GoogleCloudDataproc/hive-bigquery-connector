@@ -23,7 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 public class RunConf {
 
   public static final String WRITE_METHOD_DIRECT = "direct";
-  public static final String WRITE_METHOD_FILE_LOAD = "file-load";
+  public static final String WRITE_METHOD_INDIRECT = "indirect";
   public static final String ARROW = "arrow";
   public static final String AVRO = "avro";
 

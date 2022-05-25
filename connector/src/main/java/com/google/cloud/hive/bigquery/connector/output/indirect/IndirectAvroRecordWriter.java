@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.output.fileload;
+package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobInfo;
@@ -39,7 +39,7 @@ import org.apache.hadoop.mapred.TaskAttemptID;
  * each task creates a single Avro file. The overall job committer is responsible for loading all
  * the Avro files to BigQuery later on at the end of the job.
  */
-public class FileLoadAvroRecordWriter
+public class IndirectAvroRecordWriter
     implements org.apache.hadoop.mapred.RecordWriter<NullWritable, Writable>,
         FileSinkOperator.RecordWriter {
 
@@ -49,7 +49,7 @@ public class FileLoadAvroRecordWriter
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
 
-  public FileLoadAvroRecordWriter(JobConf jobConf, JobInfo jobInfo) {
+  public IndirectAvroRecordWriter(JobConf jobConf, JobInfo jobInfo) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
     this.avroOutput = AvroOutput.initialize(jobConf, jobInfo.getAvroSchema());
@@ -75,7 +75,7 @@ public class FileLoadAvroRecordWriter
     if (!abort) {
       JobInfo jobInfo = JobInfo.readInfoFile(jobConf);
       Path filePath =
-          FileLoadUtils.getTaskAvroTempFile(
+          IndirectUtils.getTaskAvroTempFile(
               jobConf, jobInfo.getTableId(), jobInfo.getGcsTempPath(), taskAttemptID);
       FSDataOutputStream fsDataOutputStream = filePath.getFileSystem(jobConf).create(filePath);
       avroOutput.getDataFileWriter().flush();

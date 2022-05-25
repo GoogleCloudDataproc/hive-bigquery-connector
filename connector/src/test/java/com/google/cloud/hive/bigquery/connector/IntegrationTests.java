@@ -73,7 +73,7 @@ public class IntegrationTests {
         createDataset(DATASET);
       }
     }
-    // Create the bucket for 'file-load' jobs.
+    // Create the bucket for 'indirect' jobs.
     try {
       createBucket(TEMP_BUCKET_NAME);
     } catch (StorageException e) {
@@ -146,11 +146,11 @@ public class IntegrationTests {
 
   // ---------------------------------------------------------------------------------------------------
 
-  /** Check that the user provides a GCS temporary path when using the "file load" write method. */
+  /** Check that the user provides a GCS temporary path when using the "indirect" write method. */
   @Test
   public void testMissingGcsTempPath() {
     setUp();
-    hive.setHiveConfValue(Config.WRITE_METHOD.getKey(), RunConf.WRITE_METHOD_FILE_LOAD);
+    hive.setHiveConfValue(Config.WRITE_METHOD.getKey(), RunConf.WRITE_METHOD_INDIRECT);
     initHive("mr", RunConf.AVRO, "");
     hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
     Throwable exception =
@@ -162,7 +162,7 @@ public class IntegrationTests {
             .getMessage()
             .contains(
                 "The 'bq.temp.gcs.path' property must be set when using the"
-                    + " 'file-load' write method."));
+                    + " 'indirect' write method."));
     tearDown();
   }
 
@@ -193,12 +193,12 @@ public class IntegrationTests {
 
   /**
    * Check that the user has proper write permissions to the provided GCS temporary path when using
-   * the "file load" write method.
+   * the "indirect" write method.
    */
   @Test
   public void testMissingBucketPermissions() {
     setUp();
-    hive.setHiveConfValue(Config.WRITE_METHOD.getKey(), RunConf.WRITE_METHOD_FILE_LOAD);
+    hive.setHiveConfValue(Config.WRITE_METHOD.getKey(), RunConf.WRITE_METHOD_INDIRECT);
     initHive("mr", RunConf.AVRO, "gs://random-bucket-abcdef-12345");
     hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
     Throwable exception =
@@ -388,19 +388,19 @@ public class IntegrationTests {
 
   // ---------------------------------------------------------------------------------------------------
 
-  /** Insert data using the "file-load" write method. */
-  public void insertFileLoad(String engine) {
+  /** Insert data using the "indirect" write method. */
+  public void insertIndirect(String engine) {
     // Check that the bucket is empty
     List<Blob> blobs = getBlobs(TEMP_BUCKET_NAME);
     assertEquals(0, blobs.size());
 
     // Insert data using Hive
-    insert(engine, RunConf.WRITE_METHOD_FILE_LOAD);
+    insert(engine, RunConf.WRITE_METHOD_INDIRECT);
 
     // Check that the blobs were created by the job. Two are pseudo directories, and the third
     // one is the temporary avro file.
     // Note: Eventually Hadoop would automatically delete those blobs. See the call to
-    // `FileLoadUtils.deleteGcsTempDir()` in `FileLoadOutputCommitter.commitJob()`.
+    // `IndirectUtils.deleteGcsTempDir()` in `IndirectOutputCommitter.commitJob()`.
     blobs = getBlobs(TEMP_BUCKET_NAME);
     assertEquals(3, blobs.size());
     assertEquals("temp/", blobs.get(0).getName()); // The base dir
@@ -413,10 +413,10 @@ public class IntegrationTests {
   }
 
   @Test
-  public void testInsertFileLoad() {
+  public void testInsertIndirect() {
     for (String engine : new String[] {"mr", "tez"}) {
       setUp();
-      insertFileLoad(engine);
+      insertIndirect(engine);
       tearDown();
     }
   }
@@ -590,7 +590,7 @@ public class IntegrationTests {
       assertEquals(1552872225678901L, row.get(4).getTimestampValue());
     } else {
       // As we rely on the AvroSerde to generate the Avro schema for the
-      // file-load write method, we lose the micro-second precision due
+      // indirect write method, we lose the micro-second precision due
       // to the fact that the AvroSerde is currently limited to
       // 'timestamp-mills' precision.
       // See: https://issues.apache.org/jira/browse/HIVE-20889
@@ -626,7 +626,7 @@ public class IntegrationTests {
   public void testWriteAllTypes() {
     for (String engine : new String[] {"mr", "tez"}) {
       for (String writeMethod :
-          new String[] {RunConf.WRITE_METHOD_DIRECT, RunConf.WRITE_METHOD_FILE_LOAD}) {
+          new String[] {RunConf.WRITE_METHOD_DIRECT, RunConf.WRITE_METHOD_INDIRECT}) {
         setUp();
         writeAllTypes(engine, writeMethod);
         tearDown();
@@ -752,7 +752,7 @@ public class IntegrationTests {
     for (String engine : new String[] {"mr", "tez"}) {
       for (String readDataFormat : new String[] {RunConf.ARROW, RunConf.AVRO}) {
         for (String writeMethod :
-            new String[] {RunConf.WRITE_METHOD_DIRECT, RunConf.WRITE_METHOD_FILE_LOAD}) {
+            new String[] {RunConf.WRITE_METHOD_DIRECT, RunConf.WRITE_METHOD_INDIRECT}) {
           setUp();
           multiReadWrite(engine, readDataFormat, writeMethod);
           tearDown();

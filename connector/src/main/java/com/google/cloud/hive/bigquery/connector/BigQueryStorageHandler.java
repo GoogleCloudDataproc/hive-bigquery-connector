@@ -156,7 +156,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
       ProtoSchema protoSchema =
           com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter.convert(descriptor);
       jobInfo.setProtoSchema(protoSchema.toByteArray());
-    } else if (writeMethod.equals(RunConf.WRITE_METHOD_FILE_LOAD)) {
+    } else if (writeMethod.equals(RunConf.WRITE_METHOD_INDIRECT)) {
       // Figure out the table's Avro schema
       org.apache.avro.Schema avroSchema;
       boolean hasExternalSchema =

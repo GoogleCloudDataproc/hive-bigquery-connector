@@ -19,7 +19,7 @@ import com.google.cloud.hive.bigquery.connector.JobInfo;
 import com.google.cloud.hive.bigquery.connector.config.RunConf;
 import com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectRecordWriter;
-import com.google.cloud.hive.bigquery.connector.output.fileload.FileLoadAvroRecordWriter;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectAvroRecordWriter;
 import java.io.IOException;
 import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,8 +42,8 @@ public class BigQueryOutputFormat
     // Pick the appropriate RecordWriter class based on configuration
     JobInfo jobInfo = JobInfo.readInfoFile(jobConf);
     String writeMethod = Config.WRITE_METHOD.get(jobConf);
-    if (RunConf.WRITE_METHOD_FILE_LOAD.equals(writeMethod)) {
-      return new FileLoadAvroRecordWriter(jobConf, jobInfo);
+    if (RunConf.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
+      return new IndirectAvroRecordWriter(jobConf, jobInfo);
     } else if (RunConf.WRITE_METHOD_DIRECT.equals(writeMethod)) {
       return new DirectRecordWriter(jobConf, jobInfo);
     } else {

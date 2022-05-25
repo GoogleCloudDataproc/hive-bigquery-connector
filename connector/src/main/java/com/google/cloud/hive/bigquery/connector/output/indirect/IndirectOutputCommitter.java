@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.output.fileload;
+package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.FormatOptions;
 import com.google.cloud.bigquery.JobInfo.WriteDisposition;
@@ -32,9 +32,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileLoadOutputCommitter {
+public class IndirectOutputCommitter {
 
-  private static final Logger LOG = LoggerFactory.getLogger(FileLoadOutputCommitter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(IndirectOutputCommitter.class);
 
   /**
    * Commits the job by loading all the Avro files (which were created by the individual tasks) from
@@ -46,8 +46,8 @@ public class FileLoadOutputCommitter {
     List<String> avroFiles =
         FSUtils.getFiles(
             conf,
-            FileLoadUtils.getGcsTempDir(conf, jobInfo.getGcsTempPath()),
-            FileLoadUtils.getTaskTempAvroFileNamePrefix(jobInfo.getTableId()),
+            IndirectUtils.getGcsTempDir(conf, jobInfo.getGcsTempPath()),
+            IndirectUtils.getTaskTempAvroFileNamePrefix(jobInfo.getTableId()),
             Constants.LOAD_FILE_EXTENSION);
     if (avroFiles.size() > 0) {
       Injector injector =
@@ -62,7 +62,7 @@ public class FileLoadOutputCommitter {
       // Load the Avro files into BigQuery
       bqClient.loadDataIntoTable(opts, avroFiles, formatOptions, writeDisposition);
       // Delete all the Avro files from GCS
-      FileLoadUtils.deleteGcsTempDir(conf, jobInfo.getGcsTempPath());
+      IndirectUtils.deleteGcsTempDir(conf, jobInfo.getGcsTempPath());
     }
   }
 }

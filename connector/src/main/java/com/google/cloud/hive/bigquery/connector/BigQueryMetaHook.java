@@ -24,7 +24,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.config.RunConf;
 import com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.output.fileload.FileLoadUtils;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import com.google.cloud.hive.bigquery.connector.utils.FSUtils;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.inject.Guice;
@@ -182,11 +182,11 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
       // write method. In this case, we will stream-write to a temporary table
       // and then finally overwrite the final destination table with the temporary
-      // table's contents. This special case doesn't apply to the 'file-load'
+      // table's contents. This special case doesn't apply to the 'indirect'
       // write method, which doesn't need a temporary table -- instead that method
       // uses the 'WRITE_TRUNCATE' option available in the BigQuery Load Job API when
       // loading the Avro files into the BigQuery table (see more about that in the
-      // `FileLoadOutputCommitter` class).
+      // `IndirectOutputCommitter` class).
       if (overwrite) {
         // Set the final destination table as the job's original table
         jobInfo.setFinalTable(tableName);
@@ -203,15 +203,15 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         // Set the temp table as the job's output table
         jobInfo.setTable(tableInfo.getTableId().getTable());
       }
-    } else if (writeMethod.equals(RunConf.WRITE_METHOD_FILE_LOAD)) {
+    } else if (writeMethod.equals(RunConf.WRITE_METHOD_INDIRECT)) {
       String tempGcsPath = Config.TEMP_GCS_PATH.get(conf);
       jobInfo.setGcsTempPath(tempGcsPath);
       if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
         throw new MetaException(
             String.format(
                 "The '%s' property must be set when using the '%s' write method.",
-                Config.TEMP_GCS_PATH.getKey(), RunConf.WRITE_METHOD_FILE_LOAD));
-      } else if (!FileLoadUtils.hasGcsWriteAccess(tempGcsPath)) {
+                Config.TEMP_GCS_PATH.getKey(), RunConf.WRITE_METHOD_INDIRECT));
+      } else if (!IndirectUtils.hasGcsWriteAccess(tempGcsPath)) {
         throw new MetaException(
             String.format(
                 "Cannot write to table '%s'. Does not have write access to the"

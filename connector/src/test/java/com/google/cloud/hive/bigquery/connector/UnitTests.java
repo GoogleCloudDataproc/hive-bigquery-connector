@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.config.RunConf;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectUtils;
-import com.google.cloud.hive.bigquery.connector.output.fileload.FileLoadUtils;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -34,22 +34,22 @@ public class UnitTests {
     Configuration conf = new Configuration();
     conf.set(RunConf.Config.WORK_DIR_NAME_PREFIX.getKey(), "xyz");
     conf.set(HiveConf.ConfVars.HIVEQUERYID.varname, "query123456");
-    Path gcsTempDir = FileLoadUtils.getGcsTempDir(conf, "gs://example/abcd");
+    Path gcsTempDir = IndirectUtils.getGcsTempDir(conf, "gs://example/abcd");
     assertEquals("gs://example/abcd/xyzquery123456", gcsTempDir.toString());
   }
 
   @Test
   public void testExtractBucketNameFromGcsUri() {
-    String bucket = FileLoadUtils.extractBucketNameFromGcsUri("gs://abcd");
+    String bucket = IndirectUtils.extractBucketNameFromGcsUri("gs://abcd");
     assertEquals("abcd", bucket);
-    bucket = FileLoadUtils.extractBucketNameFromGcsUri("gs://abcd/path/to/file.csv");
+    bucket = IndirectUtils.extractBucketNameFromGcsUri("gs://abcd/path/to/file.csv");
     assertEquals("abcd", bucket);
   }
 
   @Test
   public void testGetTaskTempAvroFileNamePrefix() {
     TableId tableId = TableId.of("myproject", "mydataset", "mytable");
-    String prefix = FileLoadUtils.getTaskTempAvroFileNamePrefix(tableId);
+    String prefix = IndirectUtils.getTaskTempAvroFileNamePrefix(tableId);
     assertEquals("myproject_mydataset_mytable", prefix);
   }
 
@@ -60,7 +60,7 @@ public class UnitTests {
     TableId tableId = TableId.of("myproject", "mydataset", "mytable");
     TaskAttemptID taskAttemptID = new TaskAttemptID();
     Path path =
-        FileLoadUtils.getTaskAvroTempFile(conf, tableId, "gs://example/mypath", taskAttemptID);
+        IndirectUtils.getTaskAvroTempFile(conf, tableId, "gs://example/mypath", taskAttemptID);
     assertEquals(
         "gs://example/mypath/bq-hive-query123/myproject_mydataset_mytable_task__0000_r_000000.avro",
         path.toString());
