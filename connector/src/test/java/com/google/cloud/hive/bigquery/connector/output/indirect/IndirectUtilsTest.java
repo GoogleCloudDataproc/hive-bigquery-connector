@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector;
+package com.google.cloud.hive.bigquery.connector.output.indirect;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.config.RunConf;
-import com.google.cloud.hive.bigquery.connector.output.direct.DirectUtils;
-import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.junit.jupiter.api.Test;
 
-public class UnitTests {
+public class IndirectUtilsTest {
 
   @Test
   public void testGcsTempDir() {
@@ -63,26 +61,6 @@ public class UnitTests {
         IndirectUtils.getTaskAvroTempFile(conf, tableId, "gs://example/mypath", taskAttemptID);
     assertEquals(
         "gs://example/mypath/bq-hive-query123/myproject_mydataset_mytable_task__0000_r_000000.avro",
-        path.toString());
-  }
-
-  @Test
-  public void testGetTaskTempStreamFileNamePrefix() {
-    TableId tableId = TableId.of("myproject", "mydataset", "mytable");
-    String prefix = DirectUtils.getTaskTempStreamFileNamePrefix(tableId);
-    assertEquals("myproject_mydataset_mytable", prefix);
-  }
-
-  @Test
-  public void testGetTaskTempStreamFile() {
-    Configuration conf = new Configuration();
-    conf.set("hive.query.id", "query123");
-    conf.set("bq.work.dir.parent.path", "/my/workdir");
-    TableId tableId = TableId.of("myproject", "mydataset", "mytable");
-    TaskAttemptID taskAttemptID = new TaskAttemptID();
-    Path path = DirectUtils.getTaskTempStreamFile(conf, tableId, taskAttemptID);
-    assertEquals(
-        "/my/workdir/bq-hive-query123/myproject_mydataset_mytable_task__0000_r_000000.stream",
         path.toString());
   }
 }
