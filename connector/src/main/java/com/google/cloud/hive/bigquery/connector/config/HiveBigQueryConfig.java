@@ -23,7 +23,6 @@ import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
-import com.google.cloud.bigquery.TimePartitioning.Type;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryConfig;
 import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
@@ -80,7 +79,7 @@ public class HiveBigQueryConfig
   Optional<String> materializationProject = empty();
   Optional<String> materializationDataset = empty();
   Optional<String> partitionField = empty();
-  Optional<Type> partitionType = empty();
+  Optional<TimePartitioning.Type> partitionType = empty();
   Long partitionExpirationMs = null;
   Optional<Boolean> partitionRequireFilter = empty();
   Optional<String[]> clusteredFields = empty();
@@ -153,12 +152,12 @@ public class HiveBigQueryConfig
   }
 
   @Override
-  public java.util.Optional<Type> getPartitionType() {
+  public java.util.Optional<TimePartitioning.Type> getPartitionType() {
     return partitionType.toJavaUtil();
   }
 
   @Override
-  public Type getPartitionTypeOrDefault() {
+  public TimePartitioning.Type getPartitionTypeOrDefault() {
     return partitionType.or(TimePartitioning.Type.DAY);
   }
 

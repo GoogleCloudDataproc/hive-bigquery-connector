@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
@@ -30,7 +29,6 @@ import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import repackaged.by.hivebqconnector.com.google.common.base.Optional;
 import repackaged.by.hivebqconnector.com.google.common.base.Preconditions;
 
 public class DirectWriterContext {
@@ -38,15 +36,12 @@ public class DirectWriterContext {
   final Logger LOG = LoggerFactory.getLogger(DirectWriterContext.class);
 
   private final BigQueryClient bigQueryClient;
-  private final BigQueryClientFactory writeClientFactory;
   private final TableId destinationTableId;
-  private final RetrySettings bigqueryDataWriterHelperRetrySettings;
-  private final Optional<String> traceId;
 
   private final BigQueryTable tableToWrite;
   private final String tablePathForBigQueryStorage;
 
-  private BigQueryWriteClient writeClient;
+  private final BigQueryWriteClient writeClient;
 
   enum WritingMode {
     IGNORE_INPUTS,
@@ -54,28 +49,21 @@ public class DirectWriterContext {
     ALL_ELSE
   }
 
-  private WritingMode writingMode = WritingMode.ALL_ELSE;
+  private final WritingMode writingMode = WritingMode.ALL_ELSE;
 
   public DirectWriterContext(
       BigQueryClient bigQueryClient,
       BigQueryClientFactory bigQueryWriteClientFactory,
       TableId destinationTableId,
-      Schema schema,
-      RetrySettings bigqueryDataWriterHelperRetrySettings,
-      Optional<String> traceId)
+      Schema schema)
       throws IllegalArgumentException {
     this.bigQueryClient = bigQueryClient;
-    this.writeClientFactory = bigQueryWriteClientFactory;
     this.destinationTableId = destinationTableId;
-    this.bigqueryDataWriterHelperRetrySettings = bigqueryDataWriterHelperRetrySettings;
-    this.traceId = traceId;
     this.tableToWrite = getOrCreateTable(destinationTableId, schema);
     this.tablePathForBigQueryStorage =
         bigQueryClient.createTablePathForBigQueryStorage(tableToWrite.getTableId());
 
-    if (!writingMode.equals(WritingMode.IGNORE_INPUTS)) {
-      this.writeClient = writeClientFactory.getBigQueryWriteClient();
-    }
+    this.writeClient = bigQueryWriteClientFactory.getBigQueryWriteClient();
   }
 
   /**

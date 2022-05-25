@@ -78,13 +78,7 @@ public class DirectOutputCommitter {
 
     // Finally, make the new data available in the destination table by committing the streams
     DirectWriterContext writerContext =
-        new DirectWriterContext(
-            bqClient,
-            bqClientFactory,
-            opts.getTableId(),
-            bigQuerySchema,
-            opts.getBigQueryClientRetrySettings(),
-            opts.getTraceId());
+        new DirectWriterContext(bqClient, bqClientFactory, opts.getTableId(), bigQuerySchema);
     writerContext.commit(streamNames);
 
     if (jobInfo.isOverwrite()) {

@@ -18,7 +18,6 @@ package com.google.cloud.hive.bigquery.connector.input;
 import static repackaged.by.hivebqconnector.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -200,9 +199,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     ReadSessionResponse readSessionResponse =
         readSessionCreator.create(opts.getTableId(), ImmutableList.copyOf(selectedFields), filter);
     ReadSession readSession = readSessionResponse.getReadSession();
-    TableInfo actualTable = readSessionResponse.getReadTableInfo();
     Path warehouseLocation = new Path(jobConf.get("location"));
-    long numRows = bqClient.calculateTableSize(actualTable, filter);
     FileSplit[] fileSplits = new FileSplit[readSession.getStreamsCount()];
     int i = 0;
     for (ReadStream readStream : readSession.getStreamsList()) {

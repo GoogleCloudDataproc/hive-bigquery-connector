@@ -16,7 +16,6 @@
 package com.google.cloud.hive.bigquery.connector.input.arrow;
 
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
-import java.io.IOException;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.InputFormat;
@@ -35,16 +34,15 @@ public class BigQueryArrowInputFormat implements InputFormat<NullWritable, Objec
    * @param numSplits Number of splits requested by MapReduce, but ignored as BigQuery decides the
    *     number of streams used in the read session.
    * @return InputSplit[] - Collection of FileSplits
-   * @throws IOException
    */
   @Override
-  public InputSplit[] getSplits(JobConf jobConf, int numSplits) throws IOException {
+  public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
     return BigQueryInputSplit.createSplitsfromBigQueryReadStreams(jobConf);
   }
 
   @Override
   public RecordReader<NullWritable, ObjectWritable> getRecordReader(
-      InputSplit inputSplit, JobConf jobConf, Reporter reporter) throws IOException {
+      InputSplit inputSplit, JobConf jobConf, Reporter reporter) {
     return new ArrowRecordReader((BigQueryInputSplit) inputSplit, jobConf);
   }
 }

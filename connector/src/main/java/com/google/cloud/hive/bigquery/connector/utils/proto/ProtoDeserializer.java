@@ -53,7 +53,7 @@ public class ProtoDeserializer {
 
       Descriptors.Descriptor nestedTypeDescriptor =
           schemaDescriptor.findNestedTypeByName(
-              ProtoSchemaConverter.RESERVED_NESTED_TYPE_NAME + (protoFieldNumber));
+              ProtoSchemaConverter.RESERVED_NESTED_TYPE_NAME + protoFieldNumber);
       Object protoValue =
           convertHiveValueToProtoRowValue(fieldObjectInspector, hiveValue, nestedTypeDescriptor);
 

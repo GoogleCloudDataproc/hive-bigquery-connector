@@ -22,6 +22,7 @@ import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoDeserializer;
 import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -88,7 +89,7 @@ public class DirectRecordWriter
       Path filePath =
           DirectUtils.getTaskTempStreamFile(jobConf, jobInfo.getTableId(), taskAttemptID);
       FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);
-      streamFile.write(streamWriter.getWriteStreamName().getBytes());
+      streamFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
       streamFile.close();
     }
   }
