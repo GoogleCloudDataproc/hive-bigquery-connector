@@ -75,9 +75,9 @@ public class AvroUtils {
   }
 
   /**
-   * Helper class that writes Avro records into memory. This is used by the 'indirect' write
-   * method. The contents are later persisted to GCS when each task completes. And later written to
-   * BigQuery when the overall job completes.
+   * Helper class that writes Avro records into memory. This is used by the 'indirect' write method.
+   * The contents are later persisted to GCS when each task completes. And later written to BigQuery
+   * when the overall job completes.
    */
   public static class AvroOutput {
 

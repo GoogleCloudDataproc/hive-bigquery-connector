@@ -74,7 +74,7 @@
           <formats>
             <format>
               <includes>
-                <include>*.java</include>
+                <include>*</include>
               </includes>
               <trimTrailingWhitespace/>
               <endWithNewline/>

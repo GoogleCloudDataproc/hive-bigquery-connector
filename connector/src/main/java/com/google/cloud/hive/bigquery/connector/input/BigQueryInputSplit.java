@@ -48,7 +48,6 @@ import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import repackaged.by.hivebqconnector.com.google.common.annotations.VisibleForTesting;
-import repackaged.by.hivebqconnector.com.google.common.base.Preconditions;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 
 public class BigQueryInputSplit extends HiveInputSplit implements Writable {
@@ -65,10 +64,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   }
 
   public BigQueryInputSplit(
-      TableId tableId,
-      Path warehouseLocation,
-      String streamName,
-      List<String> columnNames) {
+      TableId tableId, Path warehouseLocation, String streamName, List<String> columnNames) {
     super();
     this.tableId = tableId;
     this.warehouseLocation = warehouseLocation;
@@ -118,8 +114,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   @Override
   public String toString() {
-    return String.format(
-        "warehouseLocation=%s, streamName=%s", warehouseLocation, streamName);
+    return String.format("warehouseLocation=%s, streamName=%s", warehouseLocation, streamName);
   }
 
   public TableId getTableId() {
@@ -212,8 +207,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     int i = 0;
     for (ReadStream readStream : readSession.getStreamsList()) {
       fileSplits[i++] =
-          new BigQueryInputSplit(
-              tableId, warehouseLocation, readStream.getName(), columnNames);
+          new BigQueryInputSplit(tableId, warehouseLocation, readStream.getName(), columnNames);
     }
     return fileSplits;
   }
