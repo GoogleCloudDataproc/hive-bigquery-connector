@@ -170,14 +170,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
       // Retrieve the BigQuery schema of the final destination table
       Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try {
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(bigQuerySchema);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      jobInfo.setBigQuerySchema(baos.toByteArray());
 
       // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
       // write method. In this case, we will stream-write to a temporary table

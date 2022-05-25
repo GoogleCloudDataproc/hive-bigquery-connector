@@ -45,7 +45,6 @@ public class JobInfo {
   private String gcsTempPath; // Only used by the 'indirect' write method
   private String avroSchema; // Only used by the 'indirect' write method
   private byte[] protoSchema; // Only used by the 'direct' write method
-  private byte[] bigQuerySchema; // Only used by the 'direct' write method
   private Properties tableProperties;
 
   public JobInfo() {}
@@ -116,22 +115,6 @@ public class JobInfo {
 
   public void setProtoSchema(byte[] protoSchema) {
     this.protoSchema = protoSchema;
-  }
-
-  public com.google.cloud.bigquery.Schema getBigQuerySchema() {
-    ByteArrayInputStream bais = new ByteArrayInputStream(bigQuerySchema);
-    com.google.cloud.bigquery.Schema schema;
-    try {
-      ObjectInputStream ois = new ObjectInputStream(bais);
-      schema = (com.google.cloud.bigquery.Schema) ois.readObject();
-    } catch (IOException | ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
-    return schema;
-  }
-
-  public void setBigQuerySchema(byte[] bigQuerySchema) {
-    this.bigQuerySchema = bigQuerySchema;
   }
 
   public Properties getTableProperties() {

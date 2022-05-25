@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
@@ -72,13 +73,16 @@ public class DirectOutputCommitter {
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
 
+    // Retrieve the BigQuery schema
+    Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
+
     // Finally, make the new data available in the destination table by committing the streams
     DirectWriterContext writerContext =
         new DirectWriterContext(
             bqClient,
             bqClientFactory,
             opts.getTableId(),
-            jobInfo.getBigQuerySchema(),
+            bigQuerySchema,
             opts.getBigQueryClientRetrySettings(),
             opts.getTraceId());
     writerContext.commit(streamNames);
