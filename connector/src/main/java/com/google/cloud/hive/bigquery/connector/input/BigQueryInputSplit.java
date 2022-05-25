@@ -201,6 +201,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     //  when it calls the BQ API's getTable() method. We should maybe modify that
     //  library's code to better handle this case and provide a better error message
     //  instead of just throwing a NullPointerException.
+    //  See: https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/640
     ReadSessionResponse readSessionResponse =
         readSessionCreator.create(opts.getTableId(), ImmutableList.copyOf(selectedFields), filter);
     ReadSession readSession = readSessionResponse.getReadSession();
