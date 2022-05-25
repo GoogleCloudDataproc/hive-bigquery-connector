@@ -32,7 +32,6 @@ public class RunConf {
     DATASET("bq.dataset", null),
     TABLE("bq.table", null),
     WRITE_METHOD("bq.write.method", WRITE_METHOD_DIRECT),
-    SKEW_LIMIT("bq.input.skew.limit", "1.5"),
     TEMP_GCS_PATH("bq.temp.gcs.path", null),
     WORK_DIR_PARENT_PATH("bq.work.dir.parent.path", null),
     WORK_DIR_NAME_PREFIX("bq.work.dir.name.prefix", "bq-hive-"),

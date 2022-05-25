@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
-import static java.lang.Math.round;
 import static repackaged.by.hivebqconnector.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.bigquery.TableId;
@@ -58,7 +57,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   private TableId tableId;
   private Path warehouseLocation;
   private String streamName;
-  private long limit;
   private List<String> columnNames;
 
   @VisibleForTesting
@@ -70,13 +68,11 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       TableId tableId,
       Path warehouseLocation,
       String streamName,
-      long limit,
       List<String> columnNames) {
     super();
     this.tableId = tableId;
     this.warehouseLocation = warehouseLocation;
     this.streamName = streamName;
-    this.limit = limit;
     this.columnNames = columnNames;
   }
 
@@ -87,7 +83,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     out.writeUTF(tableId.getTable());
     out.writeUTF(warehouseLocation.toString());
     out.writeUTF(streamName);
-    out.writeLong(limit);
     byte[] columnNamesAsBytes = String.join(",", columnNames).getBytes(StandardCharsets.UTF_8);
     out.writeInt(columnNamesAsBytes.length);
     out.write(columnNamesAsBytes, 0, columnNamesAsBytes.length);
@@ -101,7 +96,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     tableId = TableId.of(project, dataset, table);
     warehouseLocation = new Path(in.readUTF());
     streamName = in.readUTF();
-    limit = in.readLong();
     int length = in.readInt();
     byte[] columnNamesAsBytes = new byte[length];
     in.readFully(columnNamesAsBytes);
@@ -125,7 +119,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   @Override
   public String toString() {
     return String.format(
-        "warehouseLocation=%s, streamName=%s, limit=%s", warehouseLocation, streamName, limit);
+        "warehouseLocation=%s, streamName=%s", warehouseLocation, streamName);
   }
 
   public TableId getTableId() {
@@ -134,10 +128,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   public String getStreamName() {
     return this.streamName;
-  }
-
-  public long getLimit() {
-    return this.limit;
   }
 
   @Override
@@ -216,21 +206,13 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     ReadSession readSession = readSessionResponse.getReadSession();
     TableInfo actualTable = readSessionResponse.getReadTableInfo();
     Path warehouseLocation = new Path(jobConf.get("location"));
-    // TODO: The skew logic below is taken from legacy Hadoop/BigQuery connector.
-    //  Do we want to keep it?
-    double skewLimit = Double.parseDouble(Config.SKEW_LIMIT.get(jobConf));
-    Preconditions.checkArgument(
-        skewLimit >= 1.0,
-        "%s is less than 1; not all records would be read. Exiting",
-        Config.SKEW_LIMIT.getKey());
     long numRows = bqClient.calculateTableSize(actualTable, filter);
-    long limit = round(skewLimit * numRows / readSession.getStreamsCount());
     FileSplit[] fileSplits = new FileSplit[readSession.getStreamsCount()];
     int i = 0;
     for (ReadStream readStream : readSession.getStreamsList()) {
       fileSplits[i++] =
           new BigQueryInputSplit(
-              tableId, warehouseLocation, readStream.getName(), limit, columnNames);
+              tableId, warehouseLocation, readStream.getName(), columnNames);
     }
     return fileSplits;
   }
