@@ -200,8 +200,10 @@
             </goals>
             <configuration>
               <descriptorRefs>
-                <descriptorRef>with-dependencies</descriptorRef>
+                <descriptorRef>jar-with-dependencies</descriptorRef>
               </descriptorRefs>
+              <appendAssemblyId>false</appendAssemblyId>
+              <finalName>${project.artifactId}-${revision}-with-dependencies</finalName>
             </configuration>
           </execution>
         </executions>
