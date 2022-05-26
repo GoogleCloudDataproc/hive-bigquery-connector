@@ -1,0 +1,58 @@
+/*
+ * Copyright 2022 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.google.cloud.hive.bigquery.connector.config;
+
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.connector.common.BigQueryConfig;
+import com.google.cloud.bigquery.connector.common.UserAgentProvider;
+import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
+import com.google.inject.Binder;
+import com.google.inject.Module;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
+import org.apache.hadoop.conf.Configuration;
+
+/**
+ * Class used to retrieve some bigquery-connector-common objects (e.g. the BigQuery client) when
+ * using the Guice injector.
+ */
+public class HiveBigQueryConnectorModule implements Module {
+
+  private final Configuration conf;
+  private final TableId tableId;
+
+  public HiveBigQueryConnectorModule(Configuration conf, TableId tableId) {
+    this.conf = conf;
+    this.tableId = tableId;
+  }
+
+  @Override
+  public void configure(Binder binder) {
+    binder.bind(BigQueryConfig.class).toProvider(this::provideHiveBigQueryConfig);
+  }
+
+  @Singleton
+  @Provides
+  public HiveBigQueryConfig provideHiveBigQueryConfig() {
+    return HiveBigQueryConfig.from(conf, tableId);
+  }
+
+  @Singleton
+  @Provides
+  public UserAgentProvider provideUserAgentProvider() {
+    return new HiveBigQueryConnectorUserAgentProvider(HiveUtils.getHiveId(conf));
+  }
+}
