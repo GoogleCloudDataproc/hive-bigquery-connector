@@ -23,10 +23,12 @@ import com.google.cloud.hive.bigquery.connector.input.arrow.BigQueryArrowInputFo
 import com.google.cloud.hive.bigquery.connector.input.avro.BigQueryAvroInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.util.Map;
+import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -39,11 +41,14 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorizationProvider;
 import org.apache.hadoop.hive.ql.security.authorization.HiveAuthorizationProvider;
-import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.*;
 import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.OutputFormat;
 import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
@@ -126,14 +131,6 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
     Properties tableProperties = tableDesc.getProperties();
     jobInfo.setTableProperties(tableProperties);
-    String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
-    String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
-    String columnCommentProperty = tableProperties.getProperty("columns.comments", "");
-    String columnNameDelimiter =
-        tableProperties.containsKey(serdeConstants.COLUMN_NAME_DELIMITER)
-            ? tableProperties.getProperty(serdeConstants.COLUMN_NAME_DELIMITER)
-            : String.valueOf(',');
-
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
@@ -149,6 +146,8 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
       ProtoSchema protoSchema =
           com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter.convert(descriptor);
       jobInfo.setProtoSchema(protoSchema.toByteArray());
+    } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+      jobInfo.setAvroSchema(AvroUtils.extractAvroSchema(conf, tableProperties).toString());
     } else {
       throw new RuntimeException("Invalid write method: " + writeMethod);
     }

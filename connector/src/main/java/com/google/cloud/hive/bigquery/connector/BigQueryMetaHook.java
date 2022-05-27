@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -203,6 +204,21 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                 bigQuerySchema);
         // Set the temp table as the job's output table
         jobInfo.setTable(tableInfo.getTableId().getTable());
+      }
+    } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+      String tempGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
+      jobInfo.setGcsTempPath(tempGcsPath);
+      if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
+        throw new MetaException(
+            String.format(
+                "The '%s' property must be set when using the '%s' write method.",
+                HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
+      } else if (!IndirectUtils.hasGcsWriteAccess(tempGcsPath)) {
+        throw new MetaException(
+            String.format(
+                "Cannot write to table '%s'. Does not have write access to the"
+                    + " following GCS path, or bucket does not exist: %s",
+                table.getTableName(), tempGcsPath));
       }
     } else {
       throw new MetaException("Invalid write method: " + writeMethod);

@@ -17,6 +17,9 @@ package com.google.cloud.hive.bigquery.connector.utils.avro;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.TimeZone;
 import org.apache.avro.Schema;
@@ -27,8 +30,13 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroJob;
 import org.apache.avro.mapred.AvroOutputFormat;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.common.StringInternUtils;
+import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeException;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapred.JobConf;
 
 public class AvroUtils {
@@ -68,6 +76,42 @@ public class AvroUtils {
       return AvroSerdeUtils.determineSchemaOrThrowException(new Configuration(), properties);
     } catch (AvroSerdeException | IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  /** Extract the Avro schema from the given table properties. */
+  public static Schema extractAvroSchema(Configuration conf, Properties tableProperties) {
+    String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
+    String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
+    String columnCommentProperty = tableProperties.getProperty("columns.comments", "");
+    String columnNameDelimiter =
+        tableProperties.containsKey(serdeConstants.COLUMN_NAME_DELIMITER)
+            ? tableProperties.getProperty(serdeConstants.COLUMN_NAME_DELIMITER)
+            : String.valueOf(',');
+    boolean hasExternalSchema =
+        tableProperties.getProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
+                != null
+            || tableProperties.getProperty(
+                    AvroSerdeUtils.AvroTableProperties.SCHEMA_URL.getPropName())
+                != null;
+    if (!hasExternalSchema
+        && columnNameProperty != null
+        && !columnNameProperty.isEmpty()
+        && columnTypeProperty != null
+        && !columnTypeProperty.isEmpty()) {
+      List<String> columnNames =
+          StringInternUtils.internStringsInList(
+              Arrays.asList(columnNameProperty.split(columnNameDelimiter)));
+      ArrayList<TypeInfo> columnTypes =
+          TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
+      return AvroSerDe.getSchemaFromCols(
+          tableProperties, columnNames, columnTypes, columnCommentProperty);
+    } else {
+      try {
+        return AvroSerdeUtils.determineSchemaOrThrowException(conf, tableProperties);
+      } catch (IOException | AvroSerdeException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
