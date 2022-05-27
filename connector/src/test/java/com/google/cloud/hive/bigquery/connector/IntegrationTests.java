@@ -16,9 +16,11 @@
 package com.google.cloud.hive.bigquery.connector;
 
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.*;
 import com.klarna.hiverunner.*;
@@ -27,6 +29,9 @@ import com.klarna.hiverunner.config.HiveRunnerConfig;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.junit.jupiter.api.Test;
@@ -91,7 +96,7 @@ public class IntegrationTests {
   }
 
   public void initHive() {
-    initHive("mr", HiveBigQueryConfig.AVRO);
+    initHive("mr", HiveBigQueryConfig.ARROW);
   }
 
   public void initHive(String engine, String readDataFormat) {
@@ -156,5 +161,149 @@ public class IntegrationTests {
       assertTrue(exception.getMessage().contains("Unsupported Hive type: " + type));
     }
     tearDown();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that reading an empty BQ table actually returns 0 results. */
+  public void readEmptyTable(String engine, String readDataFormat) {
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    initHive(engine, readDataFormat);
+    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    List<Object[]> rows = hive.executeStatement(String.format("SELECT * FROM %s", TEST_TABLE_NAME));
+    assertThat(rows).isEmpty();
+  }
+
+  @Test
+  public void testReadEmptyTable() {
+    for (String engine : new String[] {"mr", "tez"}) {
+      for (String readDataFormat :
+          new String[] {HiveBigQueryConfig.ARROW /*, HiveBigQueryConfig.AVRO*/}) {
+        setUp();
+        readEmptyTable(engine, readDataFormat);
+        tearDown();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Test the WHERE clause */
+  public void whereClause(String engine, String readDataFormat) {
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    initHive(engine, readDataFormat);
+    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    // Insert data into BQ using the BQ SDK
+    runBqQuery(
+        String.format(
+            "INSERT `%s.%s` VALUES (123, 'hello'), (999, 'abcd')", DATASET, TEST_TABLE_NAME));
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Read filtered data using Hive
+    List<Object[]> rows =
+        hive.executeStatement(
+            String.format("SELECT * FROM %s WHERE number = 999", TEST_TABLE_NAME));
+    // Verify we get the expected rows
+    assertArrayEquals(
+        new Object[] {
+          new Object[] {999L, "abcd"},
+        },
+        rows.toArray());
+    // TODO: Confirm that the predicate was in fact pushed down to BigQuery
+  }
+
+  @Test
+  public void testWhereClause() {
+    for (String engine : new String[] {"mr", "tez"}) {
+      for (String readDataFormat :
+          new String[] {HiveBigQueryConfig.ARROW /*, HiveBigQueryConfig.AVRO*/}) {
+        setUp();
+        whereClause(engine, readDataFormat);
+        tearDown();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Test the `SELECT` statement with explicit columns (i.e. not `SELECT *`) */
+  public void selectExplicitColumns(String engine, String readDataFormat) {
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    initHive(engine, readDataFormat);
+    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    // Insert data into BQ using the BQ SDK
+    runBqQuery(
+        String.format(
+            "INSERT `%s.%s` VALUES (123, 'hello'), (999, 'abcd')", DATASET, TEST_TABLE_NAME));
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Read filtered data using Hive
+    // Try with both columns in order
+    List<Object[]> rows =
+        hive.executeStatement(
+            String.format("SELECT number, text FROM %s ORDER BY number", TEST_TABLE_NAME));
+    assertArrayEquals(
+        new Object[] {
+          new Object[] {123L, "hello"},
+          new Object[] {999L, "abcd"}
+        },
+        rows.toArray());
+    // Try in different order
+    rows =
+        hive.executeStatement(
+            String.format("SELECT text, number FROM %s ORDER BY number", TEST_TABLE_NAME));
+    assertArrayEquals(
+        new Object[] {
+          new Object[] {"hello", 123L},
+          new Object[] {"abcd", 999L}
+        },
+        rows.toArray());
+    // Try a single column
+    rows =
+        hive.executeStatement(
+            String.format("SELECT number FROM %s ORDER BY number", TEST_TABLE_NAME));
+    assertArrayEquals(new Object[] {new Object[] {123L}, new Object[] {999L}}, rows.toArray());
+    // Try another single column
+    rows =
+        hive.executeStatement(String.format("SELECT text FROM %s ORDER BY text", TEST_TABLE_NAME));
+    assertArrayEquals(new Object[] {new Object[] {"abcd"}, new Object[] {"hello"}}, rows.toArray());
+  }
+
+  @Test
+  public void testSelectExplicitColumns() {
+    for (String engine : new String[] {"mr", "tez"}) {
+      for (String readDataFormat :
+          new String[] {HiveBigQueryConfig.ARROW /*, HiveBigQueryConfig.AVRO*/}) {
+        setUp();
+        selectExplicitColumns(engine, readDataFormat);
+        tearDown();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Smoke test to make sure BigQuery accepts all different types of pushed predicates */
+  @Test
+  public void testWhereClauseAllTypes() {
+    setUp();
+    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+    initHive();
+    hive.execute(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    hive.executeStatement(
+        Stream.of(
+                "SELECT * FROM " + ALL_TYPES_TABLE_NAME + " WHERE",
+                "((int_val > 10 AND bl = TRUE)",
+                "OR (str = 'hello' OR day >= to_date('2000-01-01')))",
+                "AND (ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND"
+                    + " TIMESTAMP'2019-06-11 03:55:10.00')",
+                "AND (fl <= 4.2)")
+            .collect(Collectors.joining("\n")));
+    tearDown();
+    // TODO: Confirm that the predicates were in fact pushed down to BigQuery
   }
 }

@@ -23,6 +23,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -32,9 +33,9 @@ import org.apache.hadoop.conf.Configuration;
 public class HiveBigQueryConnectorModule implements Module {
 
   private final Configuration conf;
-  private final TableId tableId;
+  private final Optional<TableId> tableId;
 
-  public HiveBigQueryConnectorModule(Configuration conf, TableId tableId) {
+  public HiveBigQueryConnectorModule(Configuration conf, Optional<TableId> tableId) {
     this.conf = conf;
     this.tableId = tableId;
   }

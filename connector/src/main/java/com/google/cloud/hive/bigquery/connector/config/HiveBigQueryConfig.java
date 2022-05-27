@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.threeten.bp.Duration;
 import repackaged.by.hivebqconnector.com.google.common.base.Optional;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
@@ -82,6 +84,7 @@ public class HiveBigQueryConfig
   public static final String VIEWS_ENABLED_OPTION = "viewsEnabled";
 
   private TableId tableId;
+  private Optional<String> columnNameDelimiter;
   private Optional<String> credentialsKey = empty();
   private Optional<String> credentialsFile = empty();
   private Optional<String> accessToken = empty();
@@ -130,9 +133,21 @@ public class HiveBigQueryConfig
     // empty
   }
 
-  public static HiveBigQueryConfig from(Configuration conf, TableId tableId) {
+  public static HiveBigQueryConfig from(Configuration conf, java.util.Optional<TableId> tableId) {
     HiveBigQueryConfig config = new HiveBigQueryConfig();
-    config.tableId = tableId;
+    if (tableId.isPresent()) {
+      config.tableId = tableId.get();
+    } else {
+      String project = conf.get(HiveBigQueryConfig.PROJECT_KEY);
+      String dataset = conf.get(HiveBigQueryConfig.DATASET_KEY);
+      String table = conf.get(HiveBigQueryConfig.TABLE_KEY);
+      if (project != null && dataset != null && table != null) {
+        config.tableId = TableId.of(project, dataset, table);
+      }
+    }
+    config.columnNameDelimiter =
+        Optional.fromNullable(conf.get(serdeConstants.COLUMN_NAME_DELIMITER))
+            .or(Optional.of(String.valueOf(SerDeUtils.COMMA)));
     config.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     String readDataFormat =
         conf.get(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, HiveBigQueryConfig.ARROW);
@@ -164,6 +179,10 @@ public class HiveBigQueryConfig
   @Override
   public TableId getTableId() {
     return tableId;
+  }
+
+  public String getColumnNameDelimiter() {
+    return columnNameDelimiter.get();
   }
 
   @Override
