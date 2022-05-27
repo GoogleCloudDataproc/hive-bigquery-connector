@@ -15,6 +15,10 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import static com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
+
+import com.google.cloud.hive.bigquery.connector.config.RunConf;
+import com.google.cloud.hive.bigquery.connector.input.arrow.BigQueryArrowInputFormat;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.HiveMetaHook;
@@ -38,7 +42,12 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public Class<? extends InputFormat> getInputFormatClass() {
-    return TextInputFormat.class; // Dummy input format. Will be replaced later.
+    String readDataFormat = Config.READ_DATA_FORMAT.get(conf);
+    if (readDataFormat.equals(RunConf.ARROW)) {
+      return BigQueryArrowInputFormat.class;
+    } else {
+      throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
+    }
   }
 
   @Override
@@ -82,12 +91,11 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   }
 
   @Override
-  public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
-  }
+  public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {}
 
   @Override
-  public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
-  }
+  public void configureOutputJobProperties(
+      TableDesc tableDesc, Map<String, String> jobProperties) {}
 
   @Override
   public void configureInputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {

@@ -119,16 +119,13 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   }
 
   @Override
-  public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-  }
+  public void preInsertTable(Table table, boolean overwrite) throws MetaException {}
 
   @Override
-  public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
-  }
+  public void commitInsertTable(Table table, boolean overwrite) throws MetaException {}
 
   @Override
-  public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
-  }
+  public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {}
 
   @Override
   public void rollbackCreateTable(Table table) throws MetaException {
