@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.config;
 
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.connector.common.BigQueryConfig;
 import com.google.cloud.bigquery.connector.common.UserAgentProvider;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
@@ -23,7 +22,9 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -33,11 +34,22 @@ import org.apache.hadoop.conf.Configuration;
 public class HiveBigQueryConnectorModule implements Module {
 
   private final Configuration conf;
-  private final Optional<TableId> tableId;
+  private Map<String, String> tableParameters;
 
-  public HiveBigQueryConnectorModule(Configuration conf, Optional<TableId> tableId) {
+  public HiveBigQueryConnectorModule(Configuration conf) {
     this.conf = conf;
-    this.tableId = tableId;
+  }
+
+  public HiveBigQueryConnectorModule(Configuration conf, Map<String, String> tableParameters) {
+    this.conf = conf;
+    this.tableParameters = tableParameters;
+  }
+
+  public HiveBigQueryConnectorModule(Configuration conf, Properties tableProperties) {
+    this(conf, new HashMap<>());
+    for (String key : tableProperties.stringPropertyNames()) {
+      tableParameters.put(key, tableProperties.getProperty(key));
+    }
   }
 
   @Override
@@ -48,7 +60,7 @@ public class HiveBigQueryConnectorModule implements Module {
   @Singleton
   @Provides
   public HiveBigQueryConfig provideHiveBigQueryConfig() {
-    return HiveBigQueryConfig.from(conf, tableId);
+    return HiveBigQueryConfig.from(conf, tableParameters);
   }
 
   @Singleton
