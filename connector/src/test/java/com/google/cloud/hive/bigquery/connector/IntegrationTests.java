@@ -179,7 +179,7 @@ public class IntegrationTests {
   @Test
   public void testReadEmptyTable() {
     for (String engine : new String[] {"mr", "tez"}) {
-      for (String readDataFormat : new String[] {RunConf.ARROW/*, RunConf.AVRO*/}) {
+      for (String readDataFormat : new String[] {RunConf.ARROW, RunConf.AVRO}) {
         setUp();
         readEmptyTable(engine, readDataFormat);
         tearDown();
@@ -218,7 +218,7 @@ public class IntegrationTests {
   @Test
   public void testWhereClause() {
     for (String engine : new String[] {"mr", "tez"}) {
-      for (String readDataFormat : new String[] {RunConf.ARROW/*, RunConf.AVRO*/}) {
+      for (String readDataFormat : new String[] {RunConf.ARROW, RunConf.AVRO}) {
         setUp();
         whereClause(engine, readDataFormat);
         tearDown();
@@ -276,7 +276,7 @@ public class IntegrationTests {
   @Test
   public void testSelectExplicitColumns() {
     for (String engine : new String[] {"mr", "tez"}) {
-      for (String readDataFormat : new String[] {RunConf.ARROW/*, RunConf.AVRO*/}) {
+      for (String readDataFormat : new String[] {RunConf.ARROW, RunConf.AVRO}) {
         setUp();
         selectExplicitColumns(engine, readDataFormat);
         tearDown();

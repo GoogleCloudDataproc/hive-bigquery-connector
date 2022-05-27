@@ -19,6 +19,7 @@ import static com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
 
 import com.google.cloud.hive.bigquery.connector.config.RunConf;
 import com.google.cloud.hive.bigquery.connector.input.arrow.BigQueryArrowInputFormat;
+import com.google.cloud.hive.bigquery.connector.input.avro.BigQueryAvroInputFormat;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.HiveMetaHook;
@@ -45,6 +46,8 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     String readDataFormat = Config.READ_DATA_FORMAT.get(conf);
     if (readDataFormat.equals(RunConf.ARROW)) {
       return BigQueryArrowInputFormat.class;
+    } else if (readDataFormat.equals(RunConf.AVRO)) {
+      return BigQueryAvroInputFormat.class;
     } else {
       throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
     }
