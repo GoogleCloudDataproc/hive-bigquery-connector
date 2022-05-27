@@ -25,7 +25,9 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
+import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
+import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
@@ -36,6 +38,7 @@ import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
@@ -51,6 +54,7 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   Configuration conf;
+  Schema createTableSchema;
 
   public BigQueryMetaHook(Configuration conf) {
     this.conf = conf;
@@ -116,11 +120,11 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     // Check compatibility with BigQuery features
     // TODO: accept DATE column 1 level partitioning
     if (table.getPartitionKeysSize() > 0) {
-      throw new MetaException("Creation of Partition table is not supported.");
+      throw new MetaException("Creation of Partition table is currently not supported.");
     }
 
     if (table.getSd().getBucketColsSize() > 0) {
-      throw new MetaException("Creation of bucketed table is not supported");
+      throw new MetaException("Creation of bucketed table is currently  not supported");
     }
 
     if (!Strings.isNullOrEmpty(table.getSd().getLocation())) {
@@ -143,6 +147,36 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             table
                 .getParameters()
                 .getOrDefault(HiveBigQueryConfig.PROJECT_KEY, getDefaultProject()));
+
+    // If it's a managed table, generate the BigQuery schema
+    if (!MetaStoreUtils.isExternalTable(table)) {
+      Injector injector =
+          Guice.createInjector(
+              new BigQueryClientModule(),
+              new HiveBigQueryConnectorModule(conf, table.getParameters()));
+      BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+      HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+      if (bqClient.tableExists(opts.getTableId())) {
+        throw new MetaException("BigQuery table already exists: " + opts.getTableId());
+      }
+      createTableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd());
+      // TODO: Add pseudos columns for partitions
+    }
+  }
+
+  /** Called before data is written to a table. */
+  @Override
+  public void commitCreateTable(Table table) throws MetaException {
+    if (!MetaStoreUtils.isExternalTable(table)) {
+      // Create the managed table in BigQuery
+      Injector injector =
+          Guice.createInjector(
+              new BigQueryClientModule(),
+              new HiveBigQueryConnectorModule(conf, table.getParameters()));
+      BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+      HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+      bqClient.createTable(opts.getTableId(), createTableSchema);
+    }
   }
 
   /** Called before data is written to a table. */
@@ -250,15 +284,30 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   }
 
   @Override
-  public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {}
-
-  @Override
-  public void rollbackCreateTable(Table table) throws MetaException {
-    // Do nothing
+  public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
+    try {
+      FileSystemUtils.deleteWorkDirOnExit(conf);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
-  public void commitCreateTable(Table table) throws MetaException {
+  public void commitDropTable(Table table, boolean deleteData) throws MetaException {
+    if (!MetaStoreUtils.isExternalTable(table) && deleteData) {
+      // This is a managed table, so let's delete the table in BigQuery
+      Injector injector =
+          Guice.createInjector(
+              new BigQueryClientModule(),
+              new HiveBigQueryConnectorModule(conf, table.getParameters()));
+      BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+      HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+      bqClient.deleteTable(opts.getTableId());
+    }
+  }
+
+  @Override
+  public void rollbackCreateTable(Table table) throws MetaException {
     // Do nothing
   }
 
@@ -269,11 +318,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   @Override
   public void rollbackDropTable(Table table) throws MetaException {
-    // Do nothing
-  }
-
-  @Override
-  public void commitDropTable(Table table, boolean b) throws MetaException {
     // Do nothing
   }
 }

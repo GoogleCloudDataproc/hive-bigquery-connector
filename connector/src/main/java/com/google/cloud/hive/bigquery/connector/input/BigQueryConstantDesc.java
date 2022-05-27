@@ -32,6 +32,7 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
   public BigQueryConstantDesc(TypeInfo typeInfo, Object value) {
     super(typeInfo, value);
   }
+
   /** Format the value of the predicate (.e. WHERE clause item) to be compatible with BigQuery. */
   private static String formatPredicateValue(TypeInfo typeInfo, Object value) {
     String typeName = typeInfo.getTypeName();

@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.*;
@@ -160,6 +161,75 @@ public class IntegrationTests {
                               + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'")));
       assertTrue(exception.getMessage().contains("Unsupported Hive type: " + type));
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that creating a managed table using Hive also creates a table in BigQuery */
+  @Test
+  public void testCreateManagedTable() {
+    initHive();
+    // Make sure the managed table doesn't exist yet in BigQuery
+    assertFalse(bQTableExists(MANAGED_TEST_TABLE_NAME));
+    // Create the managed table using Hive
+    hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    // Create another BQ table with the same schema
+    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+    // Make sure that the managed table was created in BQ
+    // and that the two schemas are the same
+    TableInfo managedTableInfo = getTableInfo(MANAGED_TEST_TABLE_NAME);
+    TableInfo allTypesTableInfo = getTableInfo(ALL_TYPES_TABLE_NAME);
+    assertEquals(
+        managedTableInfo.getDefinition().getSchema(),
+        allTypesTableInfo.getDefinition().getSchema());
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that you can't create a managed table if the equivalent BigQuery table already exists */
+  @Test
+  public void testCreateManagedTableAlreadyExists() {
+    initHive();
+    // Create the table in BigQuery
+    runBqQuery(BIGQUERY_MANAGED_TEST_TABLE_CREATE_QUERY);
+    // Try to create the managed table using Hive
+    Throwable exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY));
+    assertTrue(exception.getMessage().contains("BigQuery table already exists"));
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  @Test
+  public void testDropManagedTable() {
+    initHive();
+    // Make sure the managed table doesn't exist yet in BigQuery
+    assertFalse(bQTableExists(MANAGED_TEST_TABLE_NAME));
+    // Create the managed table using Hive
+    hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    // Check that the table was created in BigQuery
+    assertTrue(bQTableExists(MANAGED_TEST_TABLE_NAME));
+    // Drop the managed table using hive
+    hive.execute("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
+    // Check that the table in BigQuery is gone
+    assertFalse(bQTableExists(MANAGED_TEST_TABLE_NAME));
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  @Test
+  public void testDropExternalTable() {
+    initHive();
+    // Create the table in BigQuery
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    // Create the corresponding external table in Hive
+    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    // Drop the external table
+    hive.execute("DROP TABLE " + TEST_TABLE_NAME);
+    // Check that the table still exists in BigQuery
+    assertTrue(bQTableExists(TEST_TABLE_NAME));
   }
 
   // ---------------------------------------------------------------------------------------------------

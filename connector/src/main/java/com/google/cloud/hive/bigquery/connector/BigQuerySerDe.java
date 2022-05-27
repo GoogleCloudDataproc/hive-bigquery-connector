@@ -35,12 +35,12 @@ public class BigQuerySerDe extends AbstractSerDe {
 
   private StructObjectInspector rowObjectInspector;
 
-  public static StructObjectInspector getRowObjectInspector(Properties tableProperties) {
-    String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
-    String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
+  public static StructObjectInspector getRowObjectInspector(Map<Object, Object> tableProperties) {
+    String columnNameProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMNS);
+    String columnTypeProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMN_TYPES);
     String columnNameDelimiter =
         tableProperties.containsKey(serdeConstants.COLUMN_NAME_DELIMITER)
-            ? tableProperties.getProperty(serdeConstants.COLUMN_NAME_DELIMITER)
+            ? (String) tableProperties.get(serdeConstants.COLUMN_NAME_DELIMITER)
             : String.valueOf(SerDeUtils.COMMA);
     List<String> columnNames;
     List<TypeInfo> columnTypes;
