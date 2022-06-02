@@ -37,7 +37,6 @@ public class BigQueryFilters {
       ((ExprNodeGenericFuncDesc) filterExpr).setChildren(translatedChildren);
       return filterExpr;
     } else if (filterExpr instanceof ExprNodeColumnDesc) {
-      // Add the filtered field to the list of selected fields
       return filterExpr;
     } else if (filterExpr instanceof ExprNodeConstantDesc) {
       // Convert the ExprNodeConstantDesc to a BigQueryConstantDesc
