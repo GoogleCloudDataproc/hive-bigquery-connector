@@ -15,9 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import static com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
-
-import com.google.cloud.hive.bigquery.connector.config.RunConf;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.arrow.BigQueryArrowInputFormat;
 import com.google.cloud.hive.bigquery.connector.input.avro.BigQueryAvroInputFormat;
 import java.util.Map;
@@ -43,10 +41,11 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public Class<? extends InputFormat> getInputFormatClass() {
-    String readDataFormat = Config.READ_DATA_FORMAT.get(conf);
-    if (readDataFormat.equals(RunConf.ARROW)) {
+    String readDataFormat =
+        conf.get(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, HiveBigQueryConfig.ARROW);
+    if (readDataFormat.equals(HiveBigQueryConfig.ARROW)) {
       return BigQueryArrowInputFormat.class;
-    } else if (readDataFormat.equals(RunConf.AVRO)) {
+    } else if (readDataFormat.equals(HiveBigQueryConfig.AVRO)) {
       return BigQueryAvroInputFormat.class;
     } else {
       throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);

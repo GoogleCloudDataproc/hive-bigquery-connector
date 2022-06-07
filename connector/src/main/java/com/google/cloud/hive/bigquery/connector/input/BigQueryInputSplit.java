@@ -24,7 +24,6 @@ import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
-import com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.DataInput;
@@ -136,7 +135,9 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   public static InputSplit[] createSplitsfromBigQueryReadStreams(JobConf jobConf) {
     TableId tableId =
         TableId.of(
-            Config.PROJECT.get(jobConf), Config.DATASET.get(jobConf), Config.TABLE.get(jobConf));
+            jobConf.get(HiveBigQueryConfig.PROJECT_KEY),
+            jobConf.get(HiveBigQueryConfig.DATASET_KEY),
+            jobConf.get(HiveBigQueryConfig.TABLE_KEY));
 
     // Retrieve the table's column names
     String columnNameDelimiter =
