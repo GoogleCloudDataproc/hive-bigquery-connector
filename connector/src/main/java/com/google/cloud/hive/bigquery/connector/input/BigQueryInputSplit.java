@@ -135,7 +135,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   public static InputSplit[] createSplitsfromBigQueryReadStreams(JobConf jobConf) {
     TableId tableId =
         TableId.of(
-            Config.PROJECT.get(jobConf), Config.DATASET.get(jobConf), Config.TABLE.get(jobConf));
+            jobConf.get(HiveBigQueryConfig.PROJECT_KEY), jobConf.get(HiveBigQueryConfig.DATASET_KEY), jobConf.get(HiveBigQueryConfig.TABLE_KEY));
 
     // Retrieve the table's column names
     String columnNameDelimiter =
