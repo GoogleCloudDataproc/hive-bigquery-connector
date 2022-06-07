@@ -20,8 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.hive.bigquery.connector.config.RunConf;
-import com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.*;
 import com.klarna.hiverunner.*;
 import com.klarna.hiverunner.builder.HiveShellBuilder;
@@ -96,7 +95,7 @@ public class IntegrationTests {
   }
 
   public void initHive() {
-    initHive("mr", RunConf.ARROW);
+    initHive("mr", HiveBigQueryConfig.AVRO);
   }
 
   public void initHive(String engine, String readDataFormat) {
@@ -105,8 +104,8 @@ public class IntegrationTests {
 
   public void initHive(String engine, String readDataFormat, String tempGcsPath) {
     hive.setHiveConfValue(ConfVars.HIVE_EXECUTION_ENGINE.varname, engine);
-    hive.setHiveConfValue(Config.READ_DATA_FORMAT.getKey(), readDataFormat);
-    hive.setHiveConfValue(Config.TEMP_GCS_PATH.getKey(), tempGcsPath);
+    hive.setHiveConfValue(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, readDataFormat);
+    hive.setHiveConfValue(HiveBigQueryConfig.TEMP_GCS_PATH_KEY, tempGcsPath);
     hive.setHiveConfValue(
         "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
     hive.start();
@@ -179,7 +178,8 @@ public class IntegrationTests {
   @Test
   public void testReadEmptyTable() {
     for (String engine : new String[] {"mr", "tez"}) {
-      for (String readDataFormat : new String[] {RunConf.ARROW/*, RunConf.AVRO*/}) {
+      for (String readDataFormat :
+          new String[] {HiveBigQueryConfig.ARROW /*, HiveBigQueryConfig.AVRO*/}) {
         setUp();
         readEmptyTable(engine, readDataFormat);
         tearDown();
@@ -218,7 +218,8 @@ public class IntegrationTests {
   @Test
   public void testWhereClause() {
     for (String engine : new String[] {"mr", "tez"}) {
-      for (String readDataFormat : new String[] {RunConf.ARROW/*, RunConf.AVRO*/}) {
+      for (String readDataFormat :
+          new String[] {HiveBigQueryConfig.ARROW /*, HiveBigQueryConfig.AVRO*/}) {
         setUp();
         whereClause(engine, readDataFormat);
         tearDown();
@@ -276,7 +277,8 @@ public class IntegrationTests {
   @Test
   public void testSelectExplicitColumns() {
     for (String engine : new String[] {"mr", "tez"}) {
-      for (String readDataFormat : new String[] {RunConf.ARROW/*, RunConf.AVRO*/}) {
+      for (String readDataFormat :
+          new String[] {HiveBigQueryConfig.ARROW /*, HiveBigQueryConfig.AVRO*/}) {
         setUp();
         selectExplicitColumns(engine, readDataFormat);
         tearDown();
