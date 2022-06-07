@@ -15,8 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import static com.google.cloud.hive.bigquery.connector.config.RunConf.Config;
-
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
@@ -82,7 +81,10 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     // Check all mandatory table properties
     ImmutableList<String> mandatory =
-        ImmutableList.of(Config.PROJECT.getKey(), Config.DATASET.getKey(), Config.TABLE.getKey());
+        ImmutableList.of(
+            HiveBigQueryConfig.PROJECT_KEY,
+            HiveBigQueryConfig.DATASET_KEY,
+            HiveBigQueryConfig.TABLE_KEY);
     List<String> missingProperties = new ArrayList<>();
     for (String property : mandatory) {
       if (Strings.isNullOrEmpty(table.getParameters().get(property))) {
@@ -119,16 +121,13 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   }
 
   @Override
-  public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-  }
+  public void preInsertTable(Table table, boolean overwrite) throws MetaException {}
 
   @Override
-  public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
-  }
+  public void commitInsertTable(Table table, boolean overwrite) throws MetaException {}
 
   @Override
-  public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
-  }
+  public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {}
 
   @Override
   public void rollbackCreateTable(Table table) throws MetaException {

@@ -48,6 +48,30 @@ public class HiveBigQueryConfig
 
   private static final long serialVersionUID = 1L;
 
+  public static final String WRITE_METHOD_DIRECT = "direct";
+  public static final String WRITE_METHOD_INDIRECT = "indirect";
+  public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "bq-hive-";
+  public static final String ARROW = "arrow";
+  public static final String AVRO = "avro";
+
+  // Config keys
+  public static final String PROJECT_KEY = "bq.project";
+  public static final String DATASET_KEY = "bq.dataset";
+  public static final String TABLE_KEY = "bq.table";
+  public static final String WRITE_METHOD_KEY = "bq.write.method";
+  public static final String TEMP_GCS_PATH_KEY = "bq.temp.gcs.path";
+  public static final String WORK_DIR_PARENT_PATH_KEY = "bq.work.dir.parent.path";
+  public static final String WORK_DIR_NAME_PREFIX_KEY = "bq.work.dir.name.prefix";
+  public static final String READ_DATA_FORMAT_KEY = "bq.read.data.format";
+  public static final String CREDENTIALS_KEY_KEY = "bq.credentials.key";
+  public static final String CREDENTIALS_FILE_KEY = "bq.credentials.file";
+  public static final String ACCESS_TOKEN_KEY = "bq.access.token";
+  public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
+  public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
+  public static final String TIME_PARTITION_EXPIRATION_KEY = "bq.time.partition.expiration.ms";
+  public static final String TIME_PARTITION_REQUIRE_FILTER_KEY = "bq.time.partition.require.filter";
+  public static final String CLUSTERED_FIELDS_KEY = "bq.clustered.fields";
+
   public static final int DEFAULT_CACHE_EXPIRATION_IN_MINUTES = 15;
   private static final int DEFAULT_BIGQUERY_CLIENT_CONNECT_TIMEOUT = 60 * 1000;
   private static final int DEFAULT_BIGQUERY_CLIENT_READ_TIMEOUT = 60 * 1000;
@@ -110,10 +134,11 @@ public class HiveBigQueryConfig
     HiveBigQueryConfig config = new HiveBigQueryConfig();
     config.tableId = tableId;
     config.proxyConfig = HiveBigQueryProxyConfig.from(conf);
-    String readDataFormat = RunConf.Config.READ_DATA_FORMAT.get(conf);
-    if (readDataFormat.equals(RunConf.ARROW)) {
+    String readDataFormat =
+        conf.get(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, HiveBigQueryConfig.ARROW);
+    if (readDataFormat.equals(HiveBigQueryConfig.ARROW)) {
       config.readDataFormat = DataFormat.ARROW;
-    } else if (readDataFormat.equals(RunConf.AVRO)) {
+    } else if (readDataFormat.equals(HiveBigQueryConfig.AVRO)) {
       config.readDataFormat = DataFormat.AVRO;
     } else {
       throw new RuntimeException("Invalid input read data format: " + readDataFormat);

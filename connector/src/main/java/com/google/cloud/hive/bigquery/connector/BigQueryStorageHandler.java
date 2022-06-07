@@ -82,12 +82,11 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   }
 
   @Override
-  public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
-  }
+  public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {}
 
   @Override
-  public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
-  }
+  public void configureOutputJobProperties(
+      TableDesc tableDesc, Map<String, String> jobProperties) {}
 
   @Override
   public void configureInputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
