@@ -15,9 +15,21 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
+import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import java.io.IOException;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -120,11 +132,94 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
   }
 
+  /** Called before data is written to a table. */
   @Override
-  public void preInsertTable(Table table, boolean overwrite) throws MetaException {}
+  public void preInsertTable(Table table, boolean overwrite) throws MetaException {
+    // Load the job info file from HDFS
+    JobInfo jobInfo;
+    try {
+      jobInfo = JobInfo.readInfoFile(conf);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
+    Map<String, String> tableParameters = table.getParameters();
+    jobInfo.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
+    jobInfo.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
+    String tableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
+    jobInfo.setTable(tableName);
+    jobInfo.setOverwrite(overwrite);
+
+    // Note: Unfortunately the table properties do not contain constraints like
+    // "NOT NULL", so the inferred avro & proto schema assume that all columns are
+    // optional (e.g. UNION["null", "long"]). So if these constraints are necessary
+    // for the user, then the user should provide an explicit avro schema at table
+    // creation time.
+    // See: https://lists.apache.org/thread/mjm4yznf87xzbk7xywf2gvmnp3l1dm5d
+
+    String writeMethod =
+        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
+    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+      // Get an instance of the BigQuery client
+      Injector injector =
+          Guice.createInjector(
+              new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));
+      BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+
+      // Retrieve the BigQuery schema of the final destination table
+      Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
+
+      // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
+      // write method. In this case, we will stream-write to a temporary table
+      // and then finally overwrite the final destination table with the temporary
+      // table's contents. This special case doesn't apply to the 'indirect'
+      // write method, which doesn't need a temporary table -- instead that method
+      // uses the 'WRITE_TRUNCATE' option available in the BigQuery Load Job API when
+      // loading the Avro files into the BigQuery table (see more about that in the
+      // `IndirectOutputCommitter` class).
+      if (overwrite) {
+        // Set the final destination table as the job's original table
+        jobInfo.setFinalTable(tableName);
+        // Create a temporary table with the same schema
+        // TODO: It'd be useful to add a description to the table explaining that it was
+        //  created as a temporary table for a Hive query.
+        TableInfo tableInfo =
+            bqClient.createTempTable(
+                TableId.of(
+                    jobInfo.getProject(),
+                    jobInfo.getDataset(),
+                    tableName + "-" + HiveUtils.getHiveId(conf) + "-"),
+                bigQuerySchema);
+        // Set the temp table as the job's output table
+        jobInfo.setTable(tableInfo.getTableId().getTable());
+      }
+    } else {
+      throw new MetaException("Invalid write method: " + writeMethod);
+    }
+
+    // Save the info file so that we can retrieve all the information at later
+    // stages of the job's execution
+    JobInfo.writeInfoFile(conf, jobInfo);
+  }
+
+  /**
+   * This method is called automatically at the end of a successful job when using the "tez"
+   * execution engine. This method is not called when using "mr" -- for that, see {@link
+   * BigQueryOutputCommitter#commitJob(JobContext)}
+   */
   @Override
-  public void commitInsertTable(Table table, boolean overwrite) throws MetaException {}
+  public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
+    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
+    if (engine.equals("tez")) {
+      try {
+        BigQueryOutputCommitter.commit(conf);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      throw new MetaException("Unexpected execution engine: " + engine);
+    }
+  }
 
   @Override
   public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {}

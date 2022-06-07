@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import static repackaged.by.hivebqconnector.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -51,7 +50,6 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   private ReadRowsHelper readRowsHelper;
-  private TableId tableId;
   private Path warehouseLocation;
   private String streamName;
   private List<String> columnNames;
@@ -61,10 +59,8 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     // Used by Hadoop serialization via reflection.
   }
 
-  public BigQueryInputSplit(
-      TableId tableId, Path warehouseLocation, String streamName, List<String> columnNames) {
+  public BigQueryInputSplit(Path warehouseLocation, String streamName, List<String> columnNames) {
     super();
-    this.tableId = tableId;
     this.warehouseLocation = warehouseLocation;
     this.streamName = streamName;
     this.columnNames = columnNames;
@@ -72,9 +68,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   /** Serializes the instance's attributes to a sequence of bytes */
   public void write(DataOutput out) throws IOException {
-    out.writeUTF(tableId.getProject());
-    out.writeUTF(tableId.getDataset());
-    out.writeUTF(tableId.getTable());
     out.writeUTF(warehouseLocation.toString());
     out.writeUTF(streamName);
     byte[] columnNamesAsBytes = String.join(",", columnNames).getBytes(StandardCharsets.UTF_8);
@@ -84,10 +77,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   /** Hydrates the instance's attributes from the given sequence of bytes */
   public void readFields(DataInput in) throws IOException {
-    String project = in.readUTF();
-    String dataset = in.readUTF();
-    String table = in.readUTF();
-    tableId = TableId.of(project, dataset, table);
     warehouseLocation = new Path(in.readUTF());
     streamName = in.readUTF();
     int length = in.readInt();
@@ -115,10 +104,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     return String.format("warehouseLocation=%s, streamName=%s", warehouseLocation, streamName);
   }
 
-  public TableId getTableId() {
-    return tableId;
-  }
-
   public String getStreamName() {
     return this.streamName;
   }
@@ -133,12 +118,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   }
 
   public static InputSplit[] createSplitsfromBigQueryReadStreams(JobConf jobConf) {
-    TableId tableId =
-        TableId.of(
-            jobConf.get(HiveBigQueryConfig.PROJECT_KEY),
-            jobConf.get(HiveBigQueryConfig.DATASET_KEY),
-            jobConf.get(HiveBigQueryConfig.TABLE_KEY));
-
     // Retrieve the table's column names
     String columnNameDelimiter =
         jobConf.get(serdeConstants.COLUMN_NAME_DELIMITER) != null
@@ -152,8 +131,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     columnNames.removeAll(new HashSet<>(VirtualColumn.VIRTUAL_COLUMN_NAMES));
 
     Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(), new HiveBigQueryConnectorModule(jobConf, tableId));
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(jobConf));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
@@ -205,7 +183,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     int i = 0;
     for (ReadStream readStream : readSession.getStreamsList()) {
       fileSplits[i++] =
-          new BigQueryInputSplit(tableId, warehouseLocation, readStream.getName(), columnNames);
+          new BigQueryInputSplit(warehouseLocation, readStream.getName(), columnNames);
     }
     return fileSplits;
   }
@@ -219,8 +197,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       ReadRowsRequest.Builder request =
           ReadRowsRequest.newBuilder().setReadStream(checkNotNull(getStreamName(), "name"));
       Injector injector =
-          Guice.createInjector(
-              new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableId));
+          Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf));
       BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
       HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
       readRowsHelper =

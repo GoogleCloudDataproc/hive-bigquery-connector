@@ -33,6 +33,7 @@ import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import org.apache.hadoop.conf.Configuration;
@@ -130,9 +131,22 @@ public class HiveBigQueryConfig
     // empty
   }
 
-  public static HiveBigQueryConfig from(Configuration conf, TableId tableId) {
+  private static Optional<String> getAnyOption(
+      String key, Configuration conf, Map<String, String> tableParameters) {
+    String value = conf.get(key);
+    if (value == null && tableParameters != null) {
+      value = tableParameters.get(key);
+    }
+    return Optional.fromNullable(value);
+  }
+
+  public static HiveBigQueryConfig from(Configuration conf, Map<String, String> tableParameters) {
     HiveBigQueryConfig config = new HiveBigQueryConfig();
-    config.tableId = tableId;
+    config.tableId =
+        TableId.of(
+            getAnyOption(PROJECT_KEY, conf, tableParameters).get(),
+            getAnyOption(DATASET_KEY, conf, tableParameters).get(),
+            getAnyOption(TABLE_KEY, conf, tableParameters).get());
     config.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     String readDataFormat =
         conf.get(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, HiveBigQueryConfig.ARROW);
