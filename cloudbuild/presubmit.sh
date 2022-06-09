@@ -38,6 +38,7 @@ case $STEP in
     $MVN test jacoco:report jacoco:report-aggregate -Pcoverage
     # Upload test coverage report to Codecov
     bash <(curl -s https://codecov.io/bash) -K -F "${STEP}"
+    exit
     ;;
 
   # Run unit tests
@@ -45,6 +46,7 @@ case $STEP in
     $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate -Pcoverage,integration
     # Upload test coverage report to Codecov
     bash <(curl -s https://codecov.io/bash) -K -F "${STEP}"
+    exit
     ;;
 
   *)
