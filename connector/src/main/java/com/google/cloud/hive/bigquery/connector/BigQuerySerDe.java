@@ -43,15 +43,12 @@ public class BigQuerySerDe extends AbstractSerDe {
             ? tableProperties.getProperty(serdeConstants.COLUMN_NAME_DELIMITER)
             : String.valueOf(SerDeUtils.COMMA);
     List<String> columnNames;
+    List<TypeInfo> columnTypes;
     if (columnNameProperty.length() == 0) {
       columnNames = new ArrayList<>();
-    } else {
-      columnNames = Arrays.asList(columnNameProperty.split(columnNameDelimiter));
-    }
-    List<TypeInfo> columnTypes;
-    if (columnTypeProperty.length() == 0) {
       columnTypes = new ArrayList<>();
     } else {
+      columnNames = Arrays.asList(columnNameProperty.split(columnNameDelimiter));
       columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
     }
     StructTypeInfo rowTypeInfo =

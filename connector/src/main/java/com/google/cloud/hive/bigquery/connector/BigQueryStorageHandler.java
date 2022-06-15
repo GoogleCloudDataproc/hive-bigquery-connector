@@ -73,7 +73,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void setConf(Configuration configuration) {
-    conf = configuration;
+    this.conf = configuration;
   }
 
   @Override
