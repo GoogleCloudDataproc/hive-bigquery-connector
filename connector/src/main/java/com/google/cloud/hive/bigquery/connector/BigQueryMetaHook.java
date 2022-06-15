@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
@@ -39,6 +40,10 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   public BigQueryMetaHook(Configuration conf) {
     this.conf = conf;
+  }
+
+  private static String getDefaultProject() {
+    return BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
   }
 
   /** Validates that the given TypeInfo is supported. */
@@ -81,10 +86,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     // Check all mandatory table properties
     ImmutableList<String> mandatory =
-        ImmutableList.of(
-            HiveBigQueryConfig.PROJECT_KEY,
-            HiveBigQueryConfig.DATASET_KEY,
-            HiveBigQueryConfig.TABLE_KEY);
+        ImmutableList.of(HiveBigQueryConfig.DATASET_KEY, HiveBigQueryConfig.TABLE_KEY);
     List<String> missingProperties = new ArrayList<>();
     for (String property : mandatory) {
       if (Strings.isNullOrEmpty(table.getParameters().get(property))) {
@@ -118,6 +120,15 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         .put(
             serdeConstants.SERIALIZATION_LIB,
             "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
+
+    // Set the project property to the credentials project if not explicitly provided
+    table
+        .getParameters()
+        .put(
+            HiveBigQueryConfig.PROJECT_KEY,
+            table
+                .getParameters()
+                .getOrDefault(HiveBigQueryConfig.PROJECT_KEY, getDefaultProject()));
   }
 
   @Override

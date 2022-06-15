@@ -131,9 +131,7 @@ public class IntegrationTests {
     assertTrue(
         exception
             .getMessage()
-            .contains(
-                "The following table property(ies) must be provided: bq.project,"
-                    + " bq.dataset, bq.table"));
+            .contains("The following table property(ies) must be provided: bq.dataset, bq.table"));
     tearDown();
   }
 
