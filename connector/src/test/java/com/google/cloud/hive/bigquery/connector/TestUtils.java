@@ -43,7 +43,8 @@ public class TestUtils {
 
   public static Logger logger = LoggerFactory.getLogger(TestUtils.class);
 
-  public static final String DATASET = "integration";
+  public static final String DATASET =
+      String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
   public static final String TEST_TABLE_NAME = "test";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
