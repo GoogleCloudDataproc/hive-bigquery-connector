@@ -48,6 +48,7 @@ public class TestUtils {
   public static final String TEST_TABLE_NAME = "test";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
+  public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String TEMP_BUCKET_NAME = getProject() + "-integration";
   public static final String TEMP_GCS_PATH = "gs://" + TEMP_BUCKET_NAME + "/temp";
 
@@ -83,9 +84,25 @@ public class TestUtils {
               ")")
           .collect(Collectors.joining("\n"));
 
+  public static String BIGQUERY_MANAGED_TEST_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE TABLE " + DATASET + "." + MANAGED_TEST_TABLE_NAME + " (",
+              "int_val INT64,",
+              "bl BOOL,",
+              "str STRING,",
+              "day DATE,",
+              "ts TIMESTAMP,",
+              "bin BYTES,",
+              "fl FLOAT64,",
+              "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
+              "int_arr ARRAY<int64>,",
+              "int_struct_arr ARRAY<STRUCT<i INT64>>",
+              ")")
+          .collect(Collectors.joining("\n"));
+
   public static String HIVE_TEST_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE " + TEST_TABLE_NAME + " (",
+              "CREATE EXTERNAL TABLE " + TEST_TABLE_NAME + " (",
               "number BIGINT,",
               "text STRING",
               ")",
@@ -99,7 +116,7 @@ public class TestUtils {
 
   public static String HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE " + ANOTHER_TEST_TABLE_NAME + " (",
+              "CREATE EXTERNAL TABLE " + ANOTHER_TEST_TABLE_NAME + " (",
               "num BIGINT,",
               "str_val STRING",
               ")",
@@ -113,7 +130,7 @@ public class TestUtils {
 
   public static String HIVE_ALL_TYPES_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE " + ALL_TYPES_TABLE_NAME + " (",
+              "CREATE EXTERNAL TABLE " + ALL_TYPES_TABLE_NAME + " (",
               "int_val BIGINT,",
               "bl BOOLEAN,",
               "str STRING,",
@@ -131,6 +148,29 @@ public class TestUtils {
               "  'bq.project'='" + getProject() + "',",
               "  'bq.dataset'='" + DATASET + "',",
               "  'bq.table'='" + ALL_TYPES_TABLE_NAME + "'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_MANAGED_TEST_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE TABLE " + MANAGED_TEST_TABLE_NAME + " (",
+              "int_val BIGINT,",
+              "bl BOOLEAN,",
+              "str STRING,",
+              "day DATE,",
+              "ts TIMESTAMP,",
+              "bin BINARY,",
+              "fl DOUBLE,",
+              "nums STRUCT<min: DECIMAL(38,9), max: DECIMAL(38,9), pi:"
+                  + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
+              "int_arr ARRAY<BIGINT>,",
+              "int_struct_arr ARRAY<STRUCT<i: BIGINT>>",
+              ")",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'bq.project'='" + getProject() + "',",
+              "  'bq.dataset'='" + DATASET + "',",
+              "  'bq.table'='" + MANAGED_TEST_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
 
@@ -169,6 +209,28 @@ public class TestUtils {
             destinationTableCache,
             ImmutableMap.of());
     return bigQueryClient.query(query);
+  }
+
+  public static boolean bQTableExists(String tableName) {
+    BigQueryClient bigQueryClient =
+        new BigQueryClient(
+            getBigquery(),
+            Optional.empty(),
+            Optional.empty(),
+            destinationTableCache,
+            ImmutableMap.of());
+    return bigQueryClient.tableExists(TableId.of(getProject(), DATASET, tableName));
+  }
+
+  public static TableInfo getTableInfo(String tableName) {
+    BigQueryClient bigQueryClient =
+        new BigQueryClient(
+            getBigquery(),
+            Optional.empty(),
+            Optional.empty(),
+            destinationTableCache,
+            ImmutableMap.of());
+    return bigQueryClient.getTable(TableId.of(getProject(), DATASET, tableName));
   }
 
   public static void deleteDatasetAndTables(String dataset) {

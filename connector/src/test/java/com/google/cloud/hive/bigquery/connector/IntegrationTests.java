@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.*;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.io.FileUtils;
@@ -143,6 +145,29 @@ public class IntegrationTests {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that the user provides a GCS temporary path when using the "indirect" write method. */
+  @Test
+  public void testMissingGcsTempPath() {
+    setUp();
+    hive.setHiveConfValue(
+        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    initHive("mr", HiveBigQueryConfig.AVRO, "");
+    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    Throwable exception =
+        assertThrows(
+            RuntimeException.class,
+            () -> hive.execute("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains(
+                "The 'bq.temp.gcs.path' property must be set when using the"
+                    + " 'indirect' write method."));
+    tearDown();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Check that we tell the user when they use unsupported Hive types. */
   @Test
   public void testUnsupportedTypes() {
@@ -161,6 +186,110 @@ public class IntegrationTests {
                               + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'")));
       assertTrue(exception.getMessage().contains("Unsupported Hive type: " + type));
     }
+    tearDown();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /**
+   * Check that the user has proper write permissions to the provided GCS temporary path when using
+   * the "indirect" write method.
+   */
+  @Test
+  public void testMissingBucketPermissions() {
+    setUp();
+    hive.setHiveConfValue(
+        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    initHive("mr", HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
+    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    Throwable exception =
+        assertThrows(
+            RuntimeException.class,
+            () -> hive.execute("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains(
+                "Cannot write to table 'test'. Does not have write access to the"
+                    + " following GCS path, or bucket does not exist:"
+                    + " gs://random-bucket-abcdef-12345"));
+    tearDown();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that creating a managed table using Hive also creates a table in BigQuery */
+  @Test
+  public void testCreateManagedTable() {
+    setUp();
+    initHive();
+    // Make sure the managed table doesn't exist yet in BigQuery
+    assertFalse(bQTableExists(MANAGED_TEST_TABLE_NAME));
+    // Create the managed table using Hive
+    hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    // Create another BQ table with the same schema
+    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+    // Make sure that the managed table was created in BQ
+    // and that the two schemas are the same
+    TableInfo managedTableInfo = getTableInfo(MANAGED_TEST_TABLE_NAME);
+    TableInfo allTypesTableInfo = getTableInfo(ALL_TYPES_TABLE_NAME);
+    assertEquals(
+        managedTableInfo.getDefinition().getSchema(),
+        allTypesTableInfo.getDefinition().getSchema());
+    tearDown();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that you can't create a managed table if the equivalent BigQuery table already exists */
+  @Test
+  public void testCreateManagedTableAlreadyExists() {
+    setUp();
+    initHive();
+    // Create the table in BigQuery
+    runBqQuery(BIGQUERY_MANAGED_TEST_TABLE_CREATE_QUERY);
+    // Try to create the managed table using Hive
+    Throwable exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY));
+    assertTrue(exception.getMessage().contains("BigQuery table already exists"));
+    tearDown();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  @Test
+  public void testDropManagedTable() {
+    setUp();
+    initHive();
+    // Make sure the managed table doesn't exist yet in BigQuery
+    assertFalse(bQTableExists(MANAGED_TEST_TABLE_NAME));
+    // Create the managed table using Hive
+    hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    // Check that the table was created in BigQuery
+    assertTrue(bQTableExists(MANAGED_TEST_TABLE_NAME));
+    // Drop the managed table using hive
+    hive.execute("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
+    // Check that the table in BigQuery is gone
+    assertFalse(bQTableExists(MANAGED_TEST_TABLE_NAME));
+    tearDown();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  @Test
+  public void testDropExternalTable() {
+    setUp();
+    initHive();
+    // Create the table in BigQuery
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    // Create the corresponding external table in Hive
+    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    // Drop the external table
+    hive.execute("DROP TABLE " + TEST_TABLE_NAME);
+    // Check that the table still exists in BigQuery
+    assertTrue(bQTableExists(TEST_TABLE_NAME));
     tearDown();
   }
 
@@ -545,7 +674,7 @@ public class IntegrationTests {
     assertTrue(row.get(1).getBooleanValue());
     assertEquals("string", row.get(2).getStringValue());
     assertEquals("2019-03-18", row.get(3).getStringValue());
-    if (writeMethod == HiveBigQueryConfig.WRITE_METHOD_DIRECT) {
+    if (Objects.equals(writeMethod, HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
       assertEquals(1552872225678901L, row.get(4).getTimestampValue());
     } else {
       // As we rely on the AvroSerde to generate the Avro schema for the

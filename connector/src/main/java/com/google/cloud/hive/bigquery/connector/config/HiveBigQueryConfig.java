@@ -108,6 +108,7 @@ public class HiveBigQueryConfig
   Long partitionExpirationMs = null;
   Optional<Boolean> partitionRequireFilter = empty();
   Optional<String[]> clusteredFields = empty();
+  Optional<JobInfo.CreateDisposition> createDisposition = empty();
   ImmutableList<JobInfo.SchemaUpdateOption> loadSchemaUpdateOptions = ImmutableList.of();
   private Optional<String> storageReadEndpoint = empty();
   private ImmutableMap<String, String> bigQueryJobLabels = ImmutableMap.of();
@@ -142,6 +143,11 @@ public class HiveBigQueryConfig
 
   public static HiveBigQueryConfig from(Configuration conf, Map<String, String> tableParameters) {
     HiveBigQueryConfig config = new HiveBigQueryConfig();
+    config.traceId = Optional.of("Hive:" + HiveUtils.getHiveId(conf));
+    config.createDisposition =
+        Optional.fromNullable(conf.get("bq.create.disposition"))
+            .transform(String::toUpperCase)
+            .transform(JobInfo.CreateDisposition::valueOf);
     config.tableId =
         TableId.of(
             getAnyOption(PROJECT_KEY, conf, tableParameters).get(),
@@ -155,19 +161,33 @@ public class HiveBigQueryConfig
     } else if (readDataFormat.equals(HiveBigQueryConfig.AVRO)) {
       config.readDataFormat = DataFormat.AVRO;
     } else {
-      throw new RuntimeException("Invalid input read data format: " + readDataFormat);
+      throw new RuntimeException("Invalid input read format type: " + readDataFormat);
     }
-    // TODO: Should we add the "bq." prefix to the "credentials", "credentialsFile", and
-    //  "gcpAccessToken" keys?
-    config.credentialsKey = Optional.fromNullable(conf.get("credentials"));
+
+    // Credentials
+    config.credentialsKey = Optional.fromNullable(conf.get("bq.credentials"));
     config.credentialsFile =
         Optional.fromJavaUtil(
             firstPresent(
-                Optional.fromNullable(conf.get("credentialsFile")).toJavaUtil(),
+                Optional.fromNullable(conf.get("bq.credentials.file")).toJavaUtil(),
                 Optional.fromNullable(conf.get(GCS_CONFIG_CREDENTIALS_FILE_PROPERTY))
                     .toJavaUtil()));
-    config.accessToken = Optional.fromNullable(conf.get("gcpAccessToken"));
-    config.traceId = Optional.of("Hive:" + HiveUtils.getHiveId(conf));
+    config.accessToken = Optional.fromNullable(conf.get("bq.access.token"));
+
+    // Partitioning and clustering
+    config.partitionType =
+        getAnyOption("bq.partition.type", conf, tableParameters)
+            .transform(TimePartitioning.Type::valueOf);
+    config.partitionField = getAnyOption("bq.partition.field", conf, tableParameters);
+    config.partitionExpirationMs =
+        getAnyOption("bq.partition.expiration.ms", conf, tableParameters)
+            .transform(Long::valueOf)
+            .orNull();
+    config.partitionRequireFilter =
+        getAnyOption("bq.partition.require.filter", conf, tableParameters)
+            .transform(Boolean::valueOf);
+    config.clusteredFields =
+        getAnyOption("bq.clustered.fields", conf, tableParameters).transform(s -> s.split(","));
     return config;
   }
 

@@ -39,8 +39,6 @@ import org.apache.hadoop.hive.ql.security.authorization.HiveAuthorizationProvide
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import org.apache.hadoop.hive.serde2.typeinfo.*;
-import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
@@ -124,7 +122,6 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
     conf.set(Constants.THIS_IS_AN_OUTPUT_JOB, "true");
     JobInfo jobInfo = new JobInfo();
-
     Properties tableProperties = tableDesc.getProperties();
     jobInfo.setTableProperties(tableProperties);
     String writeMethod =
