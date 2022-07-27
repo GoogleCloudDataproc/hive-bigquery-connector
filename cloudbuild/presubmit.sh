@@ -21,7 +21,7 @@ if [ -z "${CODECOV_TOKEN}" ]; then
   exit 1
 fi
 
-readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository"
+readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository --projects shaded-dependencies,connector"
 readonly STEP=$1
 
 cd /workspace
