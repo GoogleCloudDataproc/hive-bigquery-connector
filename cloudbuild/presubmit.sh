@@ -35,7 +35,9 @@ case $STEP in
 
   # Run unit tests
   unittest)
-    $MVN test jacoco:report jacoco:report-aggregate -Pcoverage
+    # Here we run `package` instead of `test` because the `shaded-dependencies` module
+    # needs to be packaged first to allow the unit tests to run.
+    $MVN package jacoco:report jacoco:report-aggregate -Pcoverage
     # Upload test coverage report to Codecov
     bash <(curl -s https://codecov.io/bash) -K -F "${STEP}"
     exit
