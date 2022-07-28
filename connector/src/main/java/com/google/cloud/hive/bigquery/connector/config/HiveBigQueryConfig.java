@@ -33,6 +33,7 @@ import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import org.apache.hadoop.conf.Configuration;
@@ -133,17 +134,22 @@ public class HiveBigQueryConfig
     // empty
   }
 
-  public static HiveBigQueryConfig from(Configuration conf, java.util.Optional<TableId> tableId) {
+  private static Optional<String> getAnyOption(
+      String key, Configuration conf, Map<String, String> tableParameters) {
+    String value = conf.get(key);
+    if (value == null && tableParameters != null) {
+      value = tableParameters.get(key);
+    }
+    return Optional.fromNullable(value);
+  }
+
+  public static HiveBigQueryConfig from(Configuration conf, Map<String, String> tableParameters) {
     HiveBigQueryConfig config = new HiveBigQueryConfig();
-    if (tableId.isPresent()) {
-      config.tableId = tableId.get();
-    } else {
-      String project = conf.get(HiveBigQueryConfig.PROJECT_KEY);
-      String dataset = conf.get(HiveBigQueryConfig.DATASET_KEY);
-      String table = conf.get(HiveBigQueryConfig.TABLE_KEY);
-      if (project != null && dataset != null && table != null) {
-        config.tableId = TableId.of(project, dataset, table);
-      }
+    Optional<String> project = getAnyOption(PROJECT_KEY, conf, tableParameters);
+    Optional<String> dataset = getAnyOption(DATASET_KEY, conf, tableParameters);
+    Optional<String> table = getAnyOption(TABLE_KEY, conf, tableParameters);
+    if (project.isPresent() && dataset.isPresent() && table.isPresent()) {
+      config.tableId = TableId.of(project.get(), dataset.get(), table.get());
     }
     config.columnNameDelimiter =
         Optional.fromNullable(conf.get(serdeConstants.COLUMN_NAME_DELIMITER))

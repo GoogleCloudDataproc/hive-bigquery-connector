@@ -39,6 +39,7 @@
         <google-cloud-storage.version>2.6.1</google-cloud-storage.version>
         <google-cloud-bigquerystorage.version>2.11.0</google-cloud-bigquerystorage.version>
         <junit.version>4.13.2</junit.version>
+        <junit-pioneer.version>1.7.1</junit-pioneer.version>
         <hamcrest.version>2.2</hamcrest.version>
         <gcs.connector.version>hadoop2-2.1.7</gcs.connector.version>
         <hiverunner.version>6.1.0</hiverunner.version>
