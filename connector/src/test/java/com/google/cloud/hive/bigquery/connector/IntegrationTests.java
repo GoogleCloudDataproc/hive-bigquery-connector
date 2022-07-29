@@ -27,6 +27,7 @@ import com.google.cloud.storage.*;
 import com.klarna.hiverunner.*;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
@@ -334,41 +335,6 @@ public class IntegrationTests {
 
   // ---------------------------------------------------------------------------------------------------
 
-  /** Insert data using the "indirect" write method. */
-  public void insertIndirect(String engine) {
-    // Check that the bucket is empty
-    List<Blob> blobs = getBlobs(TEMP_BUCKET_NAME);
-    assertEquals(0, blobs.size());
-
-    // Insert data using Hive
-    insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-
-    // Check that the blobs were created by the job. Two are pseudo directories, and the third
-    // one is the temporary avro file.
-    // Note: Eventually Hadoop would automatically delete those blobs. See the call to
-    // `IndirectUtils.deleteGcsTempDir()` in `IndirectOutputCommitter.commitJob()`.
-    blobs = getBlobs(TEMP_BUCKET_NAME);
-    assertEquals(3, blobs.size());
-    assertEquals("temp/", blobs.get(0).getName()); // The base dir
-    assertTrue(
-        blobs.get(1).getName().startsWith("temp/bq-hive-")
-            && blobs.get(1).getName().endsWith("/")); // The job's working dir
-    assertTrue(
-        blobs.get(2).getName().startsWith("temp/bq-hive-")
-            && blobs.get(2).getName().endsWith(".avro")); // The temp avro file
-  }
-
-  @Test
-  public void testInsertIndirect() {
-    for (String engine : new String[] {"mr", "tez"}) {
-      setUp();
-      insertIndirect(engine);
-      tearDown();
-    }
-  }
-
-  // ---------------------------------------------------------------------------------------------------
-
   /** Test the "INSERT OVERWRITE" statement, which clears the table before writing the new data. */
   @CartesianTest
   public void testInsertOverwrite(
@@ -527,7 +493,18 @@ public class IntegrationTests {
     assertTrue(row.get(1).getBooleanValue());
     assertEquals("string", row.get(2).getStringValue());
     assertEquals("2019-03-18", row.get(3).getStringValue());
-    assertEquals(1552872225678901L, row.get(4).getTimestampValue());
+    if (Objects.equals(writeMethod, HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+      assertEquals(1552872225678901L, row.get(4).getTimestampValue());
+    } else {
+      // As we rely on the AvroSerde to generate the Avro schema for the
+      // indirect write method, we lose the micro-second precision due
+      // to the fact that the AvroSerde is currently limited to
+      // 'timestamp-mills' precision.
+      // See: https://issues.apache.org/jira/browse/HIVE-20889
+      // TODO: Write our own avro schema generation tool to get
+      //  around this limitation.
+      assertEquals(1552872225000000L, row.get(4).getTimestampValue());
+    }
     assertArrayEquals("bytes".getBytes(), row.get(5).getBytesValue());
     assertEquals(4.2, row.get(6).getDoubleValue());
     FieldValueList struct = row.get(7).getRecordValue();

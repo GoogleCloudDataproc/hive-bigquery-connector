@@ -161,6 +161,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     jobInfo.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
     String tableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
     jobInfo.setTable(tableName);
+    jobInfo.setOverwrite(overwrite);
 
     // Note: Unfortunately the table properties do not contain constraints like
     // "NOT NULL", so the inferred avro & proto schema assume that all columns are
