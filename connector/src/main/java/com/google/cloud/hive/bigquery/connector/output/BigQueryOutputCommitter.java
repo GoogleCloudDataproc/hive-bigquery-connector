@@ -19,6 +19,7 @@ import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
 import com.google.cloud.hive.bigquery.connector.JobInfo;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
@@ -36,7 +37,9 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     // Pick the appropriate Committer class
-    if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
+    if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
+      IndirectOutputCommitter.commitJob(conf, jobInfo);
+    } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
       DirectOutputCommitter.commitJob(conf, jobInfo);
     } else {
       throw new RuntimeException("Invalid write method setting: " + writeMethod);

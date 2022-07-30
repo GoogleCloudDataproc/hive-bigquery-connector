@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import static repackaged.by.hivebqconnector.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -61,7 +60,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   }
 
   public BigQueryInputSplit(
-      TableId tableId,
       Path warehouseLocation,
       String streamName,
       List<String> columnNames,
@@ -163,7 +161,6 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
     HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
-    TableId tableId = config.getTableId();
 
     // Retrieve the table's column names
     String columnNameDelimiter = config.getColumnNameDelimiter();
@@ -222,12 +219,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
         .map(
             readStream ->
                 new BigQueryInputSplit(
-                    tableId,
-                    warehouseLocation,
-                    readStream.getName(),
-                    columnNames,
-                    bqClientFactory,
-                    config))
+                    warehouseLocation, readStream.getName(), columnNames, bqClientFactory, config))
         .toArray(FileSplit[]::new);
   }
 

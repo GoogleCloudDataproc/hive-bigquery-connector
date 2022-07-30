@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -160,6 +161,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     jobInfo.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
     String tableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
     jobInfo.setTable(tableName);
+    jobInfo.setOverwrite(overwrite);
 
     // Note: Unfortunately the table properties do not contain constraints like
     // "NOT NULL", so the inferred avro & proto schema assume that all columns are
@@ -203,6 +205,21 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                 bigQuerySchema);
         // Set the temp table as the job's output table
         jobInfo.setTable(tableInfo.getTableId().getTable());
+      }
+    } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+      String temporaryGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
+      jobInfo.setGcsTempPath(temporaryGcsPath);
+      if (temporaryGcsPath == null || temporaryGcsPath.trim().equals("")) {
+        throw new MetaException(
+            String.format(
+                "The '%s' property must be set when using the '%s' write method.",
+                HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
+      } else if (!IndirectUtils.hasGcsWriteAccess(temporaryGcsPath)) {
+        throw new MetaException(
+            String.format(
+                "Cannot write to table '%s'. The service account does not have IAM permissions to write to the"
+                    + " following GCS path, or bucket does not exist: %s",
+                table.getTableName(), temporaryGcsPath));
       }
     } else {
       throw new MetaException("Invalid write method: " + writeMethod);

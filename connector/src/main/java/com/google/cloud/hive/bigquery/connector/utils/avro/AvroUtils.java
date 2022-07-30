@@ -17,6 +17,9 @@ package com.google.cloud.hive.bigquery.connector.utils.avro;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.TimeZone;
 import org.apache.avro.Schema;
@@ -27,8 +30,13 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroJob;
 import org.apache.avro.mapred.AvroOutputFormat;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.common.StringInternUtils;
+import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeException;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapred.JobConf;
 
 public class AvroUtils {
@@ -69,6 +77,61 @@ public class AvroUtils {
     } catch (AvroSerdeException | IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Returns true if the table properties contain an explicit Avro schema, either with
+   * `avro.schema.literal` or `avro.schema.url`.
+   */
+  public static boolean hasExcplicitAvroSchema(Properties tableProperties) {
+    return tableProperties.getProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
+        != null
+        || tableProperties.getProperty(
+        AvroSerdeUtils.AvroTableProperties.SCHEMA_URL.getPropName())
+        != null;
+  }
+
+  /**
+   * Extracts the Avro schema from the `columns` and `column.types` table properties,
+   * if present. Otherwise, returns null.
+   */
+  public static Schema extractSchemaFromColumnProperties(Properties tableProperties) {
+    String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
+    String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
+    String columnCommentProperty = tableProperties.getProperty("columns.comments", "");
+    String columnNameDelimiter =
+        tableProperties.containsKey(serdeConstants.COLUMN_NAME_DELIMITER)
+            ? tableProperties.getProperty(serdeConstants.COLUMN_NAME_DELIMITER)
+            : String.valueOf(',');
+    if (columnNameProperty != null
+        && !columnNameProperty.isEmpty()
+        && columnTypeProperty != null
+        && !columnTypeProperty.isEmpty()) {
+      List<String> columnNames =
+          StringInternUtils.internStringsInList(
+              Arrays.asList(columnNameProperty.split(columnNameDelimiter)));
+      ArrayList<TypeInfo> columnTypes =
+          TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
+      return AvroSerDe.getSchemaFromCols(
+          tableProperties, columnNames, columnTypes, columnCommentProperty);
+    }
+    return null;
+  }
+
+  /** Extract the Avro schema from the given table properties. */
+  public static Schema extractAvroSchema(Configuration conf, Properties tableProperties) {
+    Schema schema = null;
+    if (!hasExcplicitAvroSchema(tableProperties)) {
+      schema = extractSchemaFromColumnProperties(tableProperties);
+    }
+    if (schema == null) {
+      try {
+        schema = AvroSerdeUtils.determineSchemaOrThrowException(conf, tableProperties);
+      } catch (IOException | AvroSerdeException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return schema;
   }
 
   /**

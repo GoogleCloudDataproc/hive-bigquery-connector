@@ -38,6 +38,7 @@ public class JobInfo {
   private String project;
   private String dataset;
   private String table;
+  private boolean overwrite;
   private String finalTable; // Only used by the 'direct' write method
   private String gcsTempPath; // Only used by the 'indirect' write method
   private String avroSchema; // Only used by the 'indirect' write method
@@ -68,6 +69,14 @@ public class JobInfo {
 
   public void setTable(String table) {
     this.table = table;
+  }
+
+  public boolean isOverwrite() {
+    return overwrite;
+  }
+
+  public void setOverwrite(boolean overwrite) {
+    this.overwrite = overwrite;
   }
 
   public TableId getFinalTableId() {
