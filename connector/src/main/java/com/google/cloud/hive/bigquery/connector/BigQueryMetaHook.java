@@ -207,19 +207,19 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         jobInfo.setTable(tableInfo.getTableId().getTable());
       }
     } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      String tempGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
-      jobInfo.setGcsTempPath(tempGcsPath);
-      if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
+      String temporaryGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
+      jobInfo.setGcsTempPath(temporaryGcsPath);
+      if (temporaryGcsPath == null || temporaryGcsPath.trim().equals("")) {
         throw new MetaException(
             String.format(
                 "The '%s' property must be set when using the '%s' write method.",
                 HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
-      } else if (!IndirectUtils.hasGcsWriteAccess(tempGcsPath)) {
+      } else if (!IndirectUtils.hasGcsWriteAccess(temporaryGcsPath)) {
         throw new MetaException(
             String.format(
-                "Cannot write to table '%s'. Does not have write access to the"
+                "Cannot write to table '%s'. The service account does not have IAM permissions to write to the"
                     + " following GCS path, or bucket does not exist: %s",
-                table.getTableName(), tempGcsPath));
+                table.getTableName(), temporaryGcsPath));
       }
     } else {
       throw new MetaException("Invalid write method: " + writeMethod);

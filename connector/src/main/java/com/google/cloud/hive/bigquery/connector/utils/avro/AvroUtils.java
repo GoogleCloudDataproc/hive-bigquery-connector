@@ -79,8 +79,23 @@ public class AvroUtils {
     }
   }
 
-  /** Extract the Avro schema from the given table properties. */
-  public static Schema extractAvroSchema(Configuration conf, Properties tableProperties) {
+  /**
+   * Returns true if the table properties contain an explicit Avro schema, either with
+   * `avro.schema.literal` or `avro.schema.url`.
+   */
+  public static boolean hasExcplicitAvroSchema(Properties tableProperties) {
+    return tableProperties.getProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
+        != null
+        || tableProperties.getProperty(
+        AvroSerdeUtils.AvroTableProperties.SCHEMA_URL.getPropName())
+        != null;
+  }
+
+  /**
+   * Extracts the Avro schema from the `columns` and `column.types` table properties,
+   * if present. Otherwise, returns null.
+   */
+  public static Schema extractSchemaFromColumnProperties(Properties tableProperties) {
     String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
     String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
     String columnCommentProperty = tableProperties.getProperty("columns.comments", "");
@@ -88,14 +103,7 @@ public class AvroUtils {
         tableProperties.containsKey(serdeConstants.COLUMN_NAME_DELIMITER)
             ? tableProperties.getProperty(serdeConstants.COLUMN_NAME_DELIMITER)
             : String.valueOf(',');
-    boolean hasExternalSchema =
-        tableProperties.getProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
-                != null
-            || tableProperties.getProperty(
-                    AvroSerdeUtils.AvroTableProperties.SCHEMA_URL.getPropName())
-                != null;
-    if (!hasExternalSchema
-        && columnNameProperty != null
+    if (columnNameProperty != null
         && !columnNameProperty.isEmpty()
         && columnTypeProperty != null
         && !columnTypeProperty.isEmpty()) {
@@ -106,13 +114,24 @@ public class AvroUtils {
           TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
       return AvroSerDe.getSchemaFromCols(
           tableProperties, columnNames, columnTypes, columnCommentProperty);
-    } else {
+    }
+    return null;
+  }
+
+  /** Extract the Avro schema from the given table properties. */
+  public static Schema extractAvroSchema(Configuration conf, Properties tableProperties) {
+    Schema schema = null;
+    if (!hasExcplicitAvroSchema(tableProperties)) {
+      schema = extractSchemaFromColumnProperties(tableProperties);
+    }
+    if (schema == null) {
       try {
-        return AvroSerdeUtils.determineSchemaOrThrowException(conf, tableProperties);
+        schema = AvroSerdeUtils.determineSchemaOrThrowException(conf, tableProperties);
       } catch (IOException | AvroSerdeException e) {
         throw new RuntimeException(e);
       }
     }
+    return schema;
   }
 
   /**
