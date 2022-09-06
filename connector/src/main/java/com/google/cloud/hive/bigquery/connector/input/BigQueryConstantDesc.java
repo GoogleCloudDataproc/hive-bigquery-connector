@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
+import java.util.List;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.BaseCharTypeInfo;
@@ -28,6 +29,8 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 public class BigQueryConstantDesc extends ExprNodeConstantDesc {
 
   private static final long serialVersionUID = 1L;
+  private static final List<String> SIMPLE_TYPES =
+      ImmutableList.of("bigint", "float", "double", "string", "boolean");
 
   public BigQueryConstantDesc(TypeInfo typeInfo, Object value) {
     super(typeInfo, value);
@@ -48,8 +51,7 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
     if (typeInfo.getTypeName().equals("timestamp")) {
       return "TIMESTAMP('" + value + "')";
     }
-    if (ImmutableList.of("bigint", "float", "double", "string", "boolean").contains(typeName)
-        || typeName.startsWith("decimal(")) {
+    if (SIMPLE_TYPES.contains(typeName) || typeName.startsWith("decimal(")) {
       return value.toString();
     }
     throw new RuntimeException("Unsupported predicate type: " + typeName);
