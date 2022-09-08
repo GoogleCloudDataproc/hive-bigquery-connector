@@ -34,7 +34,7 @@ import repackaged.by.hivebqconnector.com.google.protobuf.InvalidProtocolBufferEx
  * JSON file on HDFS at the start of the job, so that we can look up that information at different
  * stages of the job.
  */
-public class JobInfo {
+public class JobDetails {
   private String project;
   private String dataset;
   private String table;
@@ -45,7 +45,7 @@ public class JobInfo {
   private byte[] protoSchema; // Only used by the 'direct' write method
   private Properties tableProperties;
 
-  public JobInfo() {}
+  public JobDetails() {}
 
   public String getProject() {
     return project;
@@ -126,9 +126,9 @@ public class JobInfo {
     this.tableProperties = tableProperties;
   }
 
-  /** Writes the job's info file to the job's work directory on HDFS. */
-  public static void writeInfoFile(Configuration conf, JobInfo jobInfo) {
-    Path path = FileSystemUtils.getInfoFile(conf);
+  /** Writes the job's details file to the job's work directory on HDFS. */
+  public static void writeJobDetailsFile(Configuration conf, JobDetails jobDetails) {
+    Path path = FileSystemUtils.getJobDetailsFile(conf);
     FSDataOutputStream infoFile;
     try {
       infoFile = path.getFileSystem(conf).create(path);
@@ -137,17 +137,17 @@ public class JobInfo {
     }
     Gson gson = new Gson();
     try {
-      infoFile.write(gson.toJson(jobInfo).getBytes(StandardCharsets.UTF_8));
+      infoFile.write(gson.toJson(jobDetails).getBytes(StandardCharsets.UTF_8));
       infoFile.close();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
-  /** Reads the job's info file from the job's work directory on HDFS. */
-  public static JobInfo readInfoFile(Configuration conf) throws IOException {
-    String jsonString = FileSystemUtils.readFile(conf, FileSystemUtils.getInfoFile(conf));
+  /** Reads the job's details file from the job's work directory on HDFS. */
+  public static JobDetails readJobDetailsFile(Configuration conf) throws IOException {
+    String jsonString = FileSystemUtils.readFile(conf, FileSystemUtils.getJobDetailsFile(conf));
     Gson gson = new Gson();
-    return gson.fromJson(jsonString, JobInfo.class);
+    return gson.fromJson(jsonString, JobDetails.class);
   }
 }

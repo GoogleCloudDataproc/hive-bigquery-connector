@@ -124,9 +124,9 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
     conf.set(Constants.THIS_IS_AN_OUTPUT_JOB, "true");
-    JobInfo jobInfo = new JobInfo();
+    JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();
-    jobInfo.setTableProperties(tableProperties);
+    jobDetails.setTableProperties(tableProperties);
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
@@ -141,15 +141,15 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
       }
       ProtoSchema protoSchema =
           com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter.convert(descriptor);
-      jobInfo.setProtoSchema(protoSchema.toByteArray());
+      jobDetails.setProtoSchema(protoSchema.toByteArray());
     } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      jobInfo.setAvroSchema(AvroUtils.extractAvroSchema(conf, tableProperties).toString());
+      jobDetails.setAvroSchema(AvroUtils.extractAvroSchema(conf, tableProperties).toString());
     } else {
       throw new RuntimeException("Invalid write method: " + writeMethod);
     }
 
-    // Save the job info file to HDFS
-    JobInfo.writeInfoFile(conf, jobInfo);
+    // Save the job details file to HDFS
+    JobDetails.writeJobDetailsFile(conf, jobDetails);
   }
 
   @Override

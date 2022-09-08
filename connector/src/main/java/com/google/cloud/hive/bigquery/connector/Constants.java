@@ -26,7 +26,7 @@ public class Constants {
   public static final String THIS_IS_AN_OUTPUT_JOB = "...this.is.an.output.job...";
   public static final String LOAD_FILE_EXTENSION = "avro";
   public static final String STREAM_FILE_EXTENSION = "stream";
-  public static final String INFO_FILE = "info.json";
+  public static final String JOB_DETAILS_FILE = "job-details.json";
 
   // The maximum nesting depth of a BigQuery RECORD:
   public static final int MAX_BIGQUERY_NESTED_DEPTH = 15;

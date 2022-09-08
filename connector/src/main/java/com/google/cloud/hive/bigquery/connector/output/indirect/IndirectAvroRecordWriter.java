@@ -16,7 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
-import com.google.cloud.hive.bigquery.connector.JobInfo;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroDeserializer;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils.AvroOutput;
@@ -49,12 +49,12 @@ public class IndirectAvroRecordWriter
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
 
-  public IndirectAvroRecordWriter(JobConf jobConf, JobInfo jobInfo) {
+  public IndirectAvroRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    this.avroOutput = AvroOutput.initialize(jobConf, jobInfo.getAvroSchema());
-    this.avroSchema = jobInfo.getAvroSchema();
-    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobInfo.getTableProperties());
+    this.avroOutput = AvroOutput.initialize(jobConf, jobDetails.getAvroSchema());
+    this.avroSchema = jobDetails.getAvroSchema();
+    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
   }
 
   @Override
@@ -73,10 +73,10 @@ public class IndirectAvroRecordWriter
   @Override
   public void close(boolean abort) throws IOException {
     if (!abort) {
-      JobInfo jobInfo = JobInfo.readInfoFile(jobConf);
+      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
       Path filePath =
           IndirectUtils.getTaskAvroTempFile(
-              jobConf, jobInfo.getTableId(), jobInfo.getGcsTempPath(), taskAttemptID);
+              jobConf, jobDetails.getTableId(), jobDetails.getGcsTempPath(), taskAttemptID);
       FSDataOutputStream fsDataOutputStream = filePath.getFileSystem(jobConf).create(filePath);
       avroOutput.getDataFileWriter().flush();
       fsDataOutputStream.write(avroOutput.getOutputStream().toByteArray());

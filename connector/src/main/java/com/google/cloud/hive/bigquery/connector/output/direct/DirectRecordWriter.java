@@ -17,7 +17,7 @@ package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
-import com.google.cloud.hive.bigquery.connector.JobInfo;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoDeserializer;
 import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
@@ -51,13 +51,13 @@ public class DirectRecordWriter
   StructObjectInspector rowObjectInspector;
   Descriptors.Descriptor descriptor;
 
-  public DirectRecordWriter(JobConf jobConf, JobInfo jobInfo) {
+  public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
     this.streamWriter =
         DirectUtils.createStreamWriter(
-            jobConf, jobInfo.getTableId(), jobInfo.getTableProperties(), jobInfo.getProtoSchema());
-    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobInfo.getTableProperties());
+            jobConf, jobDetails.getTableId(), jobDetails.getTableProperties(), jobDetails.getProtoSchema());
+    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);
     } catch (Descriptors.DescriptorValidationException e) {
@@ -86,9 +86,9 @@ public class DirectRecordWriter
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.commit(); // TODO: Ideally that method should be renamed to "finalize()"
-      JobInfo jobInfo = JobInfo.readInfoFile(jobConf);
+      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
       Path filePath =
-          DirectUtils.getTaskTempStreamFile(jobConf, jobInfo.getTableId(), taskAttemptID);
+          DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getTableId(), taskAttemptID);
       FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);
       streamFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
       streamFile.close();

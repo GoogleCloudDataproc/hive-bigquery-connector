@@ -87,11 +87,11 @@ public class FileSystemUtils {
   }
 
   /**
-   * Returns the location of the "info" file, which contains strategic information about a job that
+   * Returns the location of the "details" file, which contains strategic details about a job that
    * can be consulted at various stages of the job's execution.
    */
-  public static Path getInfoFile(Configuration conf) {
-    return new Path(FileSystemUtils.getWorkDir(conf), Constants.INFO_FILE);
+  public static Path getJobDetailsFile(Configuration conf) {
+    return new Path(FileSystemUtils.getWorkDir(conf), Constants.JOB_DETAILS_FILE);
   }
 
   /** Utility to read a file from disk. */

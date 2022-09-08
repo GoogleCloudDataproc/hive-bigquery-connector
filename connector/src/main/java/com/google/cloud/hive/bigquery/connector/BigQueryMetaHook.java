@@ -182,20 +182,20 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   /** Called before data is written to a table. */
   @Override
   public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-    // Load the job info file from HDFS
-    JobInfo jobInfo;
+    // Load the job details file from HDFS
+    JobDetails jobDetails;
     try {
-      jobInfo = JobInfo.readInfoFile(conf);
+      jobDetails = JobDetails.readJobDetailsFile(conf);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
 
     Map<String, String> tableParameters = table.getParameters();
-    jobInfo.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
-    jobInfo.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
+    jobDetails.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
+    jobDetails.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
     String tableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
-    jobInfo.setTable(tableName);
-    jobInfo.setOverwrite(overwrite);
+    jobDetails.setTable(tableName);
+    jobDetails.setOverwrite(overwrite);
 
     // Note: Unfortunately the table properties do not contain constraints like
     // "NOT NULL", so the inferred avro & proto schema assume that all columns are
@@ -214,7 +214,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
 
       // Retrieve the BigQuery schema of the final destination table
-      Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
+      Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
 
       // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
       // write method. In this case, we will stream-write to a temporary table
@@ -226,23 +226,23 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       // `IndirectOutputCommitter` class).
       if (overwrite) {
         // Set the final destination table as the job's original table
-        jobInfo.setFinalTable(tableName);
+        jobDetails.setFinalTable(tableName);
         // Create a temporary table with the same schema
         // TODO: It'd be useful to add a description to the table explaining that it was
         //  created as a temporary table for a Hive query.
         TableInfo tableInfo =
             bqClient.createTempTable(
                 TableId.of(
-                    jobInfo.getProject(),
-                    jobInfo.getDataset(),
+                    jobDetails.getProject(),
+                    jobDetails.getDataset(),
                     tableName + "-" + HiveUtils.getHiveId(conf) + "-"),
                 bigQuerySchema);
         // Set the temp table as the job's output table
-        jobInfo.setTable(tableInfo.getTableId().getTable());
+        jobDetails.setTable(tableInfo.getTableId().getTable());
       }
     } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
       String temporaryGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
-      jobInfo.setGcsTempPath(temporaryGcsPath);
+      jobDetails.setGcsTempPath(temporaryGcsPath);
       if (temporaryGcsPath == null || temporaryGcsPath.trim().equals("")) {
         throw new MetaException(
             String.format(
@@ -259,9 +259,9 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       throw new MetaException("Invalid write method: " + writeMethod);
     }
 
-    // Save the info file so that we can retrieve all the information at later
+    // Save the job details file so that we can retrieve all the information at later
     // stages of the job's execution
-    JobInfo.writeInfoFile(conf, jobInfo);
+    JobDetails.writeJobDetailsFile(conf, jobDetails);
   }
 
   /**

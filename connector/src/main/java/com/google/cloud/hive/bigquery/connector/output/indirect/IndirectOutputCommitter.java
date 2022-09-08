@@ -20,7 +20,7 @@ import com.google.cloud.bigquery.JobInfo.WriteDisposition;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.Constants;
-import com.google.cloud.hive.bigquery.connector.JobInfo;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
@@ -40,32 +40,32 @@ public class IndirectOutputCommitter {
    * Commits the job by loading all the Avro files (which were created by the individual tasks) from
    * GCS to BigQuery.
    */
-  public static void commitJob(Configuration conf, JobInfo jobInfo) throws IOException {
+  public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
     LOG.info("Committing BigQuery load job");
     // Retrieve the list of Avro files from GCS
     List<String> avroFiles =
         FileSystemUtils.getFiles(
             conf,
-            IndirectUtils.getGcsTempDir(conf, jobInfo.getGcsTempPath()),
-            IndirectUtils.getTaskTempAvroFileNamePrefix(jobInfo.getTableId()),
+            IndirectUtils.getGcsTempDir(conf, jobDetails.getGcsTempPath()),
+            IndirectUtils.getTaskTempAvroFileNamePrefix(jobDetails.getTableId()),
             Constants.LOAD_FILE_EXTENSION);
     if (avroFiles.size() > 0) {
       Injector injector =
           Guice.createInjector(
               new BigQueryClientModule(),
-              new HiveBigQueryConnectorModule(conf, jobInfo.getTableProperties()));
+              new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
       HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
       FormatOptions formatOptions = FormatOptions.avro();
       WriteDisposition writeDisposition =
-          jobInfo.isOverwrite() ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
+          jobDetails.isOverwrite() ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
       try {
         // Load the Avro files into BigQuery
         bqClient.loadDataIntoTable(opts, avroFiles, formatOptions, writeDisposition);
       }
       finally {
         // Delete all the Avro files from GCS
-        IndirectUtils.deleteGcsTempDir(conf, jobInfo.getGcsTempPath());
+        IndirectUtils.deleteGcsTempDir(conf, jobDetails.getGcsTempPath());
       }
     }
   }

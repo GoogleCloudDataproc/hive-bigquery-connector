@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
-import com.google.cloud.hive.bigquery.connector.JobInfo;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectRecordWriter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectAvroRecordWriter;
@@ -39,13 +39,13 @@ public class BigQueryOutputFormat
       FileSystem fileSystem, JobConf jobConf, String s, Progressable progressable)
       throws IOException {
     // Pick the appropriate RecordWriter class based on configuration
-    JobInfo jobInfo = JobInfo.readInfoFile(jobConf);
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
     String writeMethod =
         jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
-      return new IndirectAvroRecordWriter(jobConf, jobInfo);
+      return new IndirectAvroRecordWriter(jobConf, jobDetails);
     } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
-      return new DirectRecordWriter(jobConf, jobInfo);
+      return new DirectRecordWriter(jobConf, jobDetails);
     } else {
       throw new RuntimeException("Invalid write mode: " + writeMethod);
     }

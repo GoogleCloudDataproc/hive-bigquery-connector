@@ -16,12 +16,11 @@
 package com.google.cloud.hive.bigquery.connector.output;
 
 import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
-import com.google.cloud.hive.bigquery.connector.JobInfo;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
-import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -34,14 +33,14 @@ import org.apache.hadoop.mapred.TaskAttemptContext;
 public class BigQueryOutputCommitter extends OutputCommitter {
 
   public static void commit(Configuration conf) throws IOException {
-    JobInfo jobInfo = JobInfo.readInfoFile(conf);
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     // Pick the appropriate Committer class
     if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
-      IndirectOutputCommitter.commitJob(conf, jobInfo);
+      IndirectOutputCommitter.commitJob(conf, jobDetails);
     } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
-      DirectOutputCommitter.commitJob(conf, jobInfo);
+      DirectOutputCommitter.commitJob(conf, jobDetails);
     } else {
       throw new RuntimeException("Invalid write method setting: " + writeMethod);
     }
@@ -72,8 +71,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
     JobConf conf = jobContext.getJobConf();
-    JobInfo jobInfo = JobInfo.readInfoFile(conf);
-    DirectOutputCommitter.abortJob(conf, jobInfo);
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
+    DirectOutputCommitter.abortJob(conf, jobDetails);
     FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf());
     super.abortJob(jobContext, status);
   }

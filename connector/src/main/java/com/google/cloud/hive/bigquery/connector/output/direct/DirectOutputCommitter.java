@@ -20,7 +20,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.Constants;
-import com.google.cloud.hive.bigquery.connector.JobInfo;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.inject.Guice;
@@ -42,13 +42,13 @@ public class DirectOutputCommitter {
    * rows to. To find out which streams to commit, we read the stream reference files that the tasks
    * created in the job's work directory. The reference files essentially contain the stream names.
    */
-  public static void commitJob(Configuration conf, JobInfo jobInfo) throws IOException {
+  public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
     LOG.info("Committing BigQuery direct write job");
     List<String> streamFiles =
         FileSystemUtils.getFiles(
             conf,
             FileSystemUtils.getWorkDir(conf),
-            DirectUtils.getTaskTempStreamFileNamePrefix(jobInfo.getTableId()),
+            DirectUtils.getTaskTempStreamFileNamePrefix(jobDetails.getTableId()),
             Constants.STREAM_FILE_EXTENSION);
     List<String> streamNames = new ArrayList<>();
     if (streamFiles.size() <= 0) {
@@ -63,40 +63,40 @@ public class DirectOutputCommitter {
     Injector injector =
         Guice.createInjector(
             new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, jobInfo.getTableProperties()));
+            new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
 
     // Retrieve the BigQuery schema
-    Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
+    Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
 
     // Finally, make the new data available in the destination table by committing the streams
     DirectWriterContext writerContext =
         new DirectWriterContext(
             bqClient,
             bqClientFactory,
-            jobInfo.getTableId(),
-            jobInfo.getFinalTableId(),
+            jobDetails.getTableId(),
+            jobDetails.getFinalTableId(),
             bigQuerySchema);
     writerContext.commit(streamNames);
   }
 
-  public static void abortJob(Configuration conf, JobInfo jobInfo) {
+  public static void abortJob(Configuration conf, JobDetails jobDetails) {
     Injector injector =
         Guice.createInjector(
             new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, jobInfo.getTableProperties()));
+            new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
 
     // Retrieve the BigQuery schema
-    Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
+    Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
     DirectWriterContext writerContext =
         new DirectWriterContext(
             bqClient,
             bqClientFactory,
-            jobInfo.getTableId(),
-            jobInfo.getFinalTableId(),
+            jobDetails.getTableId(),
+            jobDetails.getFinalTableId(),
             bigQuerySchema);
     writerContext.abort();
   }
