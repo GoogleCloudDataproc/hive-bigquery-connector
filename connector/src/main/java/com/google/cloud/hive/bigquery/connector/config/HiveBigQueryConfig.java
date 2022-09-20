@@ -165,16 +165,14 @@ public class HiveBigQueryConfig
     } else {
       throw new RuntimeException("Invalid input read data format: " + readDataFormat);
     }
-    // TODO: Should we add the "bq." prefix to the "credentials", "credentialsFile", and
-    //  "gcpAccessToken" keys?
-    config.credentialsKey = Optional.fromNullable(conf.get("credentials"));
+    config.credentialsKey = getAnyOption(CREDENTIALS_KEY_KEY, conf, tableParameters);
     config.credentialsFile =
         Optional.fromJavaUtil(
             firstPresent(
-                Optional.fromNullable(conf.get("credentialsFile")).toJavaUtil(),
+                getAnyOption(CREDENTIALS_FILE_KEY, conf, tableParameters).toJavaUtil(),
                 Optional.fromNullable(conf.get(GCS_CONFIG_CREDENTIALS_FILE_PROPERTY))
                     .toJavaUtil()));
-    config.accessToken = Optional.fromNullable(conf.get("gcpAccessToken"));
+    config.accessToken = getAnyOption(ACCESS_TOKEN_KEY, conf, tableParameters);
     config.traceId = Optional.of("Hive:" + HiveUtils.getHiveId(conf));
     return config;
   }
