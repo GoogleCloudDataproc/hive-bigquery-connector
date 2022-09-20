@@ -170,6 +170,50 @@ public class IntegrationTests {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that the user provides a GCS temporary path when using the "indirect" write method. */
+  @Test
+  public void testMissingGcsTempPath() {
+    hive.setHiveConfValue(
+        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    initHive("mr", HiveBigQueryConfig.AVRO, "");
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    Throwable exception =
+        assertThrows(
+            RuntimeException.class,
+            () -> runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains(
+                "The 'bq.temp.gcs.path' property must be set when using the"
+                    + " 'indirect' write method."));
+  }
+
+  /**
+   * Check that the user has proper write permissions to the provided GCS temporary path when using
+   * the "indirect" write method.
+   */
+  @Test
+  public void testMissingBucketPermissions() {
+    hive.setHiveConfValue(
+        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    initHive("mr", HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    Throwable exception =
+        assertThrows(
+            RuntimeException.class,
+            () -> runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains(
+                "Cannot write to table 'test'. The service account does not have IAM permissions"
+                    + " to write to the following GCS path, or bucket does not exist:"
+                    + " gs://random-bucket-abcdef-12345"));
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Check that we tell the user when they use unsupported Hive types. */
   @Test
   public void testUnsupportedTypes() {
