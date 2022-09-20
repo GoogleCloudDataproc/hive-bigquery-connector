@@ -107,6 +107,7 @@
                   <shadedPattern>repackaged.by.hivebqconnector.io</shadedPattern>
                   <includes>
                     <include>io.netty.**</include>
+                    <include>io.grpc.netty.**</include>
                   </includes>
                 </relocation>
                 <relocation>
