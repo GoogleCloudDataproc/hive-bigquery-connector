@@ -133,6 +133,11 @@ public class IntegrationTests {
   }
 
   public void initHive(String engine, String readDataFormat, String tempGcsPath) {
+    // Load potential Hive config values passed from system properties
+    Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
+    for (String key : hiveConfSystemOverrides.keySet()) {
+        hive.setHiveConfValue(key, hiveConfSystemOverrides.get(key));
+    }
     hive.setHiveConfValue(ConfVars.HIVE_EXECUTION_ENGINE.varname, engine);
     hive.setHiveConfValue(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, readDataFormat);
     hive.setHiveConfValue(HiveBigQueryConfig.TEMP_GCS_PATH_KEY, tempGcsPath);

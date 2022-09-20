@@ -26,7 +26,10 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.storage.*;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -40,7 +43,7 @@ import repackaged.by.hivebqconnector.com.google.common.collect.Lists;
 public class TestUtils {
 
   public static Logger logger = LoggerFactory.getLogger(TestUtils.class);
-
+  public final static String HIVECONF_SYSTEM_OVERRIDE_PREFIX = "hiveconf_";
   public static final String LOCATION = "us";
   public static final String TEST_TABLE_NAME = "test";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
@@ -134,10 +137,30 @@ public class TestUtils {
   public static final Cache<String, TableInfo> destinationTableCache =
       CacheBuilder.newBuilder().expireAfterWrite(15, TimeUnit.MINUTES).maximumSize(1000).build();
 
+  /**
+   * Return Hive config values passed from system properties
+   */
+  public static Map<String, String> getHiveConfSystemOverrides() {
+    Map<String, String> overrides = new HashMap<>();
+    Properties systemProperties = System.getProperties();
+    for (String key : systemProperties.stringPropertyNames()) {
+      if (key.startsWith(HIVECONF_SYSTEM_OVERRIDE_PREFIX)) {
+        String hiveConfKey = key.substring(HIVECONF_SYSTEM_OVERRIDE_PREFIX.length());
+        overrides.put(hiveConfKey, systemProperties.getProperty(key));
+      }
+    }
+    return overrides;
+  }
+
   private static com.google.auth.Credentials getCredentials() {
+    Configuration config = new Configuration();
+    Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
+    for (String key : hiveConfSystemOverrides.keySet()) {
+      config.set(key, hiveConfSystemOverrides.get(key));
+    }
     Injector injector = Guice.createInjector(
         new BigQueryClientModule(),
-        new HiveBigQueryConnectorModule(new Configuration(), System.getProperties()));
+        new HiveBigQueryConnectorModule(config));
     BigQueryCredentialsSupplier credentialsSupplier = injector.getInstance(BigQueryCredentialsSupplier.class);
     return credentialsSupplier.getCredentials();
   }
