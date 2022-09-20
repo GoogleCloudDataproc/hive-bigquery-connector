@@ -104,6 +104,7 @@ public class HiveBigQueryConfig
   // Options currently not implemented:
   HiveBigQueryProxyConfig proxyConfig;
   boolean viewsEnabled = false;
+  boolean enableModeCheckForSchemaFields = true;
   Optional<String> materializationProject = empty();
   Optional<String> materializationDataset = empty();
   Optional<String> partitionField = empty();
@@ -236,6 +237,11 @@ public class HiveBigQueryConfig
   @Override
   public List<SchemaUpdateOption> getLoadSchemaUpdateOptions() {
     return loadSchemaUpdateOptions;
+  }
+
+  @Override
+  public boolean getEnableModeCheckForSchemaFields() {
+    return enableModeCheckForSchemaFields;
   }
 
   @Override

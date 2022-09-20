@@ -38,6 +38,7 @@ public class DirectWriterContext {
   private final BigQueryClient bigQueryClient;
   private final TableId tableIdToWrite;
   private final TableId destinationTableId;
+  private final boolean enableModeCheckForSchemaFields;
 
   private final String tablePathForBigQueryStorage;
   private boolean deleteTableOnAbort;
@@ -49,7 +50,8 @@ public class DirectWriterContext {
       BigQueryClientFactory bigQueryWriteClientFactory,
       TableId tableId,
       TableId destinationTableId,
-      Schema schema)
+      Schema schema,
+      boolean enableModeCheckForSchemaFields)
       throws IllegalArgumentException {
     this.bigQueryClient = bigQueryClient;
     this.tableIdToWrite = getOrCreateTable(tableId, schema);
@@ -57,6 +59,7 @@ public class DirectWriterContext {
     this.tablePathForBigQueryStorage =
         bigQueryClient.createTablePathForBigQueryStorage(tableIdToWrite);
     this.writeClient = bigQueryWriteClientFactory.getBigQueryWriteClient();
+    this.enableModeCheckForSchemaFields = enableModeCheckForSchemaFields;
   }
 
   /**
@@ -74,7 +77,7 @@ public class DirectWriterContext {
       TableInfo destinationTable = bigQueryClient.getTable(tableId);
       com.google.cloud.bigquery.Schema tableSchema = destinationTable.getDefinition().getSchema();
       Preconditions.checkArgument(
-          BigQueryUtil.schemaEquals(tableSchema, bigQuerySchema, /* regardFieldOrder */ false),
+          BigQueryUtil.schemaEquals(tableSchema, bigQuerySchema, /* regardFieldOrder */ false, enableModeCheckForSchemaFields),
           new BigQueryConnectorException.InvalidSchemaException(
               "Destination table's schema is not compatible with query's" + " schema"));
       deleteTableOnAbort = false;

@@ -21,6 +21,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobInfo;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.inject.Guice;
@@ -66,6 +67,7 @@ public class DirectOutputCommitter {
             new HiveBigQueryConnectorModule(conf, jobInfo.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
+    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
 
     // Retrieve the BigQuery schema
     Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
@@ -77,7 +79,8 @@ public class DirectOutputCommitter {
             bqClientFactory,
             jobInfo.getTableId(),
             jobInfo.getFinalTableId(),
-            bigQuerySchema);
+            bigQuerySchema,
+            config.getEnableModeCheckForSchemaFields());
     writerContext.commit(streamNames);
   }
 
@@ -88,6 +91,7 @@ public class DirectOutputCommitter {
             new HiveBigQueryConnectorModule(conf, jobInfo.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
+    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
 
     // Retrieve the BigQuery schema
     Schema bigQuerySchema = bqClient.getTable(jobInfo.getTableId()).getDefinition().getSchema();
@@ -97,7 +101,8 @@ public class DirectOutputCommitter {
             bqClientFactory,
             jobInfo.getTableId(),
             jobInfo.getFinalTableId(),
-            bigQuerySchema);
+            bigQuerySchema,
+            config.getEnableModeCheckForSchemaFields());
     writerContext.abort();
   }
 }
