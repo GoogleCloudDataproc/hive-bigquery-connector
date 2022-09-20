@@ -24,6 +24,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
@@ -77,7 +78,8 @@ public class IndirectAvroRecordWriter
       Path filePath =
           IndirectUtils.getTaskAvroTempFile(
               jobConf, jobInfo.getTableId(), jobInfo.getGcsTempPath(), taskAttemptID);
-      FSDataOutputStream fsDataOutputStream = filePath.getFileSystem(jobConf).create(filePath);
+      FileSystem fileSystem = filePath.getFileSystem(jobConf);
+      FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);
       avroOutput.getDataFileWriter().flush();
       fsDataOutputStream.write(avroOutput.getOutputStream().toByteArray());
       fsDataOutputStream.close();

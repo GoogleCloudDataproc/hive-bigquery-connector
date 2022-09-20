@@ -51,11 +51,11 @@ public class DirectOutputCommitter {
             FileSystemUtils.getWorkDir(conf),
             DirectUtils.getTaskTempStreamFileNamePrefix(jobInfo.getTableId()),
             Constants.STREAM_FILE_EXTENSION);
-    List<String> streamNames = new ArrayList<>();
     if (streamFiles.size() <= 0) {
       return;
     }
     // Extract the stream names from the stream reference files
+    List<String> streamNames = new ArrayList<>();
     for (String streamFile : streamFiles) {
       Path path = new Path(streamFile);
       String streamName = FileSystemUtils.readFile(conf, path);

@@ -71,18 +71,18 @@ public class DirectUtils {
     HeaderProvider headerProvider = injector.getInstance(HeaderProvider.class);
     BigQueryCredentialsSupplier credentialsSupplier =
         injector.getInstance(BigQueryCredentialsSupplier.class);
-    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
     String tablePath =
         String.format(
             "projects/%s/datasets/%s/tables/%s",
             tableId.getProject(), tableId.getDataset(), tableId.getTable());
     BigQueryClientFactory writeClientFactory =
-        new BigQueryClientFactory(credentialsSupplier, headerProvider, opts);
+        new BigQueryClientFactory(credentialsSupplier, headerProvider, config);
     return new BigQueryDirectDataWriterHelper(
         writeClientFactory,
         tablePath,
         schema,
-        opts.getBigQueryClientRetrySettings(),
-        opts.getTraceId());
+        config.getBigQueryClientRetrySettings(),
+        config.getTraceId());
   }
 }
