@@ -19,17 +19,21 @@ import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.*;
 import com.klarna.hiverunner.*;
 import com.klarna.hiverunner.annotations.HiveSQL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +43,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
 // TODO: When running the tests, some noisy exceptions are displayed in the output:
@@ -50,6 +55,8 @@ import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
 @ExtendWith(HiveRunnerExtension.class)
 public class IntegrationTests {
+
+  protected String dataset;
 
   @HiveSQL(
       files = {},
@@ -70,15 +77,9 @@ public class IntegrationTests {
         testInfo.getTestMethod().get().getName(),
         parameters);
 
-    // Create the test dataset and table in BigQuery
-    try {
-      createDataset(DATASET);
-    } catch (BigQueryException e) {
-      if (e.getMessage().contains("Already Exists")) {
-        deleteDatasetAndTables(DATASET);
-        createDataset(DATASET);
-      }
-    }
+    // Create the test dataset in BigQuery
+    dataset = String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
+    createDataset(dataset);
     // Create the bucket for 'indirect' jobs.
     try {
       createBucket(TEMP_BUCKET_NAME);
@@ -93,8 +94,34 @@ public class IntegrationTests {
   @AfterEach
   public void tearDown() {
     // Cleanup the test BQ dataset and GCS bucket
-    deleteDatasetAndTables(DATASET);
+    deleteDatasetAndTables(dataset);
     deleteBucket(TEMP_BUCKET_NAME);
+  }
+
+  public String getQuery(String queryTemplate) {
+    Map<String, Object> params = new HashMap<>();
+    params.put("project", getProject());
+    params.put("dataset", dataset);
+    return StrSubstitutor.replace(queryTemplate, params, "${", "}");
+  }
+
+  public TableResult runBqQuery(String queryTemplate) {
+    BigQueryClient bigQueryClient =
+        new BigQueryClient(
+            getBigquery(),
+            Optional.empty(),
+            Optional.empty(),
+            destinationTableCache,
+            ImmutableMap.of());
+    return bigQueryClient.query(getQuery(queryTemplate));
+  }
+
+  public void runHiveScript(String queryTemplate) {
+    hive.execute(getQuery(queryTemplate));
+  }
+
+  public List<Object[]> runHiveStatement(String queryTemplate) {
+    return hive.executeStatement(getQuery(queryTemplate));
   }
 
   public void initHive() {
@@ -113,7 +140,7 @@ public class IntegrationTests {
         "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
     hive.setHiveConfValue("datanucleus.autoStartMechanismMode", "ignored");
     hive.start();
-    hive.execute("CREATE DATABASE source_db");
+    runHiveScript("CREATE DATABASE source_db");
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -129,7 +156,7 @@ public class IntegrationTests {
         assertThrows(
             RuntimeException.class,
             () ->
-                hive.execute(
+                runHiveScript(
                     String.join(
                         "\n",
                         "CREATE TABLE some_table (number BIGINT, text" + " STRING)",
@@ -152,7 +179,7 @@ public class IntegrationTests {
           assertThrows(
               RuntimeException.class,
               () ->
-                  hive.execute(
+                  runHiveScript(
                       String.join(
                           "\n",
                           "CREATE TABLE " + TEST_TABLE_NAME + " (number " + type + ")",
@@ -172,8 +199,8 @@ public class IntegrationTests {
           String readDataFormat) {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
-    List<Object[]> rows = hive.executeStatement(String.format("SELECT * FROM %s", TEST_TABLE_NAME));
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", TEST_TABLE_NAME));
     assertThat(rows).isEmpty();
   }
 
@@ -187,18 +214,18 @@ public class IntegrationTests {
           String readDataFormat) {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
         String.format(
-            "INSERT `%s.%s` VALUES (123, 'hello'), (999, 'abcd')", DATASET, TEST_TABLE_NAME));
+            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Read filtered data using Hive
     List<Object[]> rows =
-        hive.executeStatement(
+        runHiveStatement(
             String.format("SELECT * FROM %s WHERE number = 999", TEST_TABLE_NAME));
     // Verify we get the expected rows
     assertArrayEquals(
@@ -219,19 +246,19 @@ public class IntegrationTests {
           String readDataFormat) {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
         String.format(
-            "INSERT `%s.%s` VALUES (123, 'hello'), (999, 'abcd')", DATASET, TEST_TABLE_NAME));
+            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Read filtered data using Hive
     // Try with both columns in order
     List<Object[]> rows =
-        hive.executeStatement(
+        runHiveStatement(
             String.format("SELECT number, text FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
@@ -241,7 +268,7 @@ public class IntegrationTests {
         rows.toArray());
     // Try in different order
     rows =
-        hive.executeStatement(
+        runHiveStatement(
             String.format("SELECT text, number FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
@@ -251,12 +278,12 @@ public class IntegrationTests {
         rows.toArray());
     // Try a single column
     rows =
-        hive.executeStatement(
+        runHiveStatement(
             String.format("SELECT number FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(new Object[] {new Object[] {123L}, new Object[] {999L}}, rows.toArray());
     // Try another single column
     rows =
-        hive.executeStatement(String.format("SELECT text FROM %s ORDER BY text", TEST_TABLE_NAME));
+        runHiveStatement(String.format("SELECT text FROM %s ORDER BY text", TEST_TABLE_NAME));
     assertArrayEquals(new Object[] {new Object[] {"abcd"}, new Object[] {"hello"}}, rows.toArray());
   }
 
@@ -267,8 +294,8 @@ public class IntegrationTests {
   public void testWhereClauseAllTypes() {
     runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
     initHive();
-    hive.execute(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
-    hive.executeStatement(
+    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    runHiveScript(
         Stream.of(
                 "SELECT * FROM " + ALL_TYPES_TABLE_NAME + " WHERE",
                 "((int_val > 10 AND bl = TRUE)",
@@ -287,12 +314,12 @@ public class IntegrationTests {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
     // Insert data using Hive
-    hive.execute("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
+    runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
     // Read the data using the BQ SDK
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     // Verify we get the expected values
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
@@ -349,18 +376,18 @@ public class IntegrationTests {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     runBqQuery(
         String.format(
-            "INSERT `%s.%s` VALUES (123, 'hello'), (999, 'abcd')", DATASET, TEST_TABLE_NAME));
+            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run INSERT OVERWRITE in Hive
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
-    hive.execute("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
     // Make sure the new data erased the old one
-    result = runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+    result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     assertEquals(888L, rows.get(0).get(0).getLongValue());
@@ -379,15 +406,15 @@ public class IntegrationTests {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     runBqQuery(
         String.format(
-            "INSERT `%s.%s` VALUES (123, 'hello'), (999, 'abcd')", DATASET, TEST_TABLE_NAME));
+            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run COUNT query in Hive
     initHive(engine, readDataFormat);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
-    List<Object[]> rows = hive.executeStatement("SELECT COUNT(*) FROM " + TEST_TABLE_NAME);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement("SELECT COUNT(*) FROM " + TEST_TABLE_NAME);
     assertEquals(1, rows.size());
     assertEquals(2L, rows.get(0)[0]);
   }
@@ -404,7 +431,7 @@ public class IntegrationTests {
     // Insert data into the BQ table using the BQ SDK
     runBqQuery(
         Stream.of(
-                String.format("INSERT `%s.%s` VALUES (", DATASET, ALL_TYPES_TABLE_NAME),
+                String.format("INSERT `${dataset}.%s` VALUES (", ALL_TYPES_TABLE_NAME),
                 "42,",
                 "true,",
                 "\"string\",",
@@ -424,8 +451,8 @@ public class IntegrationTests {
             .collect(Collectors.joining("\n")));
     // Read the data using Hive
     initHive("mr", readDataFormat);
-    hive.execute(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
-    List<Object[]> rows = hive.executeStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
+    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
     assertEquals(10, row.length); // Number of columns
@@ -460,8 +487,8 @@ public class IntegrationTests {
     // Insert data into the BQ table using Hive
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
-    hive.execute(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
-    hive.execute(
+    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    runHiveScript(
         Stream.of(
                 "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
                 "42,",
@@ -483,7 +510,7 @@ public class IntegrationTests {
             .collect(Collectors.joining("\n")));
     // Read the data using the BQ SDK
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, ALL_TYPES_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", ALL_TYPES_TABLE_NAME));
     // Verify we get the expected values
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
@@ -543,21 +570,21 @@ public class IntegrationTests {
     // Insert data into the BQ tables using the BQ SDK
     runBqQuery(
         Stream.of(
-                String.format("INSERT `%s.%s` VALUES", DATASET, TEST_TABLE_NAME),
+                String.format("INSERT `${dataset}.%s` VALUES", TEST_TABLE_NAME),
                 "(1, 'hello1'), (2, 'hello2'), (3, 'hello3')")
             .collect(Collectors.joining("\n")));
     runBqQuery(
         Stream.of(
-                String.format("INSERT `%s.%s` VALUES", DATASET, ANOTHER_TEST_TABLE_NAME),
+                String.format("INSERT `${dataset}.%s` VALUES", ANOTHER_TEST_TABLE_NAME),
                 "(123, 'hi123'), (42, 'hi42'), (999, 'hi999')")
             .collect(Collectors.joining("\n")));
     // Create the Hive tables
     initHive(engine, readDataFormat);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
-    hive.execute(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
     // Read from multiple table in same Hive query
     List<Object[]> rows =
-        hive.executeStatement(
+        runHiveStatement(
             Stream.of(
                     "SELECT",
                     "*",
@@ -603,22 +630,22 @@ public class IntegrationTests {
     // Insert data into the BQ tables using the BQ SDK
     runBqQuery(
         Stream.of(
-                String.format("INSERT `%s.%s` (int_val) VALUES", DATASET, ALL_TYPES_TABLE_NAME),
+                String.format("INSERT `${dataset}.%s` (int_val) VALUES", ALL_TYPES_TABLE_NAME),
                 "(123), (42), (999)")
             .collect(Collectors.joining("\n")));
     runBqQuery(
         Stream.of(
-                String.format("INSERT `%s.%s` (str_val) VALUES", DATASET, ANOTHER_TEST_TABLE_NAME),
+                String.format("INSERT `${dataset}.%s` (str_val) VALUES", ANOTHER_TEST_TABLE_NAME),
                 "(\"hello1\"), (\"hello2\"), (\"hello3\")")
             .collect(Collectors.joining("\n")));
     // Create the Hive tables
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, readDataFormat);
-    hive.execute(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
-    hive.execute(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
     // Read and write in the same query using Hive
-    hive.execute(
+    runHiveScript(
         Stream.of(
                 "INSERT INTO " + TEST_TABLE_NAME + " SELECT",
                 "MAX(number), MAX(text)",
@@ -636,7 +663,7 @@ public class IntegrationTests {
             .collect(Collectors.joining("\n")));
     // Read the result using the BQ SDK
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `%s.%s`", DATASET, TEST_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     // Verify we get the expected values
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
@@ -658,21 +685,21 @@ public class IntegrationTests {
     // Insert data into the BQ tables using the BQ SDK
     runBqQuery(
         Stream.of(
-                String.format("INSERT `%s.%s` VALUES", DATASET, TEST_TABLE_NAME),
+                String.format("INSERT `${dataset}.%s` VALUES", TEST_TABLE_NAME),
                 "(1, 'hello'), (2, 'bonjour'), (1, 'hola')")
             .collect(Collectors.joining("\n")));
     runBqQuery(
         Stream.of(
-                String.format("INSERT `%s.%s` VALUES", DATASET, ANOTHER_TEST_TABLE_NAME),
+                String.format("INSERT `${dataset}.%s` VALUES", ANOTHER_TEST_TABLE_NAME),
                 "(1, 'red'), (2, 'blue'), (3, 'green')")
             .collect(Collectors.joining("\n")));
     // Create the Hive tables
     initHive(engine, readDataFormat);
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
-    hive.execute(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
     // Do an inner join of the two tables using Hive
     List<Object[]> rows =
-        hive.executeStatement(
+        runHiveStatement(
             Stream.of(
                     "SELECT",
                     "t2.number,",

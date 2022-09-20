@@ -19,32 +19,29 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
-import com.google.cloud.bigquery.Schema;
-import com.google.cloud.bigquery.StandardTableDefinition;
-import com.google.cloud.bigquery.TableDefinition;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
-import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.storage.*;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import repackaged.by.hivebqconnector.com.google.common.cache.Cache;
 import repackaged.by.hivebqconnector.com.google.common.cache.CacheBuilder;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
 import repackaged.by.hivebqconnector.com.google.common.collect.Lists;
 
 public class TestUtils {
 
   public static Logger logger = LoggerFactory.getLogger(TestUtils.class);
 
-  public static final String DATASET =
-      String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
+  public static final String LOCATION = "us";
   public static final String TEST_TABLE_NAME = "test";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
@@ -53,7 +50,7 @@ public class TestUtils {
 
   public static String BIGQUERY_TEST_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE " + DATASET + "." + TEST_TABLE_NAME + " (",
+              "CREATE TABLE ${dataset}." + TEST_TABLE_NAME + " (",
               "number INT64,",
               "text STRING",
               ")")
@@ -61,7 +58,7 @@ public class TestUtils {
 
   public static String BIGQUERY_ANOTHER_TEST_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE " + DATASET + "." + ANOTHER_TEST_TABLE_NAME + " (",
+              "CREATE TABLE ${dataset}." + ANOTHER_TEST_TABLE_NAME + " (",
               "num INT64,",
               "str_val STRING",
               ")")
@@ -69,7 +66,7 @@ public class TestUtils {
 
   public static String BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE " + DATASET + "." + ALL_TYPES_TABLE_NAME + " (",
+              "CREATE TABLE ${dataset}." + ALL_TYPES_TABLE_NAME + " (",
               "int_val INT64,",
               "bl BOOL,",
               "str STRING,",
@@ -91,8 +88,8 @@ public class TestUtils {
               ")",
               "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
               "TBLPROPERTIES (",
-              "  'bq.project'='" + getProject() + "',",
-              "  'bq.dataset'='" + DATASET + "',",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + TEST_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
@@ -105,8 +102,8 @@ public class TestUtils {
               ")",
               "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
               "TBLPROPERTIES (",
-              "  'bq.project'='" + getProject() + "',",
-              "  'bq.dataset'='" + DATASET + "',",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + ANOTHER_TEST_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
@@ -128,17 +125,25 @@ public class TestUtils {
               ")",
               "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
               "TBLPROPERTIES (",
-              "  'bq.project'='" + getProject() + "',",
-              "  'bq.dataset'='" + DATASET + "',",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + ALL_TYPES_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
 
-  private static final Cache<String, TableInfo> destinationTableCache =
+  public static final Cache<String, TableInfo> destinationTableCache =
       CacheBuilder.newBuilder().expireAfterWrite(15, TimeUnit.MINUTES).maximumSize(1000).build();
 
+  private static com.google.auth.Credentials getCredentials() {
+    Injector injector = Guice.createInjector(
+        new BigQueryClientModule(),
+        new HiveBigQueryConnectorModule(new Configuration(), System.getProperties()));
+    BigQueryCredentialsSupplier credentialsSupplier = injector.getInstance(BigQueryCredentialsSupplier.class);
+    return credentialsSupplier.getCredentials();
+  }
+
   public static BigQuery getBigquery() {
-    return BigQueryOptions.getDefaultInstance().getService();
+    return BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
   }
 
   public static String getProject() {
@@ -149,26 +154,7 @@ public class TestUtils {
     BigQuery bq = getBigquery();
     DatasetId datasetId = DatasetId.of(dataset);
     logger.warn("Creating test dataset: {}", datasetId);
-    bq.create(DatasetInfo.of(datasetId));
-  }
-
-  public static void createBigQueryTable(String dataset, String table, Schema schema) {
-    BigQuery bq = getBigquery();
-    TableId tableId = TableId.of(dataset, table);
-    TableDefinition tableDefinition = StandardTableDefinition.of(schema);
-    TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition).build();
-    bq.create(tableInfo);
-  }
-
-  public static TableResult runBqQuery(String query) {
-    BigQueryClient bigQueryClient =
-        new BigQueryClient(
-            getBigquery(),
-            Optional.empty(),
-            Optional.empty(),
-            destinationTableCache,
-            ImmutableMap.of());
-    return bigQueryClient.query(query);
+    bq.create(DatasetInfo.newBuilder(datasetId).setLocation(LOCATION).build());
   }
 
   public static void deleteDatasetAndTables(String dataset) {
@@ -177,13 +163,16 @@ public class TestUtils {
     bq.delete(DatasetId.of(dataset), BigQuery.DatasetDeleteOption.deleteContents());
   }
 
+  private static Storage getStorageClient() {
+    return StorageOptions.newBuilder().setCredentials(getCredentials()).build().getService();
+  }
+
   public static void createBucket(String bucketName) {
-    Storage storage = StorageOptions.newBuilder().build().getService();
-    storage.create(BucketInfo.newBuilder(bucketName).build());
+    getStorageClient().create(BucketInfo.newBuilder(bucketName).setLocation(LOCATION).build());
   }
 
   public static void deleteBucket(String bucketName) {
-    Storage storage = StorageOptions.newBuilder().build().getService();
+    Storage storage = getStorageClient();
     Iterable<Blob> blobs = storage.list(bucketName).iterateAll();
     for (Blob blob : blobs) {
       blob.delete();
@@ -193,7 +182,6 @@ public class TestUtils {
   }
 
   public static List<Blob> getBlobs(String bucketName) {
-    Storage storage = StorageOptions.newBuilder().build().getService();
-    return Lists.newArrayList(storage.list(bucketName).iterateAll());
+    return Lists.newArrayList(getStorageClient().list(bucketName).iterateAll());
   }
 }
