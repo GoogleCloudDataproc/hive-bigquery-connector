@@ -21,6 +21,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
@@ -172,11 +173,11 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));
     if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
       // Get an instance of the BigQuery client
-      Injector injector =
-          Guice.createInjector(
-              new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
 
       // Retrieve the BigQuery schema of the final destination table
@@ -214,7 +215,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             String.format(
                 "The '%s' property must be set when using the '%s' write method.",
                 HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
-      } else if (!IndirectUtils.hasGcsWriteAccess(temporaryGcsPath)) {
+      } else if (!IndirectUtils.hasGcsWriteAccess(injector.getInstance(BigQueryCredentialsSupplier.class), temporaryGcsPath)) {
         throw new MetaException(
             String.format(
                 "Cannot write to table '%s'. The service account does not have IAM permissions to write to the"
