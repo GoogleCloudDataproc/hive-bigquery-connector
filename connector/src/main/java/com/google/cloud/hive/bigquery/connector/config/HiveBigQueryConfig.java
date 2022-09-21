@@ -104,6 +104,7 @@ public class HiveBigQueryConfig
   // Options currently not implemented:
   HiveBigQueryProxyConfig proxyConfig;
   boolean viewsEnabled = false;
+  boolean enableModeCheckForSchemaFields = true;
   Optional<String> materializationProject = empty();
   Optional<String> materializationDataset = empty();
   Optional<String> partitionField = empty();
@@ -171,14 +172,14 @@ public class HiveBigQueryConfig
     }
 
     // Credentials
-    config.credentialsKey = Optional.fromNullable(conf.get("bq.credentials"));
+    config.credentialsKey = getAnyOption(CREDENTIALS_KEY_KEY, conf, tableParameters);
     config.credentialsFile =
         Optional.fromJavaUtil(
             firstPresent(
-                Optional.fromNullable(conf.get("bq.credentials.file")).toJavaUtil(),
+                getAnyOption(CREDENTIALS_FILE_KEY, conf, tableParameters).toJavaUtil(),
                 Optional.fromNullable(conf.get(GCS_CONFIG_CREDENTIALS_FILE_PROPERTY))
                     .toJavaUtil()));
-    config.accessToken = Optional.fromNullable(conf.get("bq.access.token"));
+    config.accessToken = getAnyOption(ACCESS_TOKEN_KEY, conf, tableParameters);
 
     // Partitioning and clustering
     config.partitionType =
@@ -194,6 +195,7 @@ public class HiveBigQueryConfig
             .transform(Boolean::valueOf);
     config.clusteredFields =
         getAnyOption("bq.clustered.fields", conf, tableParameters).transform(s -> s.split(","));
+
     return config;
   }
 
@@ -255,6 +257,11 @@ public class HiveBigQueryConfig
   @Override
   public List<SchemaUpdateOption> getLoadSchemaUpdateOptions() {
     return loadSchemaUpdateOptions;
+  }
+
+  @Override
+  public boolean getEnableModeCheckForSchemaFields() {
+    return enableModeCheckForSchemaFields;
   }
 
   @Override

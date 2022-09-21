@@ -21,6 +21,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.inject.Guice;
@@ -50,11 +51,11 @@ public class DirectOutputCommitter {
             FileSystemUtils.getWorkDir(conf),
             DirectUtils.getTaskTempStreamFileNamePrefix(jobDetails.getTableId()),
             Constants.STREAM_FILE_EXTENSION);
-    List<String> streamNames = new ArrayList<>();
     if (streamFiles.size() <= 0) {
       return;
     }
     // Extract the stream names from the stream reference files
+    List<String> streamNames = new ArrayList<>();
     for (String streamFile : streamFiles) {
       Path path = new Path(streamFile);
       String streamName = FileSystemUtils.readFile(conf, path);
@@ -66,6 +67,7 @@ public class DirectOutputCommitter {
             new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
+    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
 
     // Retrieve the BigQuery schema
     Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
@@ -77,7 +79,8 @@ public class DirectOutputCommitter {
             bqClientFactory,
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
-            bigQuerySchema);
+            bigQuerySchema,
+            config.getEnableModeCheckForSchemaFields());
     writerContext.commit(streamNames);
   }
 
@@ -88,6 +91,7 @@ public class DirectOutputCommitter {
             new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
+    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
 
     // Retrieve the BigQuery schema
     Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
@@ -97,7 +101,8 @@ public class DirectOutputCommitter {
             bqClientFactory,
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
-            bigQuerySchema);
+            bigQuerySchema,
+            config.getEnableModeCheckForSchemaFields());
     writerContext.abort();
   }
 }

@@ -105,7 +105,7 @@
       <artifactId>gcs-connector</artifactId>
       <version>${gcs.connector.version}</version>
       <classifier>shaded</classifier>
-      <scope>test</scope>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>io.grpc</groupId>

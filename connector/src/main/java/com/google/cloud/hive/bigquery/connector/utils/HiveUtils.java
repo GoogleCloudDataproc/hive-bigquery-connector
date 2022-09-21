@@ -32,9 +32,7 @@ public class HiveUtils {
 
   /** Returns the ID of the Hive query as set by Hive in the configuration. */
   public static String getHiveId(Configuration conf) {
-    return Preconditions.checkNotNull(
-        Strings.emptyToNull(HiveConf.getVar(conf, HiveConf.ConfVars.HIVEQUERYID)),
-        "Hive query id is null");
+    return HiveConf.getVar(conf, HiveConf.ConfVars.HIVEQUERYID);
   }
 
   public static TaskAttemptID taskAttemptIDWrapper(JobConf jobConf) {

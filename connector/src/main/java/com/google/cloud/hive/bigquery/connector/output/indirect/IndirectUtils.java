@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
@@ -48,9 +49,9 @@ public class IndirectUtils {
   }
 
   /** Returns true if the logged-in user has access to the given GCS path. */
-  public static boolean hasGcsWriteAccess(String gcsURI) {
+  public static boolean hasGcsWriteAccess(BigQueryCredentialsSupplier credentialsSupplier, String gcsURI) {
     String bucket = extractBucketNameFromGcsUri(gcsURI);
-    Storage storage = StorageOptions.newBuilder().build().getService();
+    Storage storage = StorageOptions.newBuilder().setCredentials(credentialsSupplier.getCredentials()).build().getService();
     List<Boolean> booleans;
     try {
       booleans = storage.testIamPermissions(bucket, ImmutableList.of("storage.objects.create"));
