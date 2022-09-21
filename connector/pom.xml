@@ -107,9 +107,10 @@
       <classifier>shaded</classifier>
       <scope>provided</scope>
       <exclusions>
+        <!-- Exclude all GRPC dependencies to avoid some packaging issues -->
         <exclusion>
           <groupId>io.grpc</groupId>
-          <artifactId>grpc-netty-shaded</artifactId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

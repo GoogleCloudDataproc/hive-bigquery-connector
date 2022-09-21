@@ -41,7 +41,7 @@
         <junit.version>4.13.2</junit.version>
         <junit-pioneer.version>1.7.1</junit-pioneer.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <gcs.connector.version>hadoop2-2.2.7</gcs.connector.version>
+        <gcs.connector.version>hadoop2-2.2.8</gcs.connector.version>
         <hiverunner.version>6.1.0</hiverunner.version>
         <truth.version>1.1.3</truth.version>
 
