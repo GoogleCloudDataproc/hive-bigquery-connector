@@ -248,7 +248,7 @@ public class IntegrationTests {
     // Make sure the managed table doesn't exist yet in BigQuery
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Create the managed table using Hive
-    hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
     // Create another BQ table with the same schema
     runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
     // Make sure that the managed table was created in BQ
@@ -272,7 +272,7 @@ public class IntegrationTests {
     Throwable exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY));
+            () -> runHiveScript(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY));
     assertTrue(exception.getMessage().contains("BigQuery table already exists"));
   }
 
@@ -284,11 +284,11 @@ public class IntegrationTests {
     // Make sure the managed table doesn't exist yet in BigQuery
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Create the managed table using Hive
-    hive.execute(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
     // Check that the table was created in BigQuery
     assertTrue(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Drop the managed table using hive
-    hive.execute("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
+    runHiveScript("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
     // Check that the table in BigQuery is gone
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
   }
@@ -301,9 +301,9 @@ public class IntegrationTests {
     // Create the table in BigQuery
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     // Create the corresponding external table in Hive
-    hive.execute(HIVE_TEST_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
     // Drop the external table
-    hive.execute("DROP TABLE " + TEST_TABLE_NAME);
+    runHiveScript("DROP TABLE " + TEST_TABLE_NAME);
     // Check that the table still exists in BigQuery
     assertTrue(bQTableExists(dataset, TEST_TABLE_NAME));
   }

@@ -155,11 +155,12 @@ public class HiveBigQueryConfig
         Optional.fromNullable(conf.get("bq.create.disposition"))
             .transform(String::toUpperCase)
             .transform(JobInfo.CreateDisposition::valueOf);
-    config.tableId =
-        TableId.of(
-            getAnyOption(PROJECT_KEY, conf, tableParameters).get(),
-            getAnyOption(DATASET_KEY, conf, tableParameters).get(),
-            getAnyOption(TABLE_KEY, conf, tableParameters).get());
+    Optional<String> project = getAnyOption(PROJECT_KEY, conf, tableParameters);
+    Optional<String> dataset = getAnyOption(DATASET_KEY, conf, tableParameters);
+    Optional<String> table = getAnyOption(TABLE_KEY, conf, tableParameters);
+    if (project.isPresent() && dataset.isPresent() && table.isPresent()) {
+      config.tableId = TableId.of(project.get(), dataset.get(), table.get());
+    }
     config.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     String readDataFormat =
         conf.get(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, HiveBigQueryConfig.ARROW);
