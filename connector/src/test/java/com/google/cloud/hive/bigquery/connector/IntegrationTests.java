@@ -464,19 +464,12 @@ public class IntegrationTests {
     // Insert data using Hive
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
 
-    // Check that the blobs were created by the job. Two are pseudo directories, and the third
-    // one is the temporary avro file.
-    // Note: Eventually Hadoop would automatically delete those blobs. See the call to
-    // `IndirectUtils.deleteGcsTempDir()` in `IndirectOutputCommitter.commitJob()`.
+    // Check that the blob was created by the job.
     blobs = getBlobs(TEMP_BUCKET_NAME);
-    assertEquals(3, blobs.size());
-    assertEquals("temp/", blobs.get(0).getName()); // The base dir
+    assertEquals(1, blobs.size());
     assertTrue(
-        blobs.get(1).getName().startsWith("temp/bq-hive-")
-            && blobs.get(1).getName().endsWith("/")); // The job's working dir
-    assertTrue(
-        blobs.get(2).getName().startsWith("temp/bq-hive-")
-            && blobs.get(2).getName().endsWith(".avro")); // The temp avro file
+        blobs.get(0).getName().startsWith("temp/bq-hive-")
+            && blobs.get(0).getName().endsWith(".avro"));
   }
 
   // ---------------------------------------------------------------------------------------------------
