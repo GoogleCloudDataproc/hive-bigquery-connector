@@ -22,29 +22,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.*;
-import com.klarna.hiverunner.*;
-import com.klarna.hiverunner.annotations.HiveSQL;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.lang3.text.StrSubstitutor;
-import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
-import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
 // TODO: When running the tests, some noisy exceptions are displayed in the output:
@@ -54,102 +40,7 @@ import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 //  https://issues.apache.org/jira/browse/HIVE-25261, which was fixed in Hive 4.0.0,
 //  so we might have to find a workaround to make those go away with Hive 3.X.X.
 
-@ExtendWith(HiveRunnerExtension.class)
-public class IntegrationTests {
-
-  protected String dataset;
-
-  @HiveSQL(
-      files = {},
-      autoStart = false)
-  private HiveShell hive;
-
-  @BeforeEach
-  public void setUp(TestInfo testInfo) {
-    String methodName = testInfo.getTestMethod().get().getName();
-    String displayName = testInfo.getDisplayName();
-    String parameters = "";
-    if (!displayName.equals(methodName + "()")) {
-      parameters = displayName;
-    }
-    System.out.printf(
-        "\n---> Running test: %s.%s %s\n\n",
-        testInfo.getTestClass().get().getName(),
-        testInfo.getTestMethod().get().getName(),
-        parameters);
-
-    // Create the test dataset in BigQuery
-    dataset = String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
-    createDataset(dataset);
-    // Create the bucket for 'indirect' jobs.
-    try {
-      createBucket(TEMP_BUCKET_NAME);
-    } catch (StorageException e) {
-      if (e.getCode() == 409) { // Bucket already exists
-        deleteBucket(TEMP_BUCKET_NAME);
-        createBucket(TEMP_BUCKET_NAME);
-      }
-    }
-  }
-
-  @AfterEach
-  public void tearDown() {
-    // Cleanup the test BQ dataset and GCS bucket
-    deleteDatasetAndTables(dataset);
-    deleteBucket(TEMP_BUCKET_NAME);
-  }
-
-  public String getQuery(String queryTemplate) {
-    Map<String, Object> params = new HashMap<>();
-    params.put("project", getProject());
-    params.put("dataset", dataset);
-    return StrSubstitutor.replace(queryTemplate, params, "${", "}");
-  }
-
-  public TableResult runBqQuery(String queryTemplate) {
-    BigQueryClient bigQueryClient =
-        new BigQueryClient(
-            getBigquery(),
-            Optional.empty(),
-            Optional.empty(),
-            destinationTableCache,
-            ImmutableMap.of());
-    return bigQueryClient.query(getQuery(queryTemplate));
-  }
-
-  public void runHiveScript(String queryTemplate) {
-    hive.execute(getQuery(queryTemplate));
-  }
-
-  public List<Object[]> runHiveStatement(String queryTemplate) {
-    return hive.executeStatement(getQuery(queryTemplate));
-  }
-
-  public void initHive() {
-    initHive("mr", HiveBigQueryConfig.ARROW);
-  }
-
-  public void initHive(String engine, String readDataFormat) {
-    initHive(engine, readDataFormat, TEMP_GCS_PATH);
-  }
-
-  public void initHive(String engine, String readDataFormat, String tempGcsPath) {
-    // Load potential Hive config values passed from system properties
-    Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
-    for (String key : hiveConfSystemOverrides.keySet()) {
-        hive.setHiveConfValue(key, hiveConfSystemOverrides.get(key));
-    }
-    hive.setHiveConfValue(ConfVars.HIVE_EXECUTION_ENGINE.varname, engine);
-    hive.setHiveConfValue(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, readDataFormat);
-    hive.setHiveConfValue(HiveBigQueryConfig.TEMP_GCS_PATH_KEY, tempGcsPath);
-    hive.setHiveConfValue(
-        "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
-    hive.setHiveConfValue("datanucleus.autoStartMechanismMode", "ignored");
-    hive.start();
-    runHiveScript("CREATE DATABASE source_db");
-  }
-
-  // ---------------------------------------------------------------------------------------------------
+public class MainIntegrationTests extends IntegrationTestsBase {
 
   /**
    * Check that the user didn't forget to provide all the required properties when creating a Hive
@@ -209,13 +100,17 @@ public class IntegrationTests {
         assertThrows(
             RuntimeException.class,
             () -> runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
+    // TODO: Look into why we don't always get the same message back
+    String message1 = "Cannot write to table 'test'. Does not have write access to the following GCS path, or bucket does not exist: gs://random-bucket-abcdef-12345)";
+    String message2 = "Cannot write to table 'test'. The service account does not have IAM permissions to write to the following GCS path, or bucket does not exist: gs://random-bucket-abcdef-12345";
     assertTrue(
         exception
             .getMessage()
-            .contains(
-                "Cannot write to table 'test'. The service account does not have IAM permissions"
-                    + " to write to the following GCS path, or bucket does not exist:"
-                    + " gs://random-bucket-abcdef-12345"));
+            .contains(message1) ||
+          exception
+              .getMessage()
+              .contains(message2)
+    );
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -313,8 +208,8 @@ public class IntegrationTests {
   /** Check that reading an empty BQ table actually returns 0 results. */
   @CartesianTest
   public void testReadEmptyTable(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
@@ -328,8 +223,8 @@ public class IntegrationTests {
   /** Test the WHERE clause */
   @CartesianTest
   public void testWhereClause(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
@@ -349,7 +244,7 @@ public class IntegrationTests {
     // Verify we get the expected rows
     assertArrayEquals(
         new Object[] {
-          new Object[] {999L, "abcd"},
+            new Object[] {999L, "abcd"},
         },
         rows.toArray());
     // TODO: Confirm that the predicate was in fact pushed down to BigQuery
@@ -360,8 +255,8 @@ public class IntegrationTests {
   /** Test the `SELECT` statement with explicit columns (i.e. not `SELECT *`) */
   @CartesianTest
   public void testSelectExplicitColumns(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
@@ -381,8 +276,8 @@ public class IntegrationTests {
             String.format("SELECT number, text FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
-          new Object[] {123L, "hello"},
-          new Object[] {999L, "abcd"}
+            new Object[] {123L, "hello"},
+            new Object[] {999L, "abcd"}
         },
         rows.toArray());
     // Try in different order
@@ -391,8 +286,8 @@ public class IntegrationTests {
             String.format("SELECT text, number FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
-          new Object[] {"hello", 123L},
-          new Object[] {"abcd", 999L}
+            new Object[] {"hello", 123L},
+            new Object[] {"abcd", 999L}
         },
         rows.toArray());
     // Try a single column
@@ -448,7 +343,7 @@ public class IntegrationTests {
 
   /** Insert data using the "direct" write method. */
   @CartesianTest
-  public void testInsertDirect(@Values(strings = {"mr", "tez"}) String engine) {
+  public void testInsertDirect(@CartesianTest.Values(strings = {"mr", "tez"}) String engine) {
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
   }
 
@@ -456,7 +351,7 @@ public class IntegrationTests {
 
   /** Insert data using the "indirect" write method. */
   @CartesianTest
-  public void testInsertIndirect(@Values(strings = {"mr", "tez"}) String engine) {
+  public void testInsertIndirect(@CartesianTest.Values(strings = {"mr", "tez"}) String engine) {
     // Check that the bucket is empty
     List<Blob> blobs = getBlobs(TEMP_BUCKET_NAME);
     assertEquals(0, blobs.size());
@@ -477,12 +372,12 @@ public class IntegrationTests {
   /** Test the "INSERT OVERWRITE" statement, which clears the table before writing the new data. */
   @CartesianTest
   public void testInsertOverwrite(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(
-              strings = {
-                HiveBigQueryConfig
-                    .WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT
-              })
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(
+          strings = {
+              HiveBigQueryConfig
+                  .WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT
+          })
           String writeMethod) {
     // Create some initial data in BQ
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
@@ -511,8 +406,8 @@ public class IntegrationTests {
   /** Test the "SELECT COUNT(*)" statement. */
   @CartesianTest
   public void testCount(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
     // Create some initial data in BQ
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
@@ -536,7 +431,7 @@ public class IntegrationTests {
   /** Check that we can read all types of data from BigQuery. */
   @CartesianTest
   public void testReadAllTypes(
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
     // Create the BQ table
     runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
@@ -587,12 +482,12 @@ public class IntegrationTests {
   /** Check that we can write all types of data to BigQuery. */
   @CartesianTest
   public void testWriteAllTypes(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(
-              strings = {
-                HiveBigQueryConfig
-                    .WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT
-              })
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(
+          strings = {
+              HiveBigQueryConfig
+                  .WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT
+          })
           String writeMethod) {
     // Create the BQ table
     runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
@@ -673,8 +568,8 @@ public class IntegrationTests {
   /** Read from multiple tables in the same query. */
   @CartesianTest
   public void testMultiRead(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
     // Create the BQ tables
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
@@ -712,12 +607,12 @@ public class IntegrationTests {
                 .collect(Collectors.joining("\n")));
     assertArrayEquals(
         new Object[] {
-          new Object[] {1L, "hello1"},
-          new Object[] {2L, "hello2"},
-          new Object[] {3L, "hello3"},
-          new Object[] {42L, "hi42"},
-          new Object[] {123L, "hi123"},
-          new Object[] {999L, "hi999"},
+            new Object[] {1L, "hello1"},
+            new Object[] {2L, "hello2"},
+            new Object[] {3L, "hello3"},
+            new Object[] {42L, "hi42"},
+            new Object[] {123L, "hi123"},
+            new Object[] {999L, "hi999"},
         },
         rows.toArray());
   }
@@ -727,13 +622,13 @@ public class IntegrationTests {
   /** Test a write operation and multiple read operations in the same query. */
   @CartesianTest
   public void testMultiReadWrite(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO}) String readDataFormat,
-      @Values(
-              strings = {
-                HiveBigQueryConfig
-                    .WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT
-              })
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO}) String readDataFormat,
+      @CartesianTest.Values(
+          strings = {
+              HiveBigQueryConfig
+                  .WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT
+          })
           String writeMethod) {
     // Create the BQ tables
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
@@ -788,8 +683,8 @@ public class IntegrationTests {
   /** Join two tables */
   @CartesianTest
   public void testInnerJoin(
-      @Values(strings = {"mr", "tez"}) String engine,
-      @Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
     // Create the BQ tables
     runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
@@ -824,11 +719,10 @@ public class IntegrationTests {
                 .collect(Collectors.joining("\n")));
     assertArrayEquals(
         new Object[] {
-          new Object[] {1L, "red", "hello"},
-          new Object[] {1L, "red", "hola"},
-          new Object[] {2L, "blue", "bonjour"},
+            new Object[] {1L, "red", "hello"},
+            new Object[] {1L, "red", "hola"},
+            new Object[] {2L, "blue", "bonjour"},
         },
         rows.toArray());
   }
-
 }

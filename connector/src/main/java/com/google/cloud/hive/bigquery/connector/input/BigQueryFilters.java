@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
+import com.google.cloud.hive.bigquery.connector.Constants;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
@@ -38,7 +39,13 @@ public class BigQueryFilters {
       return filterExpr;
     }
     if (filterExpr instanceof ExprNodeColumnDesc) {
-      return filterExpr;
+      ExprNodeColumnDesc columnDesc = ((ExprNodeColumnDesc) filterExpr);
+      if (columnDesc.getColumn().equalsIgnoreCase(Constants.PARTITION_TIME_PSEUDO_COLUMN)) {
+        columnDesc.setColumn(Constants.PARTITION_TIME_PSEUDO_COLUMN);
+      } else if (columnDesc.getColumn().equalsIgnoreCase(Constants.PARTITION_DATE_PSEUDO_COLUMN)) {
+        columnDesc.setColumn(Constants.PARTITION_DATE_PSEUDO_COLUMN);
+      }
+      return columnDesc;
     }
     if (filterExpr instanceof ExprNodeConstantDesc) {
       // Convert the ExprNodeConstantDesc to a BigQueryConstantDesc

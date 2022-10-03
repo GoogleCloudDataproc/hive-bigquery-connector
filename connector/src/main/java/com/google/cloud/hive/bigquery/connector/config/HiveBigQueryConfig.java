@@ -101,17 +101,19 @@ public class HiveBigQueryConfig
   // ARROW or AVRO
   DataFormat readDataFormat;
 
-  // Options currently not implemented:
-  HiveBigQueryProxyConfig proxyConfig;
-  boolean viewsEnabled = false;
-  boolean enableModeCheckForSchemaFields = true;
-  Optional<String> materializationProject = empty();
-  Optional<String> materializationDataset = empty();
+  // Partitioning and clustering
   Optional<String> partitionField = empty();
   Optional<TimePartitioning.Type> partitionType = empty();
   Long partitionExpirationMs = null;
   Optional<Boolean> partitionRequireFilter = empty();
   Optional<String[]> clusteredFields = empty();
+
+  // Options currently not implemented:
+  HiveBigQueryProxyConfig proxyConfig;
+  boolean enableModeCheckForSchemaFields = true;
+  boolean viewsEnabled = false;
+  Optional<String> materializationProject = empty();
+  Optional<String> materializationDataset = empty();
   Optional<JobInfo.CreateDisposition> createDisposition = empty();
   ImmutableList<JobInfo.SchemaUpdateOption> loadSchemaUpdateOptions = ImmutableList.of();
   private Optional<String> storageReadEndpoint = empty();
@@ -184,18 +186,18 @@ public class HiveBigQueryConfig
 
     // Partitioning and clustering
     config.partitionType =
-        getAnyOption("bq.partition.type", conf, tableParameters)
+        getAnyOption(TIME_PARTITION_TYPE_KEY, conf, tableParameters)
             .transform(TimePartitioning.Type::valueOf);
-    config.partitionField = getAnyOption("bq.partition.field", conf, tableParameters);
+    config.partitionField = getAnyOption(TIME_PARTITION_FIELD_KEY, conf, tableParameters);
     config.partitionExpirationMs =
-        getAnyOption("bq.partition.expiration.ms", conf, tableParameters)
+        getAnyOption(TIME_PARTITION_EXPIRATION_KEY, conf, tableParameters)
             .transform(Long::valueOf)
             .orNull();
     config.partitionRequireFilter =
-        getAnyOption("bq.partition.require.filter", conf, tableParameters)
+        getAnyOption(TIME_PARTITION_REQUIRE_FILTER_KEY, conf, tableParameters)
             .transform(Boolean::valueOf);
     config.clusteredFields =
-        getAnyOption("bq.clustered.fields", conf, tableParameters).transform(s -> s.split(","));
+        getAnyOption(CLUSTERED_FIELDS_KEY, conf, tableParameters).transform(s -> s.split(","));
 
     return config;
   }
@@ -223,6 +225,7 @@ public class HiveBigQueryConfig
     return partitionField.toJavaUtil();
   }
 
+  // TODO: Enable other types of partitioning (e.g. Integer Range Partitioning)
   @Override
   public java.util.Optional<TimePartitioning.Type> getPartitionType() {
     return partitionType.toJavaUtil();

@@ -53,6 +53,9 @@ public class TestUtils {
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
+
+  public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
+  public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
   public static final String TEMP_BUCKET_NAME = getProject() + "-integration";
   public static final String TEMP_GCS_PATH = "gs://" + TEMP_BUCKET_NAME + "/temp";
 
@@ -175,6 +178,38 @@ public class TestUtils {
               "  'bq.project'='${project}',",
               "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + MANAGED_TEST_TABLE_NAME + "'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE TABLE " + FIELD_TIME_PARTITIONED_TABLE_NAME + " (",
+              "int_val BIGINT,",
+              "ts TIMESTAMP",
+              ")",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
+              "  'bq.table'='" + FIELD_TIME_PARTITIONED_TABLE_NAME + "',",
+              "  'bq.time.partition.field'='ts',",
+              "  'bq.time.partition.type'='MONTH',",
+              "  'bq.time.partition.expiration.ms'='2592000000',",
+              "  'bq.clustered.fields'='int_val'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE TABLE " + INGESTION_TIME_PARTITIONED_TABLE_NAME + " (",
+              "int_val BIGINT",
+              ")",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
+              "  'bq.table'='" + INGESTION_TIME_PARTITIONED_TABLE_NAME + "',",
+              "  'bq.time.partition.type'='DAY'",
               ");")
           .collect(Collectors.joining("\n"));
 

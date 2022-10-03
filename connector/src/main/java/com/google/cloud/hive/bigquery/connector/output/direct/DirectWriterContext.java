@@ -36,6 +36,7 @@ public class DirectWriterContext {
   final Logger LOG = LoggerFactory.getLogger(DirectWriterContext.class);
 
   private final BigQueryClient bigQueryClient;
+
   private final TableId tableIdToWrite;
   private final TableId destinationTableId;
   private final boolean enableModeCheckForSchemaFields;

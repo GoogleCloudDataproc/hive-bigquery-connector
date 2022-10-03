@@ -28,6 +28,10 @@ public class Constants {
   public static final String STREAM_FILE_EXTENSION = "stream";
   public static final String JOB_DETAILS_FILE = "job-details.json";
 
+  // Pseudo columns in BigQuery for ingestion time partitioned tables
+  public static final String PARTITION_TIME_PSEUDO_COLUMN = "_PARTITIONTIME";
+  public static final String PARTITION_DATE_PSEUDO_COLUMN = "_PARTITIONDATE";
+
   // The maximum nesting depth of a BigQuery RECORD:
   public static final int MAX_BIGQUERY_NESTED_DEPTH = 15;
   public static final String MAPTYPE_ERROR_MESSAGE = "MapType is unsupported.";

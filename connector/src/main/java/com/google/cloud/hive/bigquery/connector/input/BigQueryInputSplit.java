@@ -20,6 +20,7 @@ import static repackaged.by.hivebqconnector.com.google.common.base.Preconditions
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.inject.Guice;
@@ -186,6 +187,17 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     } else {
       selectedFields =
           new HashSet<>(Arrays.asList(ColumnProjectionUtils.getReadColumnNames(jobConf)));
+    }
+
+    // Fix the BigQuery pseudo columns, if present, as Hive uses lowercase column names
+    // whereas BigQuery expects the uppercase names.
+    boolean found = selectedFields.remove(Constants.PARTITION_TIME_PSEUDO_COLUMN.toLowerCase());
+    if (found) {
+      selectedFields.add(Constants.PARTITION_TIME_PSEUDO_COLUMN);
+    }
+    found = selectedFields.remove(Constants.PARTITION_DATE_PSEUDO_COLUMN.toLowerCase());
+    if (found) {
+      selectedFields.add(Constants.PARTITION_DATE_PSEUDO_COLUMN);
     }
 
     // If a WHERE clause with filters is present, translate the filter values to

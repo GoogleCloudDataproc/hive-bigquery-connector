@@ -135,8 +135,6 @@ public class AvroUtils {
   }
 
   /**
-=======
->>>>>>> 8c24d54 (Add support for Avro reads)
    * Helper class that writes Avro records into memory. This is used by the 'indirect' write method.
    * The contents are later persisted to GCS when each task completes. And later written to BigQuery
    * when the overall job completes.
