@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.arrow;
 
+import com.google.cloud.bigquery.connector.common.ArrowReaderIterator;
 import com.google.cloud.bigquery.connector.common.ReadRowsHelper;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
@@ -107,51 +108,4 @@ public class ArrowBatchReader extends RecordReader<NullWritable, VectorSchemaRoo
   @Override
   public void close() {}
 
-  // TODO: The below class was copied from the Spark connector's ArrowBinaryIterator. It could be
-  //  moved to the bigquery-connector-common library to avoid code duplication.
-  private static class ArrowReaderIterator implements Iterator<VectorSchemaRoot> {
-
-    private final ArrowStreamReader reader;
-    VectorSchemaRoot current = null;
-    boolean closed = false;
-
-    ArrowReaderIterator(ArrowStreamReader reader) {
-      this.reader = reader;
-    }
-
-    @Override
-    public boolean hasNext() {
-      if (current != null) {
-        return true;
-      }
-      if (closed) {
-        return false;
-      }
-      try {
-        boolean res = reader.loadNextBatch();
-        if (res) {
-          current = reader.getVectorSchemaRoot();
-        } else {
-          ensureClosed();
-        }
-        return res;
-      } catch (IOException e) {
-        throw new UncheckedIOException("Failed to load the next arrow batch", e);
-      }
-    }
-
-    @Override
-    public VectorSchemaRoot next() {
-      VectorSchemaRoot res = current;
-      current = null;
-      return res;
-    }
-
-    private void ensureClosed() throws IOException {
-      if (!closed) {
-        reader.close();
-        closed = true;
-      }
-    }
-  }
 }

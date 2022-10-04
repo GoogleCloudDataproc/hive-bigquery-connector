@@ -66,9 +66,13 @@ public class HiveBigQueryConfig
   public static final String WORK_DIR_PARENT_PATH_KEY = "bq.work.dir.parent.path";
   public static final String WORK_DIR_NAME_PREFIX_KEY = "bq.work.dir.name.prefix";
   public static final String READ_DATA_FORMAT_KEY = "bq.read.data.format";
+  public static final String READ_CREATE_SESSION_TIMEOUT_KEY = "bq.read.create.session.timeout";
   public static final String CREDENTIALS_KEY_KEY = "bq.credentials.key";
   public static final String CREDENTIALS_FILE_KEY = "bq.credentials.file";
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
+  public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY = "bq.access.access.token.provider.fqcn";
+  public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
+
   public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
   public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
   public static final String TIME_PARTITION_EXPIRATION_KEY = "bq.time.partition.expiration.ms";
@@ -86,10 +90,13 @@ public class HiveBigQueryConfig
 
   private TableId tableId;
   private Optional<String> columnNameDelimiter;
+  private Optional<String> traceId = empty();
+
+  // Credentials management
   private Optional<String> credentialsKey = empty();
   private Optional<String> credentialsFile = empty();
   private Optional<String> accessToken = empty();
-  private Optional<String> traceId = empty();
+  private Optional<String> accessTokenProviderFQCN;
 
   /*
    * Used for "indirect" write jobs.
@@ -98,8 +105,9 @@ public class HiveBigQueryConfig
    */
   boolean useAvroLogicalTypes = true;
 
-  // ARROW or AVRO
-  DataFormat readDataFormat;
+  // Reading parameters
+  private DataFormat readDataFormat; // ARROW or AVRO
+  private Optional<Long> createReadSessionTimeoutInSeconds;
 
   // Partitioning and clustering
   Optional<String> partitionField = empty();
@@ -154,7 +162,7 @@ public class HiveBigQueryConfig
             .or(Optional.of(String.valueOf(SerDeUtils.COMMA)));
     config.traceId = Optional.of("Hive:" + HiveUtils.getHiveId(conf));
     config.createDisposition =
-        Optional.fromNullable(conf.get("bq.create.disposition"))
+        Optional.fromNullable(conf.get(CREATE_DISPOSITION_KEY))
             .transform(String::toUpperCase)
             .transform(JobInfo.CreateDisposition::valueOf);
     Optional<String> project = getAnyOption(PROJECT_KEY, conf, tableParameters);
@@ -173,8 +181,11 @@ public class HiveBigQueryConfig
     } else {
       throw new RuntimeException("Invalid input read format type: " + readDataFormat);
     }
+    config.createReadSessionTimeoutInSeconds =
+        getAnyOption(READ_CREATE_SESSION_TIMEOUT_KEY, conf, tableParameters)
+            .transform(Long::parseLong);
 
-    // Credentials
+    // Credentials management
     config.credentialsKey = getAnyOption(CREDENTIALS_KEY_KEY, conf, tableParameters);
     config.credentialsFile =
         Optional.fromJavaUtil(
@@ -183,6 +194,7 @@ public class HiveBigQueryConfig
                 Optional.fromNullable(conf.get(GCS_CONFIG_CREDENTIALS_FILE_PROPERTY))
                     .toJavaUtil()));
     config.accessToken = getAnyOption(ACCESS_TOKEN_KEY, conf, tableParameters);
+    config.accessTokenProviderFQCN = getAnyOption(ACCESS_TOKEN_PROVIDER_FQCN_KEY, conf, tableParameters);
 
     // Partitioning and clustering
     config.partitionType =
@@ -266,6 +278,11 @@ public class HiveBigQueryConfig
   @Override
   public boolean getEnableModeCheckForSchemaFields() {
     return enableModeCheckForSchemaFields;
+  }
+
+  @Override
+  public java.util.Optional<String> getAccessTokenProviderFQCN() {
+    return accessTokenProviderFQCN.toJavaUtil();
   }
 
   @Override
@@ -354,6 +371,11 @@ public class HiveBigQueryConfig
   @Override
   public ImmutableMap<String, String> getBigQueryJobLabels() {
     return bigQueryJobLabels;
+  }
+
+  @Override
+  public java.util.Optional<Long> getCreateReadSessionTimeoutInSeconds() {
+    return createReadSessionTimeoutInSeconds.toJavaUtil();
   }
 
   public OptionalInt getMaxParallelism() {
