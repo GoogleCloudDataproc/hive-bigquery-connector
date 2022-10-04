@@ -17,6 +17,7 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import static repackaged.by.hivebqconnector.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -222,6 +223,15 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     ReadSessionCreatorConfig readSessionCreatorConfig = config.toReadSessionCreatorConfig();
     ReadSessionCreator readSessionCreator =
         new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
+
+    // Check that the table in fact exists
+    // TODO: Small optimization: Do the existence check in ReadSessionResponse.create() so we can save
+    //  making this extra getTable() call to BigQuery. See: https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/640
+    TableInfo tableInfo = bqClient.getTable(config.getTableId());
+    if (tableInfo == null) {
+      throw new RuntimeException("Table '" + BigQueryUtil.friendlyTableName(config.getTableId()) + "' not found");
+    }
+
     ReadSessionResponse readSessionResponse =
         readSessionCreator.create(
             config.getTableId(), ImmutableList.copyOf(selectedFields), filter);

@@ -203,6 +203,26 @@ public class MainIntegrationTests extends IntegrationTestsBase {
     assertTrue(bQTableExists(dataset, TEST_TABLE_NAME));
   }
 
+  // -----------------------------------------------------------------------------------------------
+
+  /** Check that attempting to read a table that doesn't exist fails gracefully with a useful error message */
+  @CartesianTest
+  public void testReadNonExistingTable(
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat) {
+    // Create a Hive table without creating its corresponding table in BigQuery
+    initHive(engine, readDataFormat);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    // Attempt to read the table
+    Throwable exception =
+        assertThrows(
+            RuntimeException.class,
+            () -> runHiveStatement(String.format("SELECT * FROM %s", TEST_TABLE_NAME)));
+    assertTrue(exception.getMessage().contains(
+        String.format("Table '%s.%s.%s' not found", getProject(), dataset, TEST_TABLE_NAME)));
+  }
+
   // ---------------------------------------------------------------------------------------------------
 
   /** Check that reading an empty BQ table actually returns 0 results. */
