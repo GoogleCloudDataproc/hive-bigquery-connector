@@ -253,9 +253,9 @@ public class MainIntegrationTests extends IntegrationTestsBase {
     runBqQuery(
         String.format(
             "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
+    // Make sure the initial data is there
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
-    // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Read filtered data using Hive
     List<Object[]> rows =

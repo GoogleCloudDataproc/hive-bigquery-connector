@@ -23,19 +23,13 @@ import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryConfig;
-import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
-import com.google.cloud.bigquery.connector.common.ReadSessionCreatorConfig;
-import com.google.cloud.bigquery.connector.common.ReadSessionCreatorConfigBuilder;
+import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions.CompressionCodec;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
-import java.util.OptionalInt;
-import java.util.OptionalLong;
+import java.util.*;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -50,12 +44,6 @@ public class HiveBigQueryConfig
     implements BigQueryConfig, BigQueryClient.LoadDataOptions, Serializable {
 
   private static final long serialVersionUID = 1L;
-
-  public static final String WRITE_METHOD_DIRECT = "direct";
-  public static final String WRITE_METHOD_INDIRECT = "indirect";
-  public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "bq-hive-";
-  public static final String ARROW = "arrow";
-  public static final String AVRO = "avro";
 
   // Config keys
   public static final String PROJECT_KEY = "bq.project";
@@ -72,12 +60,12 @@ public class HiveBigQueryConfig
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
   public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY = "bq.access.access.token.provider.fqcn";
   public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
-
   public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
   public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
   public static final String TIME_PARTITION_EXPIRATION_KEY = "bq.time.partition.expiration.ms";
   public static final String TIME_PARTITION_REQUIRE_FILTER_KEY = "bq.time.partition.require.filter";
   public static final String CLUSTERED_FIELDS_KEY = "bq.clustered.fields";
+  public static final String VIEWS_ENABLED_KEY = "viewsEnabled";
 
   public static final int DEFAULT_CACHE_EXPIRATION_IN_MINUTES = 15;
   private static final int DEFAULT_BIGQUERY_CLIENT_CONNECT_TIMEOUT = 60 * 1000;
@@ -86,7 +74,7 @@ public class HiveBigQueryConfig
   static final String GCS_CONFIG_CREDENTIALS_FILE_PROPERTY =
       "google.cloud.auth.service.account.json.keyfile";
   public static final int DEFAULT_MATERIALIZATION_EXPRIRATION_TIME_IN_MINUTES = 24 * 60;
-  public static final String VIEWS_ENABLED_OPTION = "viewsEnabled";
+  public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "bq-hive-";
 
   private TableId tableId;
   private Optional<String> columnNameDelimiter;
@@ -108,6 +96,18 @@ public class HiveBigQueryConfig
   // Reading parameters
   private DataFormat readDataFormat; // ARROW or AVRO
   private Optional<Long> createReadSessionTimeoutInSeconds;
+  public static final String ARROW = "arrow";
+  public static final String AVRO = "avro";
+
+  // Views
+  boolean viewsEnabled;
+  Optional<String> materializationProject;
+  Optional<String> materializationDataset;
+  int materializationExpirationTimeInMinutes;
+
+  // Writing parameters
+  public static final String WRITE_METHOD_DIRECT = "direct";
+  public static final String WRITE_METHOD_INDIRECT = "indirect";
 
   // Partitioning and clustering
   Optional<String> partitionField = empty();
@@ -119,16 +119,12 @@ public class HiveBigQueryConfig
   // Options currently not implemented:
   HiveBigQueryProxyConfig proxyConfig;
   boolean enableModeCheckForSchemaFields = true;
-  boolean viewsEnabled = false;
-  Optional<String> materializationProject = empty();
-  Optional<String> materializationDataset = empty();
   Optional<JobInfo.CreateDisposition> createDisposition = empty();
   ImmutableList<JobInfo.SchemaUpdateOption> loadSchemaUpdateOptions = ImmutableList.of();
   private Optional<String> storageReadEndpoint = empty();
   private ImmutableMap<String, String> bigQueryJobLabels = ImmutableMap.of();
   String parentProjectId;
   boolean useParentProjectForMetadataOperations;
-  int materializationExpirationTimeInMinutes = DEFAULT_MATERIALIZATION_EXPRIRATION_TIME_IN_MINUTES;
   int maxReadRowsRetries = 3;
   Integer maxParallelism = null;
   private Optional<String> encodedCreateReadSessionRequest = empty();
@@ -161,6 +157,7 @@ public class HiveBigQueryConfig
         Optional.fromNullable(conf.get(serdeConstants.COLUMN_NAME_DELIMITER))
             .or(Optional.of(String.valueOf(SerDeUtils.COMMA)));
     config.traceId = Optional.of("Hive:" + HiveUtils.getHiveId(conf));
+    config.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     config.createDisposition =
         Optional.fromNullable(conf.get(CREATE_DISPOSITION_KEY))
             .transform(String::toUpperCase)
@@ -171,7 +168,17 @@ public class HiveBigQueryConfig
     if (project.isPresent() && dataset.isPresent() && table.isPresent()) {
       config.tableId = TableId.of(project.get(), dataset.get(), table.get());
     }
-    config.proxyConfig = HiveBigQueryProxyConfig.from(conf);
+
+    // Views
+    config.viewsEnabled = Boolean.parseBoolean(getAnyOption(VIEWS_ENABLED_KEY, conf, tableParameters).or("false"));
+    MaterializationConfiguration materializationConfiguration =
+        MaterializationConfiguration.from(ImmutableMap.copyOf(conf.getPropsWithPrefix("")), new HashMap<>());
+    config.materializationProject = materializationConfiguration.getMaterializationProject();
+    config.materializationDataset = materializationConfiguration.getMaterializationDataset();
+    config.materializationExpirationTimeInMinutes =
+        materializationConfiguration.getMaterializationExpirationTimeInMinutes();
+
+    // Reading options
     String readDataFormat =
         conf.get(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, HiveBigQueryConfig.ARROW);
     if (readDataFormat.equals(HiveBigQueryConfig.ARROW)) {
@@ -394,7 +401,7 @@ public class HiveBigQueryConfig
         .setMaterializationExpirationTimeInMinutes(materializationExpirationTimeInMinutes)
         .setReadDataFormat(readDataFormat)
         .setMaxReadRowsRetries(maxReadRowsRetries)
-        .setViewEnabledParamName(VIEWS_ENABLED_OPTION)
+        .setViewEnabledParamName(VIEWS_ENABLED_KEY)
         .setDefaultParallelism(1) // TODO: Make configurable?
         .setMaxParallelism(getMaxParallelism())
         .setRequestEncodedBase(encodedCreateReadSessionRequest.toJavaUtil())

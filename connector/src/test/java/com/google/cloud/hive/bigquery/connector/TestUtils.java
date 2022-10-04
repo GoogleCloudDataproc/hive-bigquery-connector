@@ -15,12 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.bigquery.DatasetId;
-import com.google.cloud.bigquery.DatasetInfo;
-import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
@@ -50,6 +45,7 @@ public class TestUtils {
   public final static String HIVECONF_SYSTEM_OVERRIDE_PREFIX = "hiveconf_";
   public static final String LOCATION = "us";
   public static final String TEST_TABLE_NAME = "test";
+  public static final String TEST_VIEW_NAME = "test_view";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
@@ -118,6 +114,20 @@ public class TestUtils {
               "  'bq.project'='${project}',",
               "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + TEST_TABLE_NAME + "'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_TEST_VIEW_CREATE_QUERY =
+      Stream.of(
+              "CREATE EXTERNAL TABLE " + TEST_VIEW_NAME + " (",
+              "number BIGINT,",
+              "text STRING",
+              ")",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
+              "  'bq.table'='" + TEST_VIEW_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
 
@@ -257,6 +267,14 @@ public class TestUtils {
     DatasetId datasetId = DatasetId.of(dataset);
     logger.warn("Creating test dataset: {}", datasetId);
     bq.create(DatasetInfo.newBuilder(datasetId).setLocation(LOCATION).build());
+  }
+
+  static void createView(String dataset, String table, String view) {
+    BigQuery bq = getBigquery();
+    String query = String.format("SELECT * FROM %s.%s", dataset, table);
+    TableId tableId = TableId.of(dataset, view);
+    ViewDefinition viewDefinition = ViewDefinition.newBuilder(query).setUseLegacySql(false).build();
+    bq.create(TableInfo.of(tableId, viewDefinition));
   }
 
   public static boolean bQTableExists(String dataset, String tableName) {

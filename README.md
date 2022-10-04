@@ -196,6 +196,9 @@ You can use the following properties in the `TBLPROPERTIES` clause when you crea
 | `bq.time.partition.expiration.ms`  | Partition [expiration time](https://cloud.google.com/bigquery/docs/managing-partitioned-tables#partition-expiration) in milliseconds                                                                                                                              |
 | `bq.time.partition.require.filter` | Set it to `true` to require that all queries on the table [must include a predicate filter]((https://cloud.google.com/bigquery/docs/managing-partitioned-tables#require-filter)) (a `WHERE` clause) that filters on the partitioning column. Defaults to `false`. |
 | `bq.clustered.fields`              | Comma-separated list of fields to cluster the table by                                                                                                                                                                                                            |
+| `viewsEnabled`                     | Set it to `true` to enable reading views. Defaults to `false`                                                                                                                                                                                                     |
+| `materializationProject`           | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                                                                                   |
+| `materializationDataset`           | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                                                                                   |
 
 ## Job configuration properties
 
@@ -242,6 +245,22 @@ The Storage API supports arbitrary pushdown of predicate filters. To enable pred
 the performance of reads. Predicate pushdown is not supported on complex types such as arrays and structs.
 For example - filters like `address.city = "Sunnyvale"` will not get pushdown to Bigquery.
 
+## Reading From BigQuery Views
+
+The connector has preliminary support for reading from [BigQuery views](https://cloud.google.com/bigquery/docs/views-intro).
+Please note there are a few caveats:
+
+* The Storage Read API operates on storage directly, so the API cannot be used to read logical or materialized views. To
+  get around this limitation, the connector materializes the views into temporary tables before it can read them. This
+  materialization process can affect overall read performance and incur additional costs to your BigQuery bill.
+* By default, the materialized views are created in the same project and dataset. Those can be configured by the
+  optional `materializationProject` and `materializationDataset` Hive configuration properties or
+  table properties, respectively.
+* As mentioned in the [BigQuery documentation](https://cloud.google.com/bigquery/docs/writing-results#temporary_and_permanent_tables),
+  the `materializationDataset` should be in same location as the view.
+* Reading from views is **disabled** by default. In order to enable it, set the `viewsEnabled` configuration
+  property to `true`.
+
 ## Known issues and limitations
 
 1. The `TINYINT`, `SMALLINT`, and `INT`/`INTEGER` Hive types are not supported. Instead, use the `BIGINT` type, which
@@ -265,8 +284,6 @@ The following features are not available yet but are planned or are under develo
 
 - `UPDATE`, `MERGE`, and `DELETE` statements.
 - `ALTER TABLE` statements.
-- Managed tables. Currently, all tables behave like external tables.
-- BigQuery views and materialized views.
 
 Your feedback and contributions are welcome for developing those new features.
 
