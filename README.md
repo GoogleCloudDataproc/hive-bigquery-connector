@@ -24,7 +24,7 @@ This connector has been tested with Hive 3.1.2, Hadoop 2.10.1, and Tez 0.9.1.
 
 3. Compile and package the JAR:
    ``` sh
-   ./mvnw package -DskiptTests
+   ./mvnw package -DskipTests
    ```
    The packaged JAR is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar`
 
@@ -33,10 +33,10 @@ This connector has been tested with Hive 3.1.2, Hadoop 2.10.1, and Tez 0.9.1.
 5. Open the Hive CLI and load the JAR:
 
    ```sh
-   hive> add jar gs://<Jar location>/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar;
+   hive> add jar gs://<JAR location>/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar;
    ```
 
-4. Verify that the JAR is correctly loaded.
+4. Verify that the JAR is correctly loaded:
 
    ```sh
    hive> list jars;
