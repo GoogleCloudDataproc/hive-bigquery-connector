@@ -36,7 +36,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    // Pick the appropriate Committer class
+    // Pick the appropriate OutputCommitter (direct or indirect) based on the configured write method
     if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
       IndirectOutputCommitter.commitJob(conf, jobDetails);
     } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {

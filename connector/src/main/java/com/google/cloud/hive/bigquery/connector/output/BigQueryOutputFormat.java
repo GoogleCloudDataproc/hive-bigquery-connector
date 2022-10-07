@@ -34,11 +34,21 @@ import org.apache.hadoop.util.Progressable;
 public class BigQueryOutputFormat
     implements OutputFormat<NullWritable, Writable>, HiveOutputFormat<NullWritable, Writable> {
 
+  /**
+   * Get the RecordWriter (direct or indirect) for the given job.
+   * Params:
+   * fileSystem - Ignored
+   * job – configuration for the job whose output is being written.
+   * name – the unique name for this part of the output.
+   * progress – mechanism for reporting progress while writing to file.
+   * Returns: a RecordWriter to write the output for the job.
+   * Throws: IOException
+   */
   @Override
   public org.apache.hadoop.mapred.RecordWriter<NullWritable, Writable> getRecordWriter(
-      FileSystem fileSystem, JobConf jobConf, String s, Progressable progressable)
+      FileSystem fileSystem, JobConf jobConf, String name, Progressable progressable)
       throws IOException {
-    // Pick the appropriate RecordWriter class based on configuration
+    // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
     JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
     String writeMethod =
         jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);

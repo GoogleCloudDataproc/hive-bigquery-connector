@@ -37,7 +37,7 @@ public class BigQueryAvroInputFormat
    */
   @Override
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
-    return BigQueryInputSplit.createSplitsfromBigQueryReadStreams(jobConf);
+    return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf);
   }
 
   @Override

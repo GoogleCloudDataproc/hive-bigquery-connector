@@ -157,7 +157,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     return columnNames;
   }
 
-  public static InputSplit[] createSplitsfromBigQueryReadStreams(JobConf jobConf) {
+  public static InputSplit[] createSplitsFromBigQueryReadStreams(JobConf jobConf) {
     Injector injector =
         Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(jobConf));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
@@ -213,18 +213,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       filter = Optional.of(translatedFilterExpr.getExprString());
     }
 
-    // TODO: If the BigQuery doesn't exist, then readSessionCreator.create() throws
-    //  a NullPointerException. This is because the ReadSessionCreator class in the
-    //  bigquery-connector-common library does not set the "setThrowNotFound" option
-    //  when it calls the BQ API's getTable() method. We should maybe modify that
-    //  library's code to better handle this case and provide a better error message
-    //  instead of just throwing a NullPointerException.
-    //  See: https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/640
-    ReadSessionCreatorConfig readSessionCreatorConfig = config.toReadSessionCreatorConfig();
-    ReadSessionCreator readSessionCreator =
-        new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
-
-    // Check that the table in fact exists
+    // Check that the BQ table in fact exists
     // TODO: Small optimization: Do the existence check in ReadSessionResponse.create() so we can save
     //  making this extra getTable() call to BigQuery. See: https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/640
     TableInfo tableInfo = bqClient.getTable(config.getTableId());
@@ -232,10 +221,16 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       throw new RuntimeException("Table '" + BigQueryUtil.friendlyTableName(config.getTableId()) + "' not found");
     }
 
+    // Create the BQ read session
+    ReadSessionCreatorConfig readSessionCreatorConfig = config.toReadSessionCreatorConfig();
+    ReadSessionCreator readSessionCreator =
+        new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
     ReadSessionResponse readSessionResponse =
         readSessionCreator.create(
             config.getTableId(), ImmutableList.copyOf(selectedFields), filter);
     ReadSession readSession = readSessionResponse.getReadSession();
+
+    // Assign a new InputSplit instance for each stream in the read session
     Path warehouseLocation = new Path(jobConf.get("location"));
     return readSession.getStreamsList().stream()
         .map(
