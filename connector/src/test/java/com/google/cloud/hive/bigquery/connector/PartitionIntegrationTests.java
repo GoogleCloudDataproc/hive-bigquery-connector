@@ -33,6 +33,9 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
 
   @Test
   public void testFieldTimePartition() {
+    // Make sure the BQ table doesn't exist
+    dropBqTableIfExists(dataset, FIELD_TIME_PARTITIONED_TABLE_NAME);
+    // Create the table using Hive
     initHive();
     runHiveScript(HIVE_FIELD_TIME_PARTITIONED_TABLE_CREATE_QUERY);
     StandardTableDefinition tableDef =
@@ -47,8 +50,10 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
 
   @Test
   public void testCreateIngestionTimePartition() {
-    initHive();
+    // Make sure the BQ table doesn't exist
+    dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
+    initHive();
     runHiveScript(HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY);
     // Retrieve the table metadata from BigQuery
     StandardTableDefinition tableDef =
@@ -74,6 +79,8 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
   @Test
   public void testQueryIngestionTimePartition() {
     initHive();
+    // Make sure the BQ table doesn't exist
+    dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
     runHiveScript(HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY);
     runHiveScript(

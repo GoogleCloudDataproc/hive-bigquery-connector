@@ -297,16 +297,13 @@ To standardize the code's format, run [Spotless](https://github.com/diffplug/spo
 ./mvnw spotless:apply
 ```
 
-### Running the tests
+### Unit/integration tests
 
-You must use Java version 8, as it's the version that Hive itself uses. Make sure that `JAVA_HOME` points to the Java
-8's base directory.
+#### Set up IAM permissions
 
 Create a service account and give the following roles in your project:
 
-- BigQuery Data Owner
-- BigQuery Job User
-- BigQuery Read Session User
+- BigQuery Admin
 - Storage Admin
 
 Download a JSON private key for the service account, and set the `GOOGLE_APPLICATION_CREDENTIALS` environment
@@ -315,6 +312,48 @@ variable:
 ```sh
 GOOGLE_APPLICATION_CREDENTIALS=<path/to/your/key.json>
 ```
+
+#### Enable APIs
+
+Enable the following APIs:
+
+```sh
+gcloud services enable \
+  bigquerystorage.googleapis.com \
+  bigqueryconnection.googleapis.com
+```
+
+#### BigLake setup
+
+Create a test BigLake connection:
+
+```sh
+bq mk --connection --location=us --connection_type=CLOUD_RESOURCE hive-integration-tests
+```
+
+Create a bucket to host BigLake datasets:
+
+```sh
+gsutil mb -l us-central1 gs://${PROJECT}-biglake-tests
+```
+
+Set the BigLake bucket name in an environment variable:
+
+```sh
+BIGLAKE_BUCKET=${PROJECT}-biglake-tests
+```
+
+Give the BigLake connection's service account access to the bucket:
+
+```sh
+BIGLAKE_SA=$(bq show --connection --format json ${PROJECT}.us.hive-integration-tests | jq -r .cloudResource.serviceAccountId)
+gsutil iam ch ${BIGLAKE_SA}:objectViewer gs://${PROJECT}-biglake-tests
+```
+
+#### Running the tests
+
+You must use Java version 8, as it's the version that Hive itself uses. Make sure that `JAVA_HOME` points to the Java
+8's base directory.
 
 To run the integration tests:
 

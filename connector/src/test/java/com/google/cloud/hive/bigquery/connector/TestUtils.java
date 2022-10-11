@@ -26,17 +26,12 @@ import com.google.inject.Injector;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import repackaged.by.hivebqconnector.com.google.common.cache.Cache;
-import repackaged.by.hivebqconnector.com.google.common.cache.CacheBuilder;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
 import repackaged.by.hivebqconnector.com.google.common.collect.Lists;
 
 public class TestUtils {
@@ -45,19 +40,24 @@ public class TestUtils {
   public final static String HIVECONF_SYSTEM_OVERRIDE_PREFIX = "hiveconf_";
   public static final String LOCATION = "us";
   public static final String TEST_TABLE_NAME = "test";
+  public static final String BIGLAKE_TABLE_NAME = "biglake";
   public static final String TEST_VIEW_NAME = "test_view";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
-
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
-  public static final String TEMP_BUCKET_NAME = getProject() + "-integration";
-  public static final String TEMP_GCS_PATH = "gs://" + TEMP_BUCKET_NAME + "/temp";
+  public static final String INDIRECT_WRITE_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
+  public static final String TEMP_GCS_PATH = "gs://" + getIndirectWriteBucket() + "/temp";
+
+  // The BigLake bucket and connection must be created before running the tests.
+  // Also, the connection's service account must be given permission to access the bucket.
+  public static final String BIGLAKE_CONNECTION = "hive-integration-tests";
+  public static final String BIGLAKE_BUCKET_NAME_ENV_VAR = "BIGLAKE_BUCKET";
 
   public static String BIGQUERY_TEST_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE ${dataset}." + TEST_TABLE_NAME + " (",
+              "CREATE OR REPLACE TABLE ${dataset}." + TEST_TABLE_NAME + " (",
               "number INT64,",
               "text STRING",
               ")")
@@ -65,7 +65,7 @@ public class TestUtils {
 
   public static String BIGQUERY_ANOTHER_TEST_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE ${dataset}." + ANOTHER_TEST_TABLE_NAME + " (",
+              "CREATE OR REPLACE TABLE ${dataset}." + ANOTHER_TEST_TABLE_NAME + " (",
               "num INT64,",
               "str_val STRING",
               ")")
@@ -73,7 +73,7 @@ public class TestUtils {
 
   public static String BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE ${dataset}." + ALL_TYPES_TABLE_NAME + " (",
+              "CREATE OR REPLACE TABLE ${dataset}." + ALL_TYPES_TABLE_NAME + " (",
               "int_val INT64,",
               "bl BOOL,",
               "str STRING,",
@@ -87,9 +87,19 @@ public class TestUtils {
               ")")
           .collect(Collectors.joining("\n"));
 
+  public static String BIGQUERY_BIGLAKE_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE OR REPLACE EXTERNAL TABLE ${dataset}." + BIGLAKE_TABLE_NAME,
+              "WITH CONNECTION `${project}.${location}.${connection}`",
+              "OPTIONS (",
+              "format = 'CSV',",
+              "uris = ['gs://" + getBigLakeBucket() + "/test.csv']",
+              ")")
+          .collect(Collectors.joining("\n"));
+
   public static String BIGQUERY_MANAGED_TEST_TABLE_CREATE_QUERY =
       Stream.of(
-              "CREATE TABLE ${dataset}." + MANAGED_TEST_TABLE_NAME + " (",
+              "CREATE OR REPLACE TABLE ${dataset}." + MANAGED_TEST_TABLE_NAME + " (",
               "int_val INT64,",
               "bl BOOL,",
               "str STRING,",
@@ -128,6 +138,21 @@ public class TestUtils {
               "  'bq.project'='${project}',",
               "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + TEST_VIEW_NAME + "'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_BIGLAKE_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE EXTERNAL TABLE " + BIGLAKE_TABLE_NAME + " (",
+              "a BIGINT,",
+              "b BIGINT,",
+              "c BIGINT",
+              ")",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
+              "  'bq.table'='" + BIGLAKE_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
 
@@ -223,9 +248,6 @@ public class TestUtils {
               ");")
           .collect(Collectors.joining("\n"));
 
-  public static final Cache<String, TableInfo> destinationTableCache =
-      CacheBuilder.newBuilder().expireAfterWrite(15, TimeUnit.MINUTES).maximumSize(1000).build();
-
   /**
    * Return Hive config values passed from system properties
    */
@@ -254,53 +276,69 @@ public class TestUtils {
     return credentialsSupplier.getCredentials();
   }
 
-  public static BigQuery getBigquery() {
-    return BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
+  public static BigQueryClient getBigqueryClient() {
+    Configuration config = new Configuration();
+    Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
+    for (String key : hiveConfSystemOverrides.keySet()) {
+      config.set(key, hiveConfSystemOverrides.get(key));
+    }
+    Injector injector = Guice.createInjector(
+        new BigQueryClientModule(),
+        new HiveBigQueryConnectorModule(config));
+    return injector.getInstance(BigQueryClient.class);
   }
 
   public static String getProject() {
-    return getBigquery().getOptions().getProjectId();
+    return getBigqueryClient().getProjectId();
   }
 
-  public static void createDataset(String dataset) {
-    BigQuery bq = getBigquery();
+  /**
+   * The BigLake bucket must be created prior to running the test, then its name must
+   * be set in an environment variable, so we can retrieve it here during the test
+   * execution.
+   */
+  public static String getBigLakeBucket() {
+    return System.getenv().getOrDefault(
+        BIGLAKE_BUCKET_NAME_ENV_VAR, getProject() + "-biglake-tests");
+  }
+
+  /**
+   * Returns the name of the bucket used to store temporary Avro files when testing the
+   * indirect write method. This bucket is created automatically when running the tests.
+   */
+  public static String getIndirectWriteBucket() {
+    return System.getenv().getOrDefault(
+        INDIRECT_WRITE_BUCKET_NAME_ENV_VAR, getProject() + "-indirect-write-tests");
+  }
+
+  public static void createBqDataset(String dataset) {
     DatasetId datasetId = DatasetId.of(dataset);
     logger.warn("Creating test dataset: {}", datasetId);
+    BigQuery bq = BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
     bq.create(DatasetInfo.newBuilder(datasetId).setLocation(LOCATION).build());
   }
 
-  static void createView(String dataset, String table, String view) {
-    BigQuery bq = getBigquery();
-    String query = String.format("SELECT * FROM %s.%s", dataset, table);
-    TableId tableId = TableId.of(dataset, view);
-    ViewDefinition viewDefinition = ViewDefinition.newBuilder(query).setUseLegacySql(false).build();
-    bq.create(TableInfo.of(tableId, viewDefinition));
+  public static void createOrReplaceBqView(String dataset, String table, String view) {
+    String query = String.format(
+        "CREATE OR REPLACE VIEW %s.%s AS (SELECT * FROM %s.%s)", dataset, view, dataset, table);
+    getBigqueryClient().query(query);
+  }
+
+  public static void dropBqTableIfExists(String dataset, String table) {
+    TableId tableId = TableId.of(dataset, table);
+    getBigqueryClient().deleteTable(tableId);
   }
 
   public static boolean bQTableExists(String dataset, String tableName) {
-    BigQueryClient bigQueryClient =
-        new BigQueryClient(
-            getBigquery(),
-            Optional.empty(),
-            Optional.empty(),
-            destinationTableCache,
-            ImmutableMap.of());
-    return bigQueryClient.tableExists(TableId.of(getProject(), dataset, tableName));
+    return getBigqueryClient().tableExists(TableId.of(getProject(), dataset, tableName));
   }
 
   public static TableInfo getTableInfo(String dataset, String tableName) {
-    BigQueryClient bigQueryClient =
-        new BigQueryClient(
-            getBigquery(),
-            Optional.empty(),
-            Optional.empty(),
-            destinationTableCache,
-            ImmutableMap.of());
-    return bigQueryClient.getTable(TableId.of(getProject(), dataset, tableName));
+    return getBigqueryClient().getTable(TableId.of(getProject(), dataset, tableName));
   }
 
-  public static void deleteDatasetAndTables(String dataset) {
-    BigQuery bq = getBigquery();
+  public static void deleteBqDatasetAndTables(String dataset) {
+    BigQuery bq = BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
     logger.warn("Deleting test dataset '{}' and its contents", dataset);
     bq.delete(DatasetId.of(dataset), BigQuery.DatasetDeleteOption.deleteContents());
   }
@@ -311,6 +349,12 @@ public class TestUtils {
 
   public static void createBucket(String bucketName) {
     getStorageClient().create(BucketInfo.newBuilder(bucketName).setLocation(LOCATION).build());
+  }
+
+  public static void uploadBlob(String bucketName, String objectName, byte[] contents) {
+    BlobId blobId = BlobId.of(bucketName, objectName);
+    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+    getStorageClient().create(blobInfo, contents);
   }
 
   public static void deleteBucket(String bucketName) {
@@ -326,4 +370,16 @@ public class TestUtils {
   public static List<Blob> getBlobs(String bucketName) {
     return Lists.newArrayList(getStorageClient().list(bucketName).iterateAll());
   }
+
+  public static void emptyBucket(String bucketName) {
+    List<Blob> blobs = getBlobs(bucketName);
+    if (blobs.size() > 0) {
+      StorageBatch batch = getStorageClient().batch();
+      for (Blob blob : blobs) {
+        batch.delete(blob.getBlobId());
+      }
+      batch.submit();
+    }
+  }
+
 }

@@ -15,14 +15,13 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
-import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.StorageException;
 import com.klarna.hiverunner.HiveRunnerExtension;
@@ -30,24 +29,49 @@ import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
+
+// TODO: When running the tests, some noisy exceptions are displayed in the output:
+//  "javax.jdo.JDOFatalUserException: Persistence Manager has been closed".
+//  Those exceptions don't impact the execution of the tests, although they perhaps
+//  make them run a bit slower overall. This seems related to:
+//  https://issues.apache.org/jira/browse/HIVE-25261, which was fixed in Hive 4.0.0,
+//  so we might have to find a workaround to make those go away with Hive 3.X.X.
 
 @ExtendWith(HiveRunnerExtension.class)
 public class IntegrationTestsBase {
 
-  protected String dataset;
+  protected static String dataset;
 
   @HiveSQL(
       files = {},
       autoStart = false)
   protected HiveShell hive;
 
+  @BeforeAll
+  public static void setUpAll() {
+    // Create the bucket for 'indirect' jobs.
+    try {
+      createBucket(getIndirectWriteBucket());
+    } catch (StorageException e) {
+      if (e.getCode() == 409) {
+        // The bucket already exists, maybe left over after a previous test failure.
+        // Delete and recreate it to start fresh with an empty bucket.
+        deleteBucket(getIndirectWriteBucket());
+        createBucket(getIndirectWriteBucket());
+      }
+    }
+    // Upload datasets to the BigLake bucket.
+    uploadBlob(getBigLakeBucket(), "test.csv", "a,b,c\n1,2,3\n4,5,6".getBytes(StandardCharsets.UTF_8));
+    // Create the test dataset in BigQuery
+    dataset = String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
+    createBqDataset(dataset);
+  }
+
   @BeforeEach
-  public void setUp(TestInfo testInfo) {
+  public void setUpEach(TestInfo testInfo) {
+    // Display which test is running
     String methodName = testInfo.getTestMethod().get().getName();
     String displayName = testInfo.getDisplayName();
     String parameters = "";
@@ -60,51 +84,37 @@ public class IntegrationTestsBase {
         testInfo.getTestMethod().get().getName(),
         parameters);
 
-    // Create the test dataset in BigQuery
-    dataset = String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
-    createDataset(dataset);
-    // Create the bucket for 'indirect' jobs.
-    try {
-      createBucket(TEMP_BUCKET_NAME);
-    } catch (StorageException e) {
-      if (e.getCode() == 409) { // Bucket already exists
-        deleteBucket(TEMP_BUCKET_NAME);
-        createBucket(TEMP_BUCKET_NAME);
-      }
-    }
+    // Empty the indirect write bucket
+    emptyBucket(getIndirectWriteBucket());
   }
 
-  @AfterEach
-  public void tearDown() {
-    // Cleanup the test BQ dataset and GCS bucket
-    deleteDatasetAndTables(dataset);
-    deleteBucket(TEMP_BUCKET_NAME);
+  @AfterAll
+  static void tearDownAll() {
+    // Cleanup the GCS bucket
+    deleteBucket(getIndirectWriteBucket());
+    // Cleanup the test BQ dataset
+    deleteBqDatasetAndTables(dataset);
   }
 
-  public String getQuery(String queryTemplate) {
+  public String renderQueryTemplate(String queryTemplate) {
     Map<String, Object> params = new HashMap<>();
     params.put("project", getProject());
     params.put("dataset", dataset);
+    params.put("location", LOCATION);
+    params.put("connection", BIGLAKE_CONNECTION);
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
   }
 
   public TableResult runBqQuery(String queryTemplate) {
-    BigQueryClient bigQueryClient =
-        new BigQueryClient(
-            getBigquery(),
-            Optional.empty(),
-            Optional.empty(),
-            destinationTableCache,
-            ImmutableMap.of());
-    return bigQueryClient.query(getQuery(queryTemplate));
+    return getBigqueryClient().query(renderQueryTemplate(queryTemplate));
   }
 
   public void runHiveScript(String queryTemplate) {
-    hive.execute(getQuery(queryTemplate));
+    hive.execute(renderQueryTemplate(queryTemplate));
   }
 
   public List<Object[]> runHiveStatement(String queryTemplate) {
-    return hive.executeStatement(getQuery(queryTemplate));
+    return hive.executeStatement(renderQueryTemplate(queryTemplate));
   }
 
   public void initHive() {

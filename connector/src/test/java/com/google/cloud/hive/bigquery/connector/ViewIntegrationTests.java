@@ -21,7 +21,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
         // Create the table in BigQuery
         runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
         // Create the corresponding BigQuery view
-        createView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
+        createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
         // Create the corresponding Hive table
         initHive(engine, readDataFormat);
         runHiveScript(HIVE_TEST_VIEW_CREATE_QUERY);
@@ -46,7 +46,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
         // Create the table in BigQuery
         runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
         // Create the corresponding BigQuery view
-        createView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
+        createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
         // Create the corresponding Hive table
         initHive(engine, readDataFormat);
         runHiveScript(HIVE_TEST_VIEW_CREATE_QUERY);
@@ -66,7 +66,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
         // Create the table in BigQuery
         runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
         // Create the corresponding BigQuery view
-        createView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
+        createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
         // Create the corresponding Hive table
         initHive(engine, readDataFormat);
         runHiveScript(HIVE_TEST_VIEW_CREATE_QUERY);
