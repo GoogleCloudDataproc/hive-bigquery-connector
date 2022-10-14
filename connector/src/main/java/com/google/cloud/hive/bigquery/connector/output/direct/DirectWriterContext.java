@@ -78,7 +78,11 @@ public class DirectWriterContext {
       TableInfo destinationTable = bigQueryClient.getTable(tableId);
       com.google.cloud.bigquery.Schema tableSchema = destinationTable.getDefinition().getSchema();
       Preconditions.checkArgument(
-          BigQueryUtil.schemaEquals(tableSchema, bigQuerySchema, /* regardFieldOrder */ false, enableModeCheckForSchemaFields),
+          BigQueryUtil.schemaEquals(
+              tableSchema,
+              bigQuerySchema, /* regardFieldOrder */
+              false,
+              enableModeCheckForSchemaFields),
           new BigQueryConnectorException.InvalidSchemaException(
               "Destination table's schema is not compatible with query's" + " schema"));
       deleteTableOnAbort = false;

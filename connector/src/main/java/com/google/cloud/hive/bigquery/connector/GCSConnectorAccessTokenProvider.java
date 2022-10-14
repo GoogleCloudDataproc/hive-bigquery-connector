@@ -32,7 +32,7 @@ public class GCSConnectorAccessTokenProvider implements AccessTokenProvider {
 
   Configuration conf;
   BigQueryCredentialsSupplier credentialsSupplier;
-  private final static AccessToken EXPIRED_TOKEN = new AccessToken("", -1L);
+  private static final AccessToken EXPIRED_TOKEN = new AccessToken("", -1L);
   private AccessToken accessToken = EXPIRED_TOKEN;
   public static final String CLOUD_PLATFORM_SCOPE =
       "https://www.googleapis.com/auth/cloud-platform";
@@ -45,7 +45,8 @@ public class GCSConnectorAccessTokenProvider implements AccessTokenProvider {
   @Override
   public void refresh() throws IOException {
     GoogleCredentials credentials = (GoogleCredentials) credentialsSupplier.getCredentials();
-    com.google.auth.oauth2.AccessToken token = credentials.createScoped(CLOUD_PLATFORM_SCOPE).refreshAccessToken();
+    com.google.auth.oauth2.AccessToken token =
+        credentials.createScoped(CLOUD_PLATFORM_SCOPE).refreshAccessToken();
     this.accessToken = new AccessToken(token.getTokenValue(), token.getExpirationTime().getTime());
   }
 
@@ -53,10 +54,8 @@ public class GCSConnectorAccessTokenProvider implements AccessTokenProvider {
   public void setConf(Configuration configuration) {
     conf = configuration;
     Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf));
-    credentialsSupplier =
-        injector.getInstance(BigQueryCredentialsSupplier.class);
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf));
+    credentialsSupplier = injector.getInstance(BigQueryCredentialsSupplier.class);
   }
 
   @Override

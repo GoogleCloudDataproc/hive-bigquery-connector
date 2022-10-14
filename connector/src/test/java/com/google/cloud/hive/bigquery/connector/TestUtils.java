@@ -37,7 +37,7 @@ import repackaged.by.hivebqconnector.com.google.common.collect.Lists;
 public class TestUtils {
 
   public static Logger logger = LoggerFactory.getLogger(TestUtils.class);
-  public final static String HIVECONF_SYSTEM_OVERRIDE_PREFIX = "hiveconf_";
+  public static final String HIVECONF_SYSTEM_OVERRIDE_PREFIX = "hiveconf_";
   public static final String LOCATION = "us";
   public static final String TEST_TABLE_NAME = "test";
   public static final String BIGLAKE_TABLE_NAME = "biglake";
@@ -248,9 +248,7 @@ public class TestUtils {
               ");")
           .collect(Collectors.joining("\n"));
 
-  /**
-   * Return Hive config values passed from system properties
-   */
+  /** Return Hive config values passed from system properties */
   public static Map<String, String> getHiveConfSystemOverrides() {
     Map<String, String> overrides = new HashMap<>();
     Properties systemProperties = System.getProperties();
@@ -269,10 +267,10 @@ public class TestUtils {
     for (String key : hiveConfSystemOverrides.keySet()) {
       config.set(key, hiveConfSystemOverrides.get(key));
     }
-    Injector injector = Guice.createInjector(
-        new BigQueryClientModule(),
-        new HiveBigQueryConnectorModule(config));
-    BigQueryCredentialsSupplier credentialsSupplier = injector.getInstance(BigQueryCredentialsSupplier.class);
+    Injector injector =
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(config));
+    BigQueryCredentialsSupplier credentialsSupplier =
+        injector.getInstance(BigQueryCredentialsSupplier.class);
     return credentialsSupplier.getCredentials();
   }
 
@@ -282,9 +280,8 @@ public class TestUtils {
     for (String key : hiveConfSystemOverrides.keySet()) {
       config.set(key, hiveConfSystemOverrides.get(key));
     }
-    Injector injector = Guice.createInjector(
-        new BigQueryClientModule(),
-        new HiveBigQueryConnectorModule(config));
+    Injector injector =
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(config));
     return injector.getInstance(BigQueryClient.class);
   }
 
@@ -293,34 +290,35 @@ public class TestUtils {
   }
 
   /**
-   * The BigLake bucket must be created prior to running the test, then its name must
-   * be set in an environment variable, so we can retrieve it here during the test
-   * execution.
+   * The BigLake bucket must be created prior to running the test, then its name must be set in an
+   * environment variable, so we can retrieve it here during the test execution.
    */
   public static String getBigLakeBucket() {
-    return System.getenv().getOrDefault(
-        BIGLAKE_BUCKET_NAME_ENV_VAR, getProject() + "-biglake-tests");
+    return System.getenv()
+        .getOrDefault(BIGLAKE_BUCKET_NAME_ENV_VAR, getProject() + "-biglake-tests");
   }
 
   /**
-   * Returns the name of the bucket used to store temporary Avro files when testing the
-   * indirect write method. This bucket is created automatically when running the tests.
+   * Returns the name of the bucket used to store temporary Avro files when testing the indirect
+   * write method. This bucket is created automatically when running the tests.
    */
   public static String getIndirectWriteBucket() {
-    return System.getenv().getOrDefault(
-        INDIRECT_WRITE_BUCKET_NAME_ENV_VAR, getProject() + "-indirect-write-tests");
+    return System.getenv()
+        .getOrDefault(INDIRECT_WRITE_BUCKET_NAME_ENV_VAR, getProject() + "-indirect-write-tests");
   }
 
   public static void createBqDataset(String dataset) {
     DatasetId datasetId = DatasetId.of(dataset);
     logger.warn("Creating test dataset: {}", datasetId);
-    BigQuery bq = BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
+    BigQuery bq =
+        BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
     bq.create(DatasetInfo.newBuilder(datasetId).setLocation(LOCATION).build());
   }
 
   public static void createOrReplaceBqView(String dataset, String table, String view) {
-    String query = String.format(
-        "CREATE OR REPLACE VIEW %s.%s AS (SELECT * FROM %s.%s)", dataset, view, dataset, table);
+    String query =
+        String.format(
+            "CREATE OR REPLACE VIEW %s.%s AS (SELECT * FROM %s.%s)", dataset, view, dataset, table);
     getBigqueryClient().query(query);
   }
 
@@ -338,7 +336,8 @@ public class TestUtils {
   }
 
   public static void deleteBqDatasetAndTables(String dataset) {
-    BigQuery bq = BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
+    BigQuery bq =
+        BigQueryOptions.newBuilder().setCredentials(getCredentials()).build().getService();
     logger.warn("Deleting test dataset '{}' and its contents", dataset);
     bq.delete(DatasetId.of(dataset), BigQuery.DatasetDeleteOption.deleteContents());
   }
@@ -381,5 +380,4 @@ public class TestUtils {
       batch.submit();
     }
   }
-
 }

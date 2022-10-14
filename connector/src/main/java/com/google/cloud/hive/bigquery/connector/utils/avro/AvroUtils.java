@@ -84,16 +84,16 @@ public class AvroUtils {
    * `avro.schema.literal` or `avro.schema.url`.
    */
   public static boolean hasExcplicitAvroSchema(Properties tableProperties) {
-    return tableProperties.getProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
-        != null
-        || tableProperties.getProperty(
-        AvroSerdeUtils.AvroTableProperties.SCHEMA_URL.getPropName())
-        != null;
+    return tableProperties.getProperty(
+                AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
+            != null
+        || tableProperties.getProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_URL.getPropName())
+            != null;
   }
 
   /**
-   * Extracts the Avro schema from the `columns` and `column.types` table properties,
-   * if present. Otherwise, returns null.
+   * Extracts the Avro schema from the `columns` and `column.types` table properties, if present.
+   * Otherwise, returns null.
    */
   public static Schema extractSchemaFromColumnProperties(Properties tableProperties) {
     String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);

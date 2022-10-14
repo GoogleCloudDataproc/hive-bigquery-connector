@@ -15,18 +15,18 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
+
 import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.StorageException;
 import com.klarna.hiverunner.HiveRunnerExtension;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.*;
@@ -63,7 +63,8 @@ public class IntegrationTestsBase {
       }
     }
     // Upload datasets to the BigLake bucket.
-    uploadBlob(getBigLakeBucket(), "test.csv", "a,b,c\n1,2,3\n4,5,6".getBytes(StandardCharsets.UTF_8));
+    uploadBlob(
+        getBigLakeBucket(), "test.csv", "a,b,c\n1,2,3\n4,5,6".getBytes(StandardCharsets.UTF_8));
     // Create the test dataset in BigQuery
     dataset = String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
     createBqDataset(dataset);
@@ -140,5 +141,4 @@ public class IntegrationTestsBase {
     hive.start();
     runHiveScript("CREATE DATABASE source_db");
   }
-
 }

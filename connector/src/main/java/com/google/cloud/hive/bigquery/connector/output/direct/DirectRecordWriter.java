@@ -56,7 +56,10 @@ public class DirectRecordWriter
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
     this.streamWriter =
         DirectUtils.createStreamWriter(
-            jobConf, jobDetails.getTableId(), jobDetails.getTableProperties(), jobDetails.getProtoSchema());
+            jobConf,
+            jobDetails.getTableId(),
+            jobDetails.getTableProperties(),
+            jobDetails.getProtoSchema());
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);

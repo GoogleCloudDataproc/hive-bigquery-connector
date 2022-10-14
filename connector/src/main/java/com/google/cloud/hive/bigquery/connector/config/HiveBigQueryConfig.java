@@ -29,7 +29,6 @@ import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import java.io.Serializable;
 import java.util.*;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -58,7 +57,8 @@ public class HiveBigQueryConfig
   public static final String CREDENTIALS_KEY_KEY = "bq.credentials.key";
   public static final String CREDENTIALS_FILE_KEY = "bq.credentials.file";
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
-  public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY = "bq.access.access.token.provider.fqcn";
+  public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY =
+      "bq.access.access.token.provider.fqcn";
   public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
   public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
   public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
@@ -170,9 +170,11 @@ public class HiveBigQueryConfig
     }
 
     // Views
-    config.viewsEnabled = Boolean.parseBoolean(getAnyOption(VIEWS_ENABLED_KEY, conf, tableParameters).or("false"));
+    config.viewsEnabled =
+        Boolean.parseBoolean(getAnyOption(VIEWS_ENABLED_KEY, conf, tableParameters).or("false"));
     MaterializationConfiguration materializationConfiguration =
-        MaterializationConfiguration.from(ImmutableMap.copyOf(conf.getPropsWithPrefix("")), new HashMap<>());
+        MaterializationConfiguration.from(
+            ImmutableMap.copyOf(conf.getPropsWithPrefix("")), new HashMap<>());
     config.materializationProject = materializationConfiguration.getMaterializationProject();
     config.materializationDataset = materializationConfiguration.getMaterializationDataset();
     config.materializationExpirationTimeInMinutes =
@@ -201,7 +203,8 @@ public class HiveBigQueryConfig
                 Optional.fromNullable(conf.get(GCS_CONFIG_CREDENTIALS_FILE_PROPERTY))
                     .toJavaUtil()));
     config.accessToken = getAnyOption(ACCESS_TOKEN_KEY, conf, tableParameters);
-    config.accessTokenProviderFQCN = getAnyOption(ACCESS_TOKEN_PROVIDER_FQCN_KEY, conf, tableParameters);
+    config.accessTokenProviderFQCN =
+        getAnyOption(ACCESS_TOKEN_PROVIDER_FQCN_KEY, conf, tableParameters);
 
     // Partitioning and clustering
     config.partitionType =

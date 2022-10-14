@@ -107,5 +107,4 @@ public class ArrowBatchReader extends RecordReader<NullWritable, VectorSchemaRoo
 
   @Override
   public void close() {}
-
 }

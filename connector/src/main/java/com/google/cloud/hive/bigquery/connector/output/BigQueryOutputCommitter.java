@@ -16,11 +16,11 @@
 package com.google.cloud.hive.bigquery.connector.output;
 
 import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -36,7 +36,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    // Pick the appropriate OutputCommitter (direct or indirect) based on the configured write method
+    // Pick the appropriate OutputCommitter (direct or indirect) based on the
+    // configured write method
     if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
       IndirectOutputCommitter.commitJob(conf, jobDetails);
     } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {

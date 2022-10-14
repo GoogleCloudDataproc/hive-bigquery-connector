@@ -49,9 +49,14 @@ public class IndirectUtils {
   }
 
   /** Returns true if the logged-in user has access to the given GCS path. */
-  public static boolean hasGcsWriteAccess(BigQueryCredentialsSupplier credentialsSupplier, String gcsURI) {
+  public static boolean hasGcsWriteAccess(
+      BigQueryCredentialsSupplier credentialsSupplier, String gcsURI) {
     String bucket = extractBucketNameFromGcsUri(gcsURI);
-    Storage storage = StorageOptions.newBuilder().setCredentials(credentialsSupplier.getCredentials()).build().getService();
+    Storage storage =
+        StorageOptions.newBuilder()
+            .setCredentials(credentialsSupplier.getCredentials())
+            .build()
+            .getService();
     List<Boolean> booleans;
     try {
       booleans = storage.testIamPermissions(bucket, ImmutableList.of("storage.objects.create"));

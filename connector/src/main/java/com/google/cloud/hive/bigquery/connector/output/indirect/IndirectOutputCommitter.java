@@ -58,12 +58,13 @@ public class IndirectOutputCommitter {
       HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
       FormatOptions formatOptions = FormatOptions.avro();
       WriteDisposition writeDisposition =
-          jobDetails.isOverwrite() ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
+          jobDetails.isOverwrite()
+              ? WriteDisposition.WRITE_TRUNCATE
+              : WriteDisposition.WRITE_APPEND;
       try {
         // Load the Avro files into BigQuery
         bqClient.loadDataIntoTable(config, avroFiles, formatOptions, writeDisposition);
-      }
-      finally {
+      } finally {
         // Delete all the Avro files from GCS
         IndirectUtils.deleteGcsTempDir(conf, jobDetails.getGcsTempPath());
       }

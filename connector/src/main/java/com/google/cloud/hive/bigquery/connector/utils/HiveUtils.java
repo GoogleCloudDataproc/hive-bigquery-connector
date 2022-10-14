@@ -21,8 +21,6 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapreduce.JobID;
-import repackaged.by.hivebqconnector.com.google.common.base.Preconditions;
-import repackaged.by.hivebqconnector.com.google.common.base.Strings;
 
 /**
  * Helper class that looks up details about a task ID and Tez Vertex ID. This is useful to create

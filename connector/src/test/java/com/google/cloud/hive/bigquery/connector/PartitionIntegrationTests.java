@@ -23,9 +23,6 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TimePartitioning;
 import java.util.List;
 import java.util.Objects;
-
-import com.klarna.hiverunner.HiveShell;
-import com.klarna.hiverunner.annotations.HiveSQL;
 import org.junit.jupiter.api.Test;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 

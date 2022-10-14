@@ -16,7 +16,6 @@
 package com.google.cloud.hive.bigquery.connector.input;
 
 import java.util.List;
-
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.BaseCharTypeInfo;

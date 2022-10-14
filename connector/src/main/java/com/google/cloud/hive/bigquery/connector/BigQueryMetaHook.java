@@ -15,9 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.*;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
@@ -36,7 +36,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
 import java.util.*;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
@@ -235,8 +234,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     }
   }
 
-
-
   @Override
   public void commitCreateTable(Table table) throws MetaException {
     if (MetaStoreUtils.isExternalTable(table)) {
@@ -294,7 +291,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
 
       // Retrieve the BigQuery schema of the final destination table
-      Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
+      Schema bigQuerySchema =
+          bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
 
       // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
       // write method. In this case, we will stream-write to a temporary table
@@ -328,7 +326,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             String.format(
                 "The '%s' property must be set when using the '%s' write method.",
                 HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
-      } else if (!IndirectUtils.hasGcsWriteAccess(injector.getInstance(BigQueryCredentialsSupplier.class), tempGcsPath)) {
+      } else if (!IndirectUtils.hasGcsWriteAccess(
+          injector.getInstance(BigQueryCredentialsSupplier.class), tempGcsPath)) {
         throw new MetaException(
             String.format(
                 "Cannot write to table '%s'. Does not have write access to the"

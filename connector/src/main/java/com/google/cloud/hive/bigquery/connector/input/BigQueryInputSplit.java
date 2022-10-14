@@ -214,11 +214,13 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     }
 
     // Check that the BQ table in fact exists
-    // TODO: Small optimization: Do the existence check in ReadSessionResponse.create() so we can save
-    //  making this extra getTable() call to BigQuery. See: https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/640
+    // TODO: Small optimization: Do the existence check in ReadSessionResponse.create() so we can
+    //  save making this extra getTable() call to BigQuery. See:
+    //  https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/640
     TableInfo tableInfo = bqClient.getTable(config.getTableId());
     if (tableInfo == null) {
-      throw new RuntimeException("Table '" + BigQueryUtil.friendlyTableName(config.getTableId()) + "' not found");
+      throw new RuntimeException(
+          "Table '" + BigQueryUtil.friendlyTableName(config.getTableId()) + "' not found");
     }
 
     // Create the BQ read session
