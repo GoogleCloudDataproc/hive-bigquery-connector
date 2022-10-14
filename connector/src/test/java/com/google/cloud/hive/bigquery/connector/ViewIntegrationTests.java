@@ -90,4 +90,5 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
             rows.toArray());
         // TODO: Confirm that the predicate was in fact pushed down to BigQuery
     }
+
 }
