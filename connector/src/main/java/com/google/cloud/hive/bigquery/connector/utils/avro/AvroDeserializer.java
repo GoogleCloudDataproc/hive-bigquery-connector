@@ -136,10 +136,15 @@ public class AvroDeserializer {
       return buffer.rewind();
     }
 
+    if (fieldObjectInspector instanceof HiveCharObjectInspector) {
+      return fieldValue.toString();
+    }
+
+    if (fieldObjectInspector instanceof HiveVarcharObjectInspector) {
+      return fieldValue.toString();
+    }
+
     if (fieldObjectInspector instanceof StringObjectInspector) {
-      if (fieldValue instanceof String) {
-        return fieldValue;
-      }
       return fieldValue.toString();
     }
 

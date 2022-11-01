@@ -35,14 +35,10 @@ public class BigQueryOutputFormat
     implements OutputFormat<NullWritable, Writable>, HiveOutputFormat<NullWritable, Writable> {
 
   /**
-   * Get the RecordWriter (direct or indirect) for the given job.
-   * Params:
-   * fileSystem - Ignored
-   * job – configuration for the job whose output is being written.
-   * name – the unique name for this part of the output.
-   * progress – mechanism for reporting progress while writing to file.
-   * Returns: a RecordWriter to write the output for the job.
-   * Throws: IOException
+   * Get the RecordWriter (direct or indirect) for the given job. Params: fileSystem - Ignored job –
+   * configuration for the job whose output is being written. name – the unique name for this part
+   * of the output. progress – mechanism for reporting progress while writing to file. Returns: a
+   * RecordWriter to write the output for the job. Throws: IOException
    */
   @Override
   public org.apache.hadoop.mapred.RecordWriter<NullWritable, Writable> getRecordWriter(

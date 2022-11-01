@@ -30,7 +30,7 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
 
   private static final long serialVersionUID = 1L;
   private static final List<String> SIMPLE_TYPES =
-      ImmutableList.of("bigint", "float", "double", "string", "boolean");
+      ImmutableList.of("bigint", "float", "double", "char", "varchar", "string", "boolean");
 
   public BigQueryConstantDesc(TypeInfo typeInfo, Object value) {
     super(typeInfo, value);

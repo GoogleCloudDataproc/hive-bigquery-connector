@@ -37,6 +37,9 @@ public class ProtoSchemaConverter {
   private static final ImmutableMap<PrimitiveCategory, DescriptorProtos.FieldDescriptorProto.Type>
       hiveToProtoTypes =
           new ImmutableMap.Builder<PrimitiveCategory, DescriptorProtos.FieldDescriptorProto.Type>()
+              .put(PrimitiveCategory.CHAR, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+              .put(
+                  PrimitiveCategory.VARCHAR, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
               .put(PrimitiveCategory.STRING, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
               .put(PrimitiveCategory.LONG, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
               .put(PrimitiveCategory.DOUBLE, DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE)

@@ -32,6 +32,8 @@ public class BigQuerySchemaConverter {
       hiveToBigQueryTypes =
           new ImmutableMap.Builder<
                   PrimitiveObjectInspector.PrimitiveCategory, StandardSQLTypeName>()
+              .put(PrimitiveObjectInspector.PrimitiveCategory.CHAR, StandardSQLTypeName.STRING)
+              .put(PrimitiveObjectInspector.PrimitiveCategory.VARCHAR, StandardSQLTypeName.STRING)
               .put(PrimitiveObjectInspector.PrimitiveCategory.STRING, StandardSQLTypeName.STRING)
               .put(PrimitiveObjectInspector.PrimitiveCategory.LONG, StandardSQLTypeName.INT64)
               .put(PrimitiveObjectInspector.PrimitiveCategory.DOUBLE, StandardSQLTypeName.FLOAT64)

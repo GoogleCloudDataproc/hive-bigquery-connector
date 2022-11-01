@@ -44,6 +44,8 @@ public class Constants {
           PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,
           PrimitiveObjectInspector.PrimitiveCategory.BINARY,
           PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN,
+          PrimitiveObjectInspector.PrimitiveCategory.CHAR,
+          PrimitiveObjectInspector.PrimitiveCategory.VARCHAR,
           PrimitiveObjectInspector.PrimitiveCategory.STRING,
           PrimitiveObjectInspector.PrimitiveCategory.DECIMAL);
 }
