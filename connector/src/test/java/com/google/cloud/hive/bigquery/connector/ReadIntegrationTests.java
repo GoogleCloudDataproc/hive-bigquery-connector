@@ -221,6 +221,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "cast(\"2019-03-18\" as date),",
                 "cast(\"2019-03-18T01:23:45.678901\" as timestamp),",
                 "cast(\"bytes\" as bytes),",
+                "2.0,",
                 "4.2,",
                 "struct(",
                 "  cast(\"-99999999999999999999999999999.999999999\" as numeric),",
@@ -238,10 +239,10 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
-    assertEquals(15, row.length); // Number of columns
+    assertEquals(16, row.length); // Number of columns
     assertEquals((byte) 11, row[0]);
     assertEquals((short) 22, row[1]);
-    assertEquals(33, row[2]);
+    assertEquals((int) 33, row[2]);
     assertEquals((long) 44, row[3]);
     assertEquals(true, row[4]);
     assertEquals("fixed char", row[5]);
@@ -250,12 +251,13 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals("2019-03-18", row[8]);
     assertEquals("2019-03-18 01:23:45.678901", row[9]);
     assertArrayEquals("bytes".getBytes(), (byte[]) row[10]);
-    assertEquals(4.2, row[11]);
+    assertEquals(2.0, row[11]);
+    assertEquals(4.2, row[12]);
     assertEquals(
         "{\"min\":-99999999999999999999999999999.999999999,\"max\":99999999999999999999999999999.999999999,\"pi\":3.14,\"big_pi\":31415926535897932384626433832.795028841}",
-        row[12]);
-    assertEquals("[1,2,3]", row[13]);
-    assertEquals("[{\"i\":1}]", row[14]);
+        row[13]);
+    assertEquals("[1,2,3]", row[14]);
+    assertEquals("[{\"i\":1}]", row[15]);
   }
 
   // ---------------------------------------------------------------------------------------------------

@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import org.junit.jupiter.api.Test;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 
 public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
 
@@ -94,26 +93,5 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
             + " gs://random-bucket-abcdef-12345";
     assertTrue(
         exception.getMessage().contains(message1) || exception.getMessage().contains(message2));
-  }
-
-  // ---------------------------------------------------------------------------------------------------
-
-  /** Check that we tell the user when they use unsupported Hive types. */
-  @Test
-  public void testUnsupportedTypes() {
-    initHive();
-    for (String type : ImmutableList.of("float")) {
-      Throwable exception =
-          assertThrows(
-              RuntimeException.class,
-              () ->
-                  runHiveScript(
-                      String.join(
-                          "\n",
-                          "CREATE TABLE " + TEST_TABLE_NAME + " (number " + type + ")",
-                          "STORED BY"
-                              + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'")));
-      assertTrue(exception.getMessage().contains("Unsupported Hive type: " + type));
-    }
   }
 }

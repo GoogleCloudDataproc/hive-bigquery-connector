@@ -45,6 +45,7 @@ public class ProtoSchemaConverter {
               .put(PrimitiveCategory.SHORT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
               .put(PrimitiveCategory.INT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
               .put(PrimitiveCategory.LONG, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
+              .put(PrimitiveCategory.FLOAT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE)
               .put(PrimitiveCategory.DOUBLE, DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE)
               .put(
                   PrimitiveCategory.DECIMAL, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
@@ -153,12 +154,9 @@ public class ProtoSchemaConverter {
     DescriptorProtos.FileDescriptorProto fileDescriptorProto =
         DescriptorProtos.FileDescriptorProto.newBuilder().addMessageType(descriptorProto).build();
 
-    Descriptors.Descriptor descriptor =
-        Descriptors.FileDescriptor.buildFrom(
-                fileDescriptorProto, new Descriptors.FileDescriptor[] {})
-            .getMessageTypes()
-            .get(0);
-
-    return descriptor;
+    return Descriptors.FileDescriptor.buildFrom(
+            fileDescriptorProto, new Descriptors.FileDescriptor[] {})
+        .getMessageTypes()
+        .get(0);
   }
 }

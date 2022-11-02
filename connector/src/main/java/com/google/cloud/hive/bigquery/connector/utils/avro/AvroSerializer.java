@@ -33,6 +33,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
 import org.apache.hadoop.io.*;
@@ -120,6 +121,9 @@ public class AvroSerializer {
     }
 
     if (actualSchema.getType() == Schema.Type.DOUBLE) {
+      if (objectInspector instanceof FloatObjectInspector) {
+        return new FloatWritable(((Double) avroObject).floatValue());
+      }
       return new DoubleWritable((Double) avroObject);
     }
 

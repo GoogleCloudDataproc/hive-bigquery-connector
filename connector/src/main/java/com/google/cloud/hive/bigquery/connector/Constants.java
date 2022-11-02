@@ -42,6 +42,7 @@ public class Constants {
           PrimitiveObjectInspector.PrimitiveCategory.SHORT, // Small Int
           PrimitiveObjectInspector.PrimitiveCategory.INT, // Regular Int
           PrimitiveObjectInspector.PrimitiveCategory.LONG, // Big Int
+          PrimitiveObjectInspector.PrimitiveCategory.FLOAT,
           PrimitiveObjectInspector.PrimitiveCategory.DOUBLE,
           PrimitiveObjectInspector.PrimitiveCategory.DATE,
           PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,

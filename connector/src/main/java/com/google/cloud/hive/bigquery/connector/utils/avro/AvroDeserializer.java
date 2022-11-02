@@ -132,6 +132,13 @@ public class AvroDeserializer {
       return ((DateWritableV2) fieldValue).getDays();
     }
 
+    if (fieldObjectInspector instanceof FloatObjectInspector) {
+      if (fieldValue instanceof Float) {
+        return fieldValue;
+      }
+      return ((FloatWritable) fieldValue).get();
+    }
+
     if (fieldObjectInspector instanceof DoubleObjectInspector) {
       if (fieldValue instanceof Double) {
         return fieldValue;

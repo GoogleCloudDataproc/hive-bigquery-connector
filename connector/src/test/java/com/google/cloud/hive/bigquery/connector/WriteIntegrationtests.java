@@ -144,6 +144,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 "CAST(\"2019-03-18\" AS DATE),",
                 "CAST(\"2019-03-18T01:23:45.678901\" AS TIMESTAMP),",
                 "CAST(\"bytes\" AS BINARY),",
+                "2.0,",
                 "4.2,",
                 "NAMED_STRUCT(",
                 "  'min', CAST(-99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
@@ -162,7 +163,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     FieldValueList row = rows.get(0);
-    assertEquals(15, row.size()); // Number of columns
+    assertEquals(16, row.size()); // Number of columns
     assertEquals(11L, row.get(0).getLongValue());
     assertEquals(22L, row.get(1).getLongValue());
     assertEquals(33L, row.get(2).getLongValue());
@@ -185,8 +186,9 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
       assertEquals(1552872225000000L, row.get(9).getTimestampValue());
     }
     assertArrayEquals("bytes".getBytes(), row.get(10).getBytesValue());
-    assertEquals(4.2, row.get(11).getDoubleValue());
-    FieldValueList struct = row.get(12).getRecordValue();
+    assertEquals(2.0, row.get(11).getDoubleValue());
+    assertEquals(4.2, row.get(12).getDoubleValue());
+    FieldValueList struct = row.get(13).getRecordValue();
     assertEquals(
         "-99999999999999999999999999999.999999999",
         struct.get("min").getNumericValue().toPlainString());
@@ -197,12 +199,12 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(
         "31415926535897932384626433832.795028841",
         struct.get("big_pi").getNumericValue().toPlainString());
-    FieldValueList array = (FieldValueList) row.get(13).getValue();
+    FieldValueList array = (FieldValueList) row.get(14).getValue();
     assertEquals(3, array.size());
     assertEquals(1, array.get(0).getLongValue());
     assertEquals(2, array.get(1).getLongValue());
     assertEquals(3, array.get(2).getLongValue());
-    FieldValueList arrayOfStructs = (FieldValueList) row.get(14).getValue();
+    FieldValueList arrayOfStructs = (FieldValueList) row.get(15).getValue();
     assertEquals(1, arrayOfStructs.size());
     struct = (FieldValueList) arrayOfStructs.get(0).getValue();
     assertEquals(1L, struct.get(0).getLongValue());

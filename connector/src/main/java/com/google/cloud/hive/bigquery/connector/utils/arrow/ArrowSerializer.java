@@ -29,6 +29,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
 import org.apache.hadoop.io.*;
@@ -62,6 +63,9 @@ public class ArrowSerializer {
       // Big Int
       return new LongWritable(((BigIntVector) vector).get(rowId));
     } else if (vector instanceof Float8Vector) {
+      if (objectInspector instanceof FloatObjectInspector) {
+        return new FloatWritable((float) ((Float8Vector) vector).get(rowId));
+      }
       return new DoubleWritable(((Float8Vector) vector).get(rowId));
     } else if (vector instanceof DecimalVector) {
       DecimalVector v = (DecimalVector) vector;

@@ -47,6 +47,7 @@ public class BigQuerySchemaConverter {
               .put(
                   PrimitiveObjectInspector.PrimitiveCategory.LONG,
                   StandardSQLTypeName.INT64) // Big Int
+              .put(PrimitiveObjectInspector.PrimitiveCategory.FLOAT, StandardSQLTypeName.FLOAT64)
               .put(PrimitiveObjectInspector.PrimitiveCategory.DOUBLE, StandardSQLTypeName.FLOAT64)
               .put(PrimitiveObjectInspector.PrimitiveCategory.DECIMAL, StandardSQLTypeName.NUMERIC)
               .put(PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN, StandardSQLTypeName.BOOL)
