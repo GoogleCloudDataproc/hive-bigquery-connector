@@ -133,7 +133,10 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     runHiveScript(
         Stream.of(
                 "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
-                "42,",
+                "11,",
+                "22,",
+                "33,",
+                "44,",
                 "true,",
                 "\"fixed char\",",
                 "\"var char\",",
@@ -159,15 +162,18 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     FieldValueList row = rows.get(0);
-    assertEquals(12, row.size()); // Number of columns
-    assertEquals(42L, row.get(0).getLongValue());
-    assertTrue(row.get(1).getBooleanValue());
-    assertEquals("fixed char", row.get(2).getStringValue());
-    assertEquals("var char", row.get(3).getStringValue());
-    assertEquals("string", row.get(4).getStringValue());
-    assertEquals("2019-03-18", row.get(5).getStringValue());
+    assertEquals(15, row.size()); // Number of columns
+    assertEquals(11L, row.get(0).getLongValue());
+    assertEquals(22L, row.get(1).getLongValue());
+    assertEquals(33L, row.get(2).getLongValue());
+    assertEquals(44L, row.get(3).getLongValue());
+    assertTrue(row.get(4).getBooleanValue());
+    assertEquals("fixed char", row.get(5).getStringValue());
+    assertEquals("var char", row.get(6).getStringValue());
+    assertEquals("string", row.get(7).getStringValue());
+    assertEquals("2019-03-18", row.get(8).getStringValue());
     if (Objects.equals(writeMethod, HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      assertEquals(1552872225678901L, row.get(6).getTimestampValue());
+      assertEquals(1552872225678901L, row.get(9).getTimestampValue());
     } else {
       // As we rely on the AvroSerde to generate the Avro schema for the
       // indirect write method, we lose the micro-second precision due
@@ -176,11 +182,11 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
       // See: https://issues.apache.org/jira/browse/HIVE-20889
       // TODO: Write our own avro schema generation tool to get
       //  around this limitation.
-      assertEquals(1552872225000000L, row.get(6).getTimestampValue());
+      assertEquals(1552872225000000L, row.get(9).getTimestampValue());
     }
-    assertArrayEquals("bytes".getBytes(), row.get(7).getBytesValue());
-    assertEquals(4.2, row.get(8).getDoubleValue());
-    FieldValueList struct = row.get(9).getRecordValue();
+    assertArrayEquals("bytes".getBytes(), row.get(10).getBytesValue());
+    assertEquals(4.2, row.get(11).getDoubleValue());
+    FieldValueList struct = row.get(12).getRecordValue();
     assertEquals(
         "-99999999999999999999999999999.999999999",
         struct.get("min").getNumericValue().toPlainString());
@@ -191,12 +197,12 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(
         "31415926535897932384626433832.795028841",
         struct.get("big_pi").getNumericValue().toPlainString());
-    FieldValueList array = (FieldValueList) row.get(10).getValue();
+    FieldValueList array = (FieldValueList) row.get(13).getValue();
     assertEquals(3, array.size());
     assertEquals(1, array.get(0).getLongValue());
     assertEquals(2, array.get(1).getLongValue());
     assertEquals(3, array.get(2).getLongValue());
-    FieldValueList arrayOfStructs = (FieldValueList) row.get(11).getValue();
+    FieldValueList arrayOfStructs = (FieldValueList) row.get(14).getValue();
     assertEquals(1, arrayOfStructs.size());
     struct = (FieldValueList) arrayOfStructs.get(0).getValue();
     assertEquals(1L, struct.get(0).getLongValue());

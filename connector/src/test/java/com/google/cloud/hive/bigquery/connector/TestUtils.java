@@ -74,7 +74,10 @@ public class TestUtils {
   public static String BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY =
       Stream.of(
               "CREATE OR REPLACE TABLE ${dataset}." + ALL_TYPES_TABLE_NAME + " (",
+              "tiny_int_val INT64,",
+              "small_int_val INT64,",
               "int_val INT64,",
+              "big_int_val INT64,",
               "bl BOOL,",
               "fixed_char STRING,",
               "var_char STRING,",
@@ -102,7 +105,10 @@ public class TestUtils {
   public static String BIGQUERY_MANAGED_TEST_TABLE_CREATE_QUERY =
       Stream.of(
               "CREATE OR REPLACE TABLE ${dataset}." + MANAGED_TEST_TABLE_NAME + " (",
+              "tiny_int_val INT64,",
+              "small_int_val INT64,",
               "int_val INT64,",
+              "big_int_val INT64,",
               "bl BOOL,",
               "fixed_char STRING,",
               "var_char STRING,",
@@ -177,7 +183,10 @@ public class TestUtils {
   public static String HIVE_ALL_TYPES_TABLE_CREATE_QUERY =
       Stream.of(
               "CREATE EXTERNAL TABLE " + ALL_TYPES_TABLE_NAME + " (",
-              "int_val BIGINT,",
+              "tiny_int_val TINYINT,",
+              "small_int_val SMALLINT,",
+              "int_val INT,",
+              "big_int_val BIGINT,",
               "bl BOOLEAN,",
               "fixed_char CHAR(10),",
               "var_char VARCHAR(10),",
@@ -202,7 +211,10 @@ public class TestUtils {
   public static String HIVE_MANAGED_TEST_TABLE_CREATE_QUERY =
       Stream.of(
               "CREATE TABLE " + MANAGED_TEST_TABLE_NAME + " (",
-              "int_val BIGINT,",
+              "tiny_int_val TINYINT,",
+              "small_int_val SMALLINT,",
+              "int_val INT,",
+              "big_int_val BIGINT,",
               "bl BOOLEAN,",
               "fixed_char CHAR(10),",
               "var_char VARCHAR(10),",

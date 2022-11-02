@@ -38,7 +38,10 @@ public class Constants {
 
   public static final List<PrimitiveObjectInspector.PrimitiveCategory> SUPPORTED_HIVE_PRIMITIVES =
       ImmutableList.of(
-          PrimitiveObjectInspector.PrimitiveCategory.LONG,
+          PrimitiveObjectInspector.PrimitiveCategory.BYTE, // Tiny Int
+          PrimitiveObjectInspector.PrimitiveCategory.SHORT, // Small Int
+          PrimitiveObjectInspector.PrimitiveCategory.INT, // Regular Int
+          PrimitiveObjectInspector.PrimitiveCategory.LONG, // Big Int
           PrimitiveObjectInspector.PrimitiveCategory.DOUBLE,
           PrimitiveObjectInspector.PrimitiveCategory.DATE,
           PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,

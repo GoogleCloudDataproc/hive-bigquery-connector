@@ -41,6 +41,9 @@ public class ProtoSchemaConverter {
               .put(
                   PrimitiveCategory.VARCHAR, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
               .put(PrimitiveCategory.STRING, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+              .put(PrimitiveCategory.BYTE, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
+              .put(PrimitiveCategory.SHORT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
+              .put(PrimitiveCategory.INT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
               .put(PrimitiveCategory.LONG, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
               .put(PrimitiveCategory.DOUBLE, DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE)
               .put(

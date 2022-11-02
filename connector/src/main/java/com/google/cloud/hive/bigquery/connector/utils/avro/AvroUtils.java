@@ -83,7 +83,7 @@ public class AvroUtils {
    * Returns true if the table properties contain an explicit Avro schema, either with
    * `avro.schema.literal` or `avro.schema.url`.
    */
-  public static boolean hasExcplicitAvroSchema(Properties tableProperties) {
+  public static boolean hasExplicitAvroSchema(Properties tableProperties) {
     return tableProperties.getProperty(
                 AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
             != null
@@ -121,7 +121,7 @@ public class AvroUtils {
   /** Extract the Avro schema from the given table properties. */
   public static Schema extractAvroSchema(Configuration conf, Properties tableProperties) {
     Schema schema = null;
-    if (!hasExcplicitAvroSchema(tableProperties)) {
+    if (!hasExplicitAvroSchema(tableProperties)) {
       schema = extractSchemaFromColumnProperties(tableProperties);
     }
     if (schema == null) {

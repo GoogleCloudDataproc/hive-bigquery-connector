@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
+import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
@@ -29,10 +30,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
-import org.apache.hadoop.io.BooleanWritable;
-import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.*;
 import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
 import repackaged.by.hivebqconnector.com.google.protobuf.DynamicMessage;
 
@@ -105,7 +103,28 @@ public class ProtoDeserializer {
           (StructObjectInspector) fieldObjectInspector, nestedTypeDescriptor, fieldValue);
     }
 
-    if (fieldObjectInspector instanceof LongObjectInspector) {
+    if (fieldObjectInspector instanceof ByteObjectInspector) { // Tiny Int
+      if (fieldValue instanceof Byte) {
+        return fieldValue;
+      }
+      return (long) ((ByteWritable) fieldValue).get();
+    }
+
+    if (fieldObjectInspector instanceof ShortObjectInspector) { // Small Int
+      if (fieldValue instanceof Short) {
+        return fieldValue;
+      }
+      return (long) ((ShortWritable) fieldValue).get();
+    }
+
+    if (fieldObjectInspector instanceof IntObjectInspector) { // Regular Int
+      if (fieldValue instanceof Integer) {
+        return fieldValue;
+      }
+      return (long) ((IntWritable) fieldValue).get();
+    }
+
+    if (fieldObjectInspector instanceof LongObjectInspector) { // Big Int
       if (fieldValue instanceof Long) {
         return fieldValue;
       }

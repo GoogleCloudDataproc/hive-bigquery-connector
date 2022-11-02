@@ -35,7 +35,18 @@ public class BigQuerySchemaConverter {
               .put(PrimitiveObjectInspector.PrimitiveCategory.CHAR, StandardSQLTypeName.STRING)
               .put(PrimitiveObjectInspector.PrimitiveCategory.VARCHAR, StandardSQLTypeName.STRING)
               .put(PrimitiveObjectInspector.PrimitiveCategory.STRING, StandardSQLTypeName.STRING)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.LONG, StandardSQLTypeName.INT64)
+              .put(
+                  PrimitiveObjectInspector.PrimitiveCategory.BYTE,
+                  StandardSQLTypeName.INT64) // Tiny Int
+              .put(
+                  PrimitiveObjectInspector.PrimitiveCategory.SHORT,
+                  StandardSQLTypeName.INT64) // Small Int
+              .put(
+                  PrimitiveObjectInspector.PrimitiveCategory.INT,
+                  StandardSQLTypeName.INT64) // "Regular" Int
+              .put(
+                  PrimitiveObjectInspector.PrimitiveCategory.LONG,
+                  StandardSQLTypeName.INT64) // Big Int
               .put(PrimitiveObjectInspector.PrimitiveCategory.DOUBLE, StandardSQLTypeName.FLOAT64)
               .put(PrimitiveObjectInspector.PrimitiveCategory.DECIMAL, StandardSQLTypeName.NUMERIC)
               .put(PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN, StandardSQLTypeName.BOOL)

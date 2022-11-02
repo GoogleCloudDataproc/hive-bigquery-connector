@@ -23,7 +23,14 @@ import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
+import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
 import org.apache.hadoop.io.*;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.*;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.complex.ListVector;
@@ -31,14 +38,28 @@ import repackaged.by.hivebqconnector.org.apache.arrow.vector.complex.StructVecto
 
 public class ArrowSerializer {
 
-  /** Converts the given Arrow-formatted value to a serialized format that Hive understands. */
-  public static Object serializeVector(ValueVector vector, int rowId) {
+  /**
+   * Converts the given Arrow-formatted value that was read from BigQuery to a serialized format
+   * that Hive understands.
+   */
+  public static Object serialize(ValueVector vector, ObjectInspector objectInspector, int rowId) {
     if (vector.isNull(rowId)) {
       return null;
     }
     if (vector instanceof BitVector) {
       return new BooleanWritable(((BitVector) vector).get(rowId) == 1);
-    } else if (vector instanceof BigIntVector) {
+    }
+    if (vector instanceof BigIntVector) {
+      if (objectInspector instanceof ByteObjectInspector) { // Tiny Int
+        return new ByteWritable((byte) ((BigIntVector) vector).get(rowId));
+      }
+      if (objectInspector instanceof ShortObjectInspector) { // Small Int
+        return new ShortWritable((short) ((BigIntVector) vector).get(rowId));
+      }
+      if (objectInspector instanceof IntObjectInspector) { // Regular Int
+        return new IntWritable((int) ((BigIntVector) vector).get(rowId));
+      }
+      // Big Int
       return new LongWritable(((BigIntVector) vector).get(rowId));
     } else if (vector instanceof Float8Vector) {
       return new DoubleWritable(((Float8Vector) vector).get(rowId));
@@ -78,20 +99,26 @@ public class ArrowSerializer {
       return timestamp;
     } else if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
+      ListObjectInspector loi = (ListObjectInspector) objectInspector;
       int numItems = listVector.getDataVector().getValueCount();
       Object[] children = new Object[numItems];
       for (int i = 0; i < numItems; i++) {
-        children[i] = serializeVector(listVector.getDataVector(), i);
+        children[i] = serialize(listVector.getDataVector(), loi.getListElementObjectInspector(), i);
       }
       return children;
     } else if (vector instanceof StructVector) {
       StructVector structVector = (StructVector) vector;
-      int numItems = structVector.size();
       List<FieldVector> childrenVectors = structVector.getChildrenFromFields();
+      int numItems = structVector.size();
+      StructObjectInspector soi = (StructObjectInspector) objectInspector;
       Object[] children = new Object[numItems];
       for (int i = 0; i < numItems; i++) {
         FieldVector childVector = childrenVectors.get(i);
-        children[i] = serializeVector(childVector, 0);
+        children[i] =
+            serialize(
+                childVector,
+                soi.getStructFieldRef(childVector.getName()).getFieldObjectInspector(),
+                0);
       }
       return children;
     } else {

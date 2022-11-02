@@ -15,10 +15,13 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.arrow;
 
+import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
 import com.google.cloud.hive.bigquery.connector.utils.arrow.ArrowSerializer;
 import java.io.IOException;
 import java.util.List;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.JobConf;
@@ -37,10 +40,12 @@ public class ArrowRecordReader
   private int numRowsLeftInBatch;
   private final RecordReader<NullWritable, VectorSchemaRoot> arrowBatchReader;
   private final List<String> columnNames;
+  private final StructObjectInspector rowObjectInspector;
 
   public ArrowRecordReader(BigQueryInputSplit inputSplit, JobConf jobConf) {
     arrowBatchReader = new ArrowBatchReader(inputSplit, jobConf);
     columnNames = inputSplit.getColumnNames();
+    rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobConf);
   }
 
   /**
@@ -53,7 +58,9 @@ public class ArrowRecordReader
     for (int i = 0; i < numColumnsInSchemaRoot; i++) {
       FieldVector fieldVector = schemaRoot.getVector(i);
       int colIndex = columnNames.indexOf(fieldVector.getName());
-      row[colIndex] = ArrowSerializer.serializeVector(fieldVector, rowId);
+      ObjectInspector fieldObjectInspector =
+          rowObjectInspector.getStructFieldRef(fieldVector.getName()).getFieldObjectInspector();
+      row[colIndex] = ArrowSerializer.serialize(fieldVector, fieldObjectInspector, rowId);
     }
     numRowsLeftInBatch--;
     return row;

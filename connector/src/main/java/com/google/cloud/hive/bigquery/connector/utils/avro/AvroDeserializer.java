@@ -26,6 +26,7 @@ import org.apache.avro.generic.GenericData.Record;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
+import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
@@ -82,7 +83,28 @@ public class AvroDeserializer {
           (StructObjectInspector) fieldObjectInspector, schemaInfo.getActualSchema(), fieldValue);
     }
 
-    if (fieldObjectInspector instanceof LongObjectInspector) {
+    if (fieldObjectInspector instanceof ByteObjectInspector) { // Tiny Int
+      if (fieldValue instanceof Byte) {
+        return fieldValue;
+      }
+      return (int) ((ByteWritable) fieldValue).get();
+    }
+
+    if (fieldObjectInspector instanceof ShortObjectInspector) { // Small Int
+      if (fieldValue instanceof Short) {
+        return fieldValue;
+      }
+      return (int) ((ShortWritable) fieldValue).get();
+    }
+
+    if (fieldObjectInspector instanceof IntObjectInspector) { // Regular Int
+      if (fieldValue instanceof Integer) {
+        return fieldValue;
+      }
+      return ((IntWritable) fieldValue).get();
+    }
+
+    if (fieldObjectInspector instanceof LongObjectInspector) { // Big Int
       if (fieldValue instanceof Long) {
         return fieldValue;
       }

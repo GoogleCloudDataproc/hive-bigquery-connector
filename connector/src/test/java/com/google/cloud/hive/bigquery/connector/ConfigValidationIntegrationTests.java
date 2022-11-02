@@ -102,7 +102,7 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   @Test
   public void testUnsupportedTypes() {
     initHive();
-    for (String type : ImmutableList.of("float", "int", "smallint", "tinyint")) {
+    for (String type : ImmutableList.of("float")) {
       Throwable exception =
           assertThrows(
               RuntimeException.class,

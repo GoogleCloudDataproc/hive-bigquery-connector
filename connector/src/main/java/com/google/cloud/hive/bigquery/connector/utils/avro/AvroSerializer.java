@@ -27,13 +27,24 @@ import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
+import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
 import org.apache.hadoop.io.*;
 
 public class AvroSerializer {
 
-  /** Converts the given Avro-formatted value to a serialized format that Hive understands. */
-  public static Object serialize(Object avroObject, Schema schema) {
+  /**
+   * Converts the given Avro-formatted value that was read from BigQuery to a serialized format that
+   * Hive understands.
+   */
+  public static Object serialize(
+      Object avroObject, ObjectInspector objectInspector, Schema schema) {
     AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(schema);
 
     if (avroObject == null) {
@@ -47,14 +58,26 @@ public class AvroSerializer {
 
     if (actualSchema.getType() == Schema.Type.ARRAY) {
       List<?> array = (List<?>) avroObject;
-      return array.stream().map(value -> serialize(value, actualSchema.getElementType())).toArray();
+      ListObjectInspector loi = (ListObjectInspector) objectInspector;
+      return array.stream()
+          .map(
+              value ->
+                  serialize(
+                      value, loi.getListElementObjectInspector(), actualSchema.getElementType()))
+          .toArray();
     }
 
     if (actualSchema.getType() == Schema.Type.RECORD) {
       GenericRecord record = (GenericRecord) avroObject;
       List<Schema.Field> fields = actualSchema.getFields();
+      StructObjectInspector soi = (StructObjectInspector) objectInspector;
       return fields.stream()
-          .map(field -> serialize(record.get(field.name()), field.schema()))
+          .map(
+              field ->
+                  serialize(
+                      record.get(field.name()),
+                      soi.getStructFieldRef(field.name()).getFieldObjectInspector(),
+                      field.schema()))
           .toArray();
     }
 
@@ -76,15 +99,24 @@ public class AvroSerializer {
     if (actualSchema.getType() == Schema.Type.LONG) {
       String logicalType = actualSchema.getProp("logicalType");
       if (logicalType != null && logicalType.equals("timestamp-micros")) {
-        Long longValue = (Long) avroObject;
+        long longValue = (Long) avroObject;
         TimestampWritableV2 timestamp = new TimestampWritableV2();
         long secondsAsMillis = (longValue / 1_000_000) * 1_000;
         int nanos = (int) (longValue % 1_000_000) * 1_000;
         timestamp.setInternal(secondsAsMillis, nanos);
         return timestamp;
-      } else {
-        return new LongWritable((Long) avroObject);
       }
+      if (objectInspector instanceof ByteObjectInspector) { // Tiny Int
+        return new ByteWritable(((Long) avroObject).byteValue());
+      }
+      if (objectInspector instanceof ShortObjectInspector) { // Small Int
+        return new ShortWritable(((Long) avroObject).shortValue());
+      }
+      if (objectInspector instanceof IntObjectInspector) { // Regular Int
+        return new IntWritable(((Long) avroObject).intValue());
+      }
+      // Big Int
+      return new LongWritable((Long) avroObject);
     }
 
     if (actualSchema.getType() == Schema.Type.DOUBLE) {

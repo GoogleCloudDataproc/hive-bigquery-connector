@@ -210,7 +210,10 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     runBqQuery(
         Stream.of(
                 String.format("INSERT `${dataset}.%s` VALUES (", ALL_TYPES_TABLE_NAME),
-                "42,",
+                "11,",
+                "22,",
+                "33,",
+                "44,",
                 "true,",
                 "\"fixed char\",",
                 "\"var char\",",
@@ -235,21 +238,24 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
-    assertEquals(12, row.length); // Number of columns
-    assertEquals(42L, (long) row[0]);
-    assertEquals(true, row[1]);
-    assertEquals("fixed char", row[2]);
-    assertEquals("var char", row[3]);
-    assertEquals("string", row[4]);
-    assertEquals("2019-03-18", row[5]);
-    assertEquals("2019-03-18 01:23:45.678901", row[6]);
-    assertArrayEquals("bytes".getBytes(), (byte[]) row[7]);
-    assertEquals(4.2, row[8]);
+    assertEquals(15, row.length); // Number of columns
+    assertEquals((byte) 11, row[0]);
+    assertEquals((short) 22, row[1]);
+    assertEquals(33, row[2]);
+    assertEquals((long) 44, row[3]);
+    assertEquals(true, row[4]);
+    assertEquals("fixed char", row[5]);
+    assertEquals("var char", row[6]);
+    assertEquals("string", row[7]);
+    assertEquals("2019-03-18", row[8]);
+    assertEquals("2019-03-18 01:23:45.678901", row[9]);
+    assertArrayEquals("bytes".getBytes(), (byte[]) row[10]);
+    assertEquals(4.2, row[11]);
     assertEquals(
         "{\"min\":-99999999999999999999999999999.999999999,\"max\":99999999999999999999999999999.999999999,\"pi\":3.14,\"big_pi\":31415926535897932384626433832.795028841}",
-        row[9]);
-    assertEquals("[1,2,3]", row[10]);
-    assertEquals("[{\"i\":1}]", row[11]);
+        row[12]);
+    assertEquals("[1,2,3]", row[13]);
+    assertEquals("[{\"i\":1}]", row[14]);
   }
 
   // ---------------------------------------------------------------------------------------------------

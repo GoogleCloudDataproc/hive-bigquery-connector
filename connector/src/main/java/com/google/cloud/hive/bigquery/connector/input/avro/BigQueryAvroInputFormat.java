@@ -43,6 +43,6 @@ public class BigQueryAvroInputFormat
   @Override
   public RecordReader<NullWritable, ObjectWritable> getRecordReader(
       InputSplit inputSplit, JobConf jobConf, Reporter reporter) {
-    return new AvroRecordReader((BigQueryInputSplit) inputSplit);
+    return new AvroRecordReader((BigQueryInputSplit) inputSplit, jobConf);
   }
 }

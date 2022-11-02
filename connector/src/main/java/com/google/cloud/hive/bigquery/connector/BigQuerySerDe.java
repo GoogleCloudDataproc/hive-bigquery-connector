@@ -35,13 +35,25 @@ public class BigQuerySerDe extends AbstractSerDe {
 
   private StructObjectInspector rowObjectInspector;
 
+  public static StructObjectInspector getRowObjectInspector(Configuration conf) {
+    String columnNameProperty = conf.get(serdeConstants.LIST_COLUMNS);
+    String columnTypeProperty = conf.get(serdeConstants.LIST_COLUMN_TYPES);
+    String columnNameDelimiter =
+        conf.get(serdeConstants.COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
+    return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter);
+  }
+
   public static StructObjectInspector getRowObjectInspector(Map<Object, Object> tableProperties) {
     String columnNameProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMNS);
     String columnTypeProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMN_TYPES);
     String columnNameDelimiter =
-        tableProperties.containsKey(serdeConstants.COLUMN_NAME_DELIMITER)
-            ? (String) tableProperties.get(serdeConstants.COLUMN_NAME_DELIMITER)
-            : String.valueOf(SerDeUtils.COMMA);
+        String.valueOf(
+            tableProperties.getOrDefault(serdeConstants.COLUMN_NAME_DELIMITER, SerDeUtils.COMMA));
+    return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter);
+  }
+
+  public static StructObjectInspector getRowObjectInspector(
+      String columnNameProperty, String columnTypeProperty, String columnNameDelimiter) {
     List<String> columnNames;
     List<TypeInfo> columnTypes;
     if (columnNameProperty.length() == 0) {
