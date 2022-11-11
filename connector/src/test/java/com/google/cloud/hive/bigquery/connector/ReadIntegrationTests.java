@@ -260,6 +260,30 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals("[{\"i\":1}]", row[15]);
   }
 
+  /**
+   * Runs a series of smoke tests to make sure that Hive UDFs used in WHERE clauses are properly
+   * translated to BigQuery's flavor of SQL.
+   */
+  @Test
+  public void testUDFWhereClauseSmoke() {
+    // Create the BQ table
+    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+    // Read the data using Hive
+    initHive("mr", HiveBigQueryConfig.ARROW);
+    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    String[] queries = {
+      "select * from "
+          + ALL_TYPES_TABLE_NAME
+          + " where date(day + interval(5) DAY ) > date('2001-09-05')",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where datediff('2022-09-07', day) > 0",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where date_sub(day, 2) > date('2001-01-01')",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')"
+    };
+    for (String query : queries) {
+      runHiveStatement(query);
+    }
+  }
+
   // ---------------------------------------------------------------------------------------------------
 
   /** Join two tables */
