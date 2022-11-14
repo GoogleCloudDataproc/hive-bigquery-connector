@@ -26,6 +26,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.*;
 import repackaged.by.hivebqconnector.com.google.common.base.Preconditions;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
 
+/** Converts Hive Schema to BigQuery schema. */
 public class BigQuerySchemaConverter {
 
   private static final ImmutableMap<PrimitiveObjectInspector.PrimitiveCategory, StandardSQLTypeName>
@@ -43,7 +44,7 @@ public class BigQuerySchemaConverter {
                   StandardSQLTypeName.INT64) // Small Int
               .put(
                   PrimitiveObjectInspector.PrimitiveCategory.INT,
-                  StandardSQLTypeName.INT64) // "Regular" Int
+                  StandardSQLTypeName.INT64) // Regular Int
               .put(
                   PrimitiveObjectInspector.PrimitiveCategory.LONG,
                   StandardSQLTypeName.INT64) // Big Int

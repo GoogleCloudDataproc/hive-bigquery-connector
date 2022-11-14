@@ -274,7 +274,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     String[] queries = {
       "select * from "
           + ALL_TYPES_TABLE_NAME
-          + " where date(day + interval(5) DAY ) > date('2001-09-05')",
+          + " where date(day + interval(5) DAY) > date('2001-09-05')",
       "select * from " + ALL_TYPES_TABLE_NAME + " where datediff('2022-09-07', day) > 0",
       "select * from " + ALL_TYPES_TABLE_NAME + " where date_sub(day, 2) > date('2001-01-01')",
       "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')"
