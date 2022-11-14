@@ -54,6 +54,19 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   Configuration conf;
 
+  /**
+   * Configure the GCS connector to use the Hive connector's credentials.
+   */
+  public static void setGCSAccessTokenProvider(Configuration conf) {
+    conf.set("fs.gs.auth.type", "ACCESS_TOKEN_PROVIDER");
+    conf.set(
+        "fs.gs.auth.access.token.provider",
+        "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
+    conf.set(
+        "fs.gs.auth.access.token.provider.impl",
+        "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
+  }
+
   @Override
   public Class<? extends InputFormat> getInputFormatClass() {
     Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(conf));
@@ -99,6 +112,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public void setConf(Configuration configuration) {
     this.conf = configuration;
+    setGCSAccessTokenProvider(this.conf);
   }
 
   @Override
@@ -119,18 +133,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
         jobConf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
       }
     }
-    String writeMethod =
-        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      // Configure the GCS connector to use the Hive connector's credentials
-      jobConf.set("fs.gs.auth.type", "ACCESS_TOKEN_PROVIDER");
-      jobConf.set(
-          "fs.gs.auth.access.token.provider",
-          "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
-      jobConf.set(
-          "fs.gs.auth.access.token.provider.impl",
-          "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
-    }
+    setGCSAccessTokenProvider(jobConf);
   }
 
   @Override
