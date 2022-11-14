@@ -87,7 +87,7 @@ public class TestUtils {
               "bin BYTES,",
               "fl FLOAT64,",
               "dbl FLOAT64,",
-              "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
+              "nums STRUCT<min BIGNUMERIC, max BIGNUMERIC, pi BIGNUMERIC, big_pi BIGNUMERIC>,",
               "int_arr ARRAY<int64>,",
               "int_struct_arr ARRAY<STRUCT<i INT64>>",
               ")")
@@ -119,7 +119,7 @@ public class TestUtils {
               "bin BYTES,",
               "fl FLOAT64,",
               "dbl FLOAT64,",
-              "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
+              "nums STRUCT<min BIGNUMERIC, max BIGNUMERIC, pi BIGNUMERIC, big_pi BIGNUMERIC>,",
               "int_arr ARRAY<int64>,",
               "int_struct_arr ARRAY<STRUCT<i INT64>>",
               ")")
@@ -198,8 +198,8 @@ public class TestUtils {
               "bin BINARY,",
               "fl FLOAT,",
               "dbl DOUBLE,",
-              "nums STRUCT<min: DECIMAL(38,9), max: DECIMAL(38,9), pi:"
-                  + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
+              "nums STRUCT<min: DECIMAL(38,10), max: DECIMAL(38,10), pi:"
+                  + " DECIMAL(38,10), big_pi: DECIMAL(38,10)>,",
               "int_arr ARRAY<BIGINT>,",
               "int_struct_arr ARRAY<STRUCT<i: BIGINT>>",
               ")",

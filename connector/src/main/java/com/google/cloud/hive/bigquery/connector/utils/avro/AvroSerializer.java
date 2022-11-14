@@ -32,10 +32,7 @@ import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
 
 public class AvroSerializer {
@@ -136,10 +133,10 @@ public class AvroSerializer {
       String logicalType = actualSchema.getProp("logicalType");
       if (logicalType != null && logicalType.equals("decimal")) {
         int scale = actualSchema.getJsonProp("scale").asInt();
-        int precision = actualSchema.getJsonProp("precision").asInt();
         BigDecimal bigDecimal = new BigDecimal(new BigInteger(bytes), scale);
         HiveDecimal hiveDecimal = HiveDecimal.create(bigDecimal);
-        HiveDecimal.enforcePrecisionScale(hiveDecimal, precision, scale);
+        HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) objectInspector;
+        HiveDecimal.enforcePrecisionScale(hiveDecimal, hdoi.precision(), hdoi.scale());
         return new HiveDecimalWritable(hiveDecimal);
       } else {
         return new BytesWritable(bytes);

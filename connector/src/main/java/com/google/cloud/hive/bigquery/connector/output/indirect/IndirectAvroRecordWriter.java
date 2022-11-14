@@ -19,14 +19,22 @@ import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroDeserializer;
+import com.google.cloud.hive.bigquery.connector.utils.avro.AvroSchemaInfo;
+import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils.AvroOutput;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
@@ -54,8 +62,45 @@ public class IndirectAvroRecordWriter
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
     this.avroOutput = AvroOutput.initialize(jobConf, jobDetails.getAvroSchema());
-    this.avroSchema = jobDetails.getAvroSchema();
+    this.avroSchema = fixAvroSchema(jobDetails.getAvroSchema());
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
+  }
+
+  private Schema fixAvroSchema(Schema originalSchema) {
+    AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(originalSchema);
+    Schema schema = schemaInfo.getActualSchema();
+
+    if (schema.getType() == Schema.Type.ARRAY) {
+      Schema fixedElementType = fixAvroSchema(schema.getElementType());
+      schema = Schema.createArray(fixedElementType);
+    }
+
+    else if (schema.getType() == Schema.Type.RECORD) {
+      List<Schema.Field> originalFields = schema.getFields();
+      List<Schema.Field> fixedFields = new ArrayList<>();
+      originalFields.forEach(originalField -> {
+        Schema fixedFieldSchema = fixAvroSchema(originalField.schema());
+        fixedFields.add(new Schema.Field(originalField.name(), fixedFieldSchema, originalField.doc(), originalField.defaultValue()));
+      });
+      schema = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), false);
+      schema.setFields(fixedFields);
+    }
+
+    else if (schema.getType() == Schema.Type.BYTES) {
+      String logicalType = schema.getProp("logicalType");
+      if (logicalType != null && logicalType.equals("decimal")) {
+        schema = Schema.create(Schema.Type.BYTES);
+        schema.addProp("logicalType", "decimal");
+        schema.addProp("precision", "77");
+        schema.addProp("scale", "38");
+      }
+    }
+
+    if (schemaInfo.isNullable()) {
+      schema = Schema.createUnion(Arrays.asList(Schema.create(Schema.Type.NULL), schema));
+    }
+
+    return schema;
   }
 
   @Override

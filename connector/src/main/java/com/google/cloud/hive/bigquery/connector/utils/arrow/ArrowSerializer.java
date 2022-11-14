@@ -28,10 +28,7 @@ import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.*;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.complex.ListVector;
@@ -67,10 +64,11 @@ public class ArrowSerializer {
         return new FloatWritable((float) ((Float8Vector) vector).get(rowId));
       }
       return new DoubleWritable(((Float8Vector) vector).get(rowId));
-    } else if (vector instanceof DecimalVector) {
-      DecimalVector v = (DecimalVector) vector;
+    } else if (vector instanceof Decimal256Vector) {
+      Decimal256Vector v = (Decimal256Vector) vector;
       HiveDecimal hiveDecimal = HiveDecimal.create(v.getObject(rowId));
-      HiveDecimal.enforcePrecisionScale(hiveDecimal, v.getPrecision(), v.getScale());
+      HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) objectInspector;
+      HiveDecimal.enforcePrecisionScale(hiveDecimal, hdoi.precision(), hdoi.scale());
       return new HiveDecimalWritable(hiveDecimal);
     } else if (vector instanceof VarCharVector) {
       VarCharVector v = (VarCharVector) vector;

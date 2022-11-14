@@ -147,10 +147,10 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 "2.0,",
                 "4.2,",
                 "NAMED_STRUCT(",
-                "  'min', CAST(-99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
-                "  'max', CAST(99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
-                "  'pi', CAST(3.14 AS DECIMAL(38,9)),",
-                "  'big_pi', CAST(31415926535897932384626433832.795028841 AS" + " DECIMAL(38,9))",
+                "  'min', CAST(-9999999999999999999999999999.9999999999 AS" + " DECIMAL(38,10)),",
+                "  'max', CAST(9999999999999999999999999999.9999999999 AS" + " DECIMAL(38,10)),",
+                "  'pi', CAST(3.14 AS DECIMAL(38,10)),",
+                "  'big_pi', CAST(3141592653589793238462643383.2795028841 AS" + " DECIMAL(38,10))",
                 "),",
                 "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
                 "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT)))",
@@ -190,14 +190,14 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(4.2, row.get(12).getDoubleValue());
     FieldValueList struct = row.get(13).getRecordValue();
     assertEquals(
-        "-99999999999999999999999999999.999999999",
+        "-9999999999999999999999999999.9999999999",
         struct.get("min").getNumericValue().toPlainString());
     assertEquals(
-        "99999999999999999999999999999.999999999",
+        "9999999999999999999999999999.9999999999",
         struct.get("max").getNumericValue().toPlainString());
     assertEquals("3.14", struct.get("pi").getNumericValue().toPlainString());
     assertEquals(
-        "31415926535897932384626433832.795028841",
+        "3141592653589793238462643383.2795028841",
         struct.get("big_pi").getNumericValue().toPlainString());
     FieldValueList array = (FieldValueList) row.get(14).getValue();
     assertEquals(3, array.size());

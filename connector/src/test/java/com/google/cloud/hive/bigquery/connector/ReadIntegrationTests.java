@@ -224,10 +224,10 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "2.0,",
                 "4.2,",
                 "struct(",
-                "  cast(\"-99999999999999999999999999999.999999999\" as numeric),",
-                "  cast(\"99999999999999999999999999999.999999999\" as numeric),",
-                "  cast(3.14 as numeric),",
-                "  cast(\"31415926535897932384626433832.795028841\" as numeric)",
+                "  cast(\"-9999999999999999999999999999.9999999999\" as bignumeric),",
+                "  cast(\"9999999999999999999999999999.9999999999\" as bignumeric),",
+                "  cast(3.14 as bignumeric),",
+                "  cast(\"3141592653589793238462643383.2795028841\" as bignumeric)",
                 "),",
                 "[1, 2, 3],",
                 "[(select as struct 1)]",
@@ -254,7 +254,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals(2.0, row[11]);
     assertEquals(4.2, row[12]);
     assertEquals(
-        "{\"min\":-99999999999999999999999999999.999999999,\"max\":99999999999999999999999999999.999999999,\"pi\":3.14,\"big_pi\":31415926535897932384626433832.795028841}",
+        "{\"min\":-9999999999999999999999999999.9999999999,\"max\":9999999999999999999999999999.9999999999,\"pi\":3.14,\"big_pi\":3141592653589793238462643383.2795028841}",
         row[13]);
     assertEquals("[1,2,3]", row[14]);
     assertEquals("[{\"i\":1}]", row[15]);

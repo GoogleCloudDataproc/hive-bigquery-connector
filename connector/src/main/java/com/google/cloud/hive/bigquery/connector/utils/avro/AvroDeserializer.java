@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
 import com.google.cloud.hive.bigquery.connector.Constants;
+
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -181,9 +182,13 @@ public class AvroDeserializer {
       if (fieldValue instanceof Buffer) {
         return fieldValue;
       }
-      HiveDecimal decimal = ((HiveDecimalWritable) fieldValue).getHiveDecimal();
-      int scale = ((HiveDecimalObjectInspector) fieldObjectInspector).scale();
-      byte[] bytes = decimal.bigIntegerBytesScaled(scale);
+      HiveDecimal hiveDecimal = ((HiveDecimalWritable) fieldValue).getHiveDecimal();
+//      BigDecimal bigDecimal = decimal.bigDecimalValue().setScale(77 - decimal.precision() + decimal.scale());
+//      byte[] bytes = bigDecimal.toBigInteger().toByteArray();
+      int targetScale = 77 - hiveDecimal.precision() + hiveDecimal.scale();
+//      BigDecimal bigDecimal = hiveDecimal.bigDecimalValue().setScale(targetScale);
+//      int scale = ((HiveDecimalObjectInspector) fieldObjectInspector).scale();
+      byte[] bytes = hiveDecimal.bigIntegerBytesScaled(targetScale);
       ByteBuffer buffer = ByteBuffer.wrap(bytes);
       return buffer.rewind();
     }
