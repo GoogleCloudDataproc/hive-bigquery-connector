@@ -16,8 +16,9 @@
 package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.cloud.bigquery.*;
-import com.google.cloud.hive.bigquery.connector.Constants;
+import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -77,6 +78,24 @@ public class BigQuerySchemaConverter {
       mode = Field.Mode.REPEATED;
     }
 
+    if (typeInfo instanceof MapTypeInfo) {
+      // Convert the Hive Map type to a list (i.e. REPEATED) of key/values STRUCTs
+      ArrayList<TypeInfo> subTypeInfos =
+          new ArrayList<>(
+              Arrays.asList(
+                  ((MapTypeInfo) typeInfo).getMapKeyTypeInfo(),
+                  ((MapTypeInfo) typeInfo).getMapValueTypeInfo()));
+      ArrayList<String> subFieldNames =
+          new ArrayList<>(
+              Arrays.asList(
+                  KeyValueObjectInspector.KEY_FIELD_NAME,
+                  KeyValueObjectInspector.VALUE_FIELD_NAME));
+      typeInfo = new StructTypeInfo();
+      ((StructTypeInfo) typeInfo).setAllStructFieldNames(subFieldNames);
+      ((StructTypeInfo) typeInfo).setAllStructFieldTypeInfos(subTypeInfos);
+      mode = Field.Mode.REPEATED;
+    }
+
     if (typeInfo instanceof StructTypeInfo) {
       List<TypeInfo> subFieldTypeInfos = ((StructTypeInfo) typeInfo).getAllStructFieldTypeInfos();
       List<String> subFieldNames = ((StructTypeInfo) typeInfo).getAllStructFieldNames();
@@ -97,9 +116,7 @@ public class BigQuerySchemaConverter {
   }
 
   private static StandardSQLTypeName toBigQueryFieldType(TypeInfo typeInfo) {
-    if (typeInfo.getCategory() == ObjectInspector.Category.MAP) {
-      throw new IllegalArgumentException(Constants.MAPTYPE_ERROR_MESSAGE);
-    } else if (typeInfo instanceof PrimitiveTypeInfo) {
+    if (typeInfo instanceof PrimitiveTypeInfo) {
       PrimitiveObjectInspector.PrimitiveCategory category =
           ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory();
       return Preconditions.checkNotNull(

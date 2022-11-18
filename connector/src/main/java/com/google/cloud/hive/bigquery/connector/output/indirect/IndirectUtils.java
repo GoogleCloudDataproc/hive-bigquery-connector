@@ -19,7 +19,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;

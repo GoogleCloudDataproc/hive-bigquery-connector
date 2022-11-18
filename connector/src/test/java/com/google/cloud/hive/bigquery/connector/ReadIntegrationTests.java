@@ -230,7 +230,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "  cast(\"31415926535897932384626433832.795028841\" as numeric)",
                 "),",
                 "[1, 2, 3],",
-                "[(select as struct 1)]",
+                "[(select as struct 1)],",
+                "[struct('key', [struct('subkey', 999)])]",
                 ")")
             .collect(Collectors.joining("\n")));
     // Read the data using Hive
@@ -239,7 +240,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
-    assertEquals(16, row.length); // Number of columns
+    assertEquals(17, row.length); // Number of columns
     assertEquals((byte) 11, row[0]);
     assertEquals((short) 22, row[1]);
     assertEquals((int) 33, row[2]);
@@ -258,6 +259,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         row[13]);
     assertEquals("[1,2,3]", row[14]);
     assertEquals("[{\"i\":1}]", row[15]);
+    assertEquals("{\"key\":{\"subkey\":999}}", row[16]);
   }
 
   /**

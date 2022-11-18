@@ -15,11 +15,14 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
+import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
@@ -29,9 +32,7 @@ import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
-import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
@@ -59,16 +60,28 @@ public class AvroSerializer {
 
     if (actualSchema.getType() == Schema.Type.ARRAY) {
       List<?> array = (List<?>) avroObject;
-      ListObjectInspector loi = (ListObjectInspector) objectInspector;
-      return array.stream()
-          .map(
-              value ->
-                  serialize(
-                      value, loi.getListElementObjectInspector(), actualSchema.getElementType()))
-          .toArray();
+      if (objectInspector instanceof ListObjectInspector) { // Array/List type
+        ListObjectInspector loi = (ListObjectInspector) objectInspector;
+        return array.stream()
+            .map(
+                value ->
+                    serialize(
+                        value, loi.getListElementObjectInspector(), actualSchema.getElementType()))
+            .toArray();
+      }
+      if (objectInspector instanceof MapObjectInspector) { // Map type
+        MapObjectInspector moi = (MapObjectInspector) objectInspector;
+        KeyValueObjectInspector kvoi = KeyValueObjectInspector.create(moi);
+        Map<Object, Object> map = new HashMap<>();
+        for (Object object : array) {
+          Object[] item = (Object[]) serialize(object, kvoi, actualSchema.getElementType());
+          map.put(item[0], item[1]);
+        }
+        return map;
+      }
     }
 
-    if (actualSchema.getType() == Schema.Type.RECORD) {
+    if (actualSchema.getType() == Schema.Type.RECORD) { // Record/Struct type
       GenericRecord record = (GenericRecord) avroObject;
       List<Schema.Field> fields = actualSchema.getFields();
       StructObjectInspector soi = (StructObjectInspector) objectInspector;

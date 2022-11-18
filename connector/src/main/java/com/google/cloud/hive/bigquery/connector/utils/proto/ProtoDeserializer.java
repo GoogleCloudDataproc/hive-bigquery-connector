@@ -15,10 +15,8 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.proto;
 
-import com.google.cloud.hive.bigquery.connector.Constants;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
+import java.util.*;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
@@ -101,6 +99,20 @@ public class ProtoDeserializer {
     if (fieldObjectInspector instanceof StructObjectInspector) {
       return buildSingleRowMessage(
           (StructObjectInspector) fieldObjectInspector, nestedTypeDescriptor, fieldValue);
+    }
+
+    // Convert Hive map to a list of BigQuery structs (proto messages)
+    if (fieldObjectInspector instanceof MapObjectInspector) {
+      MapObjectInspector moi = (MapObjectInspector) fieldObjectInspector;
+      List<Object> list = new ArrayList<>();
+      KeyValueObjectInspector kvoi = KeyValueObjectInspector.create(moi);
+      for (Map.Entry<?, ?> entry : ((Map<?, ?>) fieldValue).entrySet()) {
+        DynamicMessage entryMessage =
+            buildSingleRowMessage(
+                kvoi, nestedTypeDescriptor, Arrays.asList(entry.getKey(), entry.getValue()));
+        list.add(entryMessage);
+      }
+      return list;
     }
 
     if (fieldObjectInspector instanceof ByteObjectInspector) { // Tiny Int
@@ -195,10 +207,6 @@ public class ProtoDeserializer {
       }
       HiveDecimalWritable decimal = (HiveDecimalWritable) fieldValue;
       return decimal.getHiveDecimal().bigDecimalValue().toPlainString();
-    }
-
-    if (fieldObjectInspector instanceof MapObjectInspector) {
-      throw new IllegalArgumentException(Constants.MAPTYPE_ERROR_MESSAGE);
     }
 
     String unsupportedCategory;

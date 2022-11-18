@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.utils;
+package com.google.cloud.hive.bigquery.connector.utils.hive;
 
 import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;

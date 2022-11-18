@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.utils.proto;
 
 import com.google.cloud.hive.bigquery.connector.Constants;
+import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.util.List;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
@@ -96,6 +97,11 @@ public class ProtoSchemaConverter {
         fieldLabel = DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED;
       }
 
+      if (fieldOi instanceof MapObjectInspector) {
+        fieldOi = KeyValueObjectInspector.create((MapObjectInspector) fieldOi);
+        fieldLabel = DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED;
+      }
+
       DescriptorProtos.FieldDescriptorProto.Builder protoFieldBuilder;
 
       if (fieldOi instanceof StructObjectInspector) {
@@ -136,9 +142,7 @@ public class ProtoSchemaConverter {
   }
 
   private static DescriptorProtos.FieldDescriptorProto.Type toProtoFieldType(ObjectInspector oi) {
-    if (oi instanceof MapObjectInspector) {
-      throw new IllegalArgumentException(Constants.MAPTYPE_ERROR_MESSAGE);
-    } else if (oi instanceof PrimitiveObjectInspector) {
+    if (oi instanceof PrimitiveObjectInspector) {
       PrimitiveCategory category = ((PrimitiveObjectInspector) oi).getPrimitiveCategory();
       return Preconditions.checkNotNull(
           hiveToProtoTypes.get(category),

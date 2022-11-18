@@ -15,12 +15,10 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
-import com.google.cloud.hive.bigquery.connector.Constants;
+import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -63,24 +61,48 @@ public class AvroDeserializer {
 
     AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(fieldSchema);
 
-    if (fieldObjectInspector instanceof ListObjectInspector) {
+    if (fieldObjectInspector instanceof ListObjectInspector) { // Array type
       ListObjectInspector loi = (ListObjectInspector) fieldObjectInspector;
       ObjectInspector elementObjectInspector = loi.getListElementObjectInspector();
       Iterator<?> iterator = loi.getList(fieldValue).iterator();
       Schema elementSchema = schemaInfo.getActualSchema().getElementType();
-      List<Object> avroValue = new ArrayList<>();
+      List<Object> array = new ArrayList<>();
       while (iterator.hasNext()) {
         Object elementValue = iterator.next();
         Object converted =
             convertHiveValueToAvroValue(elementObjectInspector, elementValue, elementSchema);
-        avroValue.add(converted);
+        array.add(converted);
       }
-      return avroValue;
+      return array;
     }
 
-    if (fieldObjectInspector instanceof StructObjectInspector) {
+    if (fieldObjectInspector instanceof StructObjectInspector) { // Record/Struct type
       return buildSingleRecord(
           (StructObjectInspector) fieldObjectInspector, schemaInfo.getActualSchema(), fieldValue);
+    }
+
+    if (fieldObjectInspector instanceof MapObjectInspector) { // Map type
+      // Convert the map into a list of key/value Avro records
+      MapObjectInspector moi = (MapObjectInspector) fieldObjectInspector;
+      List<Object> array = new ArrayList<>();
+      Map<?, ?> map = moi.getMap(fieldValue);
+      Schema valueSchema =
+          schemaInfo
+              .getActualSchema()
+              .getElementType()
+              .getField(KeyValueObjectInspector.VALUE_FIELD_NAME)
+              .schema();
+      Record record = new Record(schemaInfo.getActualSchema().getElementType());
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        Object key = entry.getKey().toString();
+        Object convertedValue =
+            convertHiveValueToAvroValue(
+                moi.getMapValueObjectInspector(), entry.getValue(), valueSchema);
+        record.put(KeyValueObjectInspector.KEY_FIELD_NAME, key);
+        record.put(KeyValueObjectInspector.VALUE_FIELD_NAME, convertedValue);
+        array.add(record);
+      }
+      return array;
     }
 
     if (fieldObjectInspector instanceof ByteObjectInspector) { // Tiny Int
@@ -186,10 +208,6 @@ public class AvroDeserializer {
       byte[] bytes = decimal.bigIntegerBytesScaled(scale);
       ByteBuffer buffer = ByteBuffer.wrap(bytes);
       return buffer.rewind();
-    }
-
-    if (fieldObjectInspector instanceof MapObjectInspector) {
-      throw new IllegalArgumentException(Constants.MAPTYPE_ERROR_MESSAGE);
     }
 
     String unsupportedCategory;

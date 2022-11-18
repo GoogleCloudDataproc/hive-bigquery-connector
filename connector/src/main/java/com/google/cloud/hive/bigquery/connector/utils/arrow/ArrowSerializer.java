@@ -15,19 +15,18 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.arrow;
 
+import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
+import java.util.*;
 import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
-import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
@@ -62,26 +61,31 @@ public class ArrowSerializer {
       }
       // Big Int
       return new LongWritable(((BigIntVector) vector).get(rowId));
-    } else if (vector instanceof Float8Vector) {
+    }
+    if (vector instanceof Float8Vector) {
       if (objectInspector instanceof FloatObjectInspector) {
         return new FloatWritable((float) ((Float8Vector) vector).get(rowId));
       }
       return new DoubleWritable(((Float8Vector) vector).get(rowId));
-    } else if (vector instanceof DecimalVector) {
+    }
+    if (vector instanceof DecimalVector) {
       DecimalVector v = (DecimalVector) vector;
       HiveDecimal hiveDecimal = HiveDecimal.create(v.getObject(rowId));
       HiveDecimal.enforcePrecisionScale(hiveDecimal, v.getPrecision(), v.getScale());
       return new HiveDecimalWritable(hiveDecimal);
-    } else if (vector instanceof VarCharVector) {
+    }
+    if (vector instanceof VarCharVector) {
       VarCharVector v = (VarCharVector) vector;
       if (v.isSet(rowId) == 0) {
         return null;
       } else {
         return new Text(v.getObject(rowId).toString());
       }
-    } else if (vector instanceof VarBinaryVector) {
+    }
+    if (vector instanceof VarBinaryVector) {
       return new BytesWritable(((VarBinaryVector) vector).getObject(rowId));
-    } else if (vector instanceof DateDayVector) {
+    }
+    if (vector instanceof DateDayVector) {
       int intValue = ((DateDayVector) vector).get(rowId);
       LocalDate localDate = LocalDate.ofEpochDay(intValue);
       Date date = new Date();
@@ -89,28 +93,46 @@ public class ArrowSerializer {
       date.setMonth(localDate.getMonth().getValue());
       date.setYear(localDate.getYear());
       return new DateWritableV2(date);
-    } else if (vector instanceof TimeStampMicroVector) {
+    }
+    if (vector instanceof TimeStampMicroVector) {
       LocalDateTime localDateTime = ((TimeStampMicroVector) vector).getObject(rowId);
       TimestampWritableV2 timestamp = new TimestampWritableV2();
       timestamp.setInternal(localDateTime.toEpochSecond(ZoneOffset.UTC), localDateTime.getNano());
       return timestamp;
-    } else if (vector instanceof TimeStampMicroTZVector) {
+    }
+    if (vector instanceof TimeStampMicroTZVector) {
       long longValue = ((TimeStampMicroTZVector) vector).get(rowId);
       TimestampWritableV2 timestamp = new TimestampWritableV2();
       long secondsAsMillis = (longValue / 1_000_000) * 1_000;
       int nanos = (int) (longValue % 1_000_000) * 1_000;
       timestamp.setInternal(secondsAsMillis, nanos);
       return timestamp;
-    } else if (vector instanceof ListVector) {
+    }
+    if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
-      ListObjectInspector loi = (ListObjectInspector) objectInspector;
-      int numItems = listVector.getDataVector().getValueCount();
-      Object[] children = new Object[numItems];
-      for (int i = 0; i < numItems; i++) {
-        children[i] = serialize(listVector.getDataVector(), loi.getListElementObjectInspector(), i);
+      if (objectInspector instanceof ListObjectInspector) { // Array/List type
+        ListObjectInspector loi = (ListObjectInspector) objectInspector;
+        int numItems = listVector.getDataVector().getValueCount();
+        Object[] children = new Object[numItems];
+        for (int i = 0; i < numItems; i++) {
+          children[i] =
+              serialize(listVector.getDataVector(), loi.getListElementObjectInspector(), i);
+        }
+        return children;
       }
-      return children;
-    } else if (vector instanceof StructVector) {
+      if (objectInspector instanceof MapObjectInspector) { // Map type
+        MapObjectInspector moi = (MapObjectInspector) objectInspector;
+        KeyValueObjectInspector kvoi = KeyValueObjectInspector.create(moi);
+        int numItems = listVector.getDataVector().getValueCount();
+        Map<Object, Object> map = new HashMap<>();
+        for (int i = 0; i < numItems; i++) {
+          Object[] item = (Object[]) serialize(listVector.getDataVector(), kvoi, i);
+          map.put(item[0], item[1]);
+        }
+        return map;
+      }
+    }
+    if (vector instanceof StructVector) { // Record/Struct type
       StructVector structVector = (StructVector) vector;
       List<FieldVector> childrenVectors = structVector.getChildrenFromFields();
       int numItems = structVector.size();
@@ -125,9 +147,8 @@ public class ArrowSerializer {
                 0);
       }
       return children;
-    } else {
-      throw new UnsupportedOperationException(
-          "Unsupported Arrow vector type: " + vector.getClass().getName());
     }
+    throw new UnsupportedOperationException(
+        "Unsupported Arrow vector type: " + vector.getClass().getName());
   }
 }

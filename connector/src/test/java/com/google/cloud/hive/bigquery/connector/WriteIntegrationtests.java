@@ -153,7 +153,8 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 "  'big_pi', CAST(31415926535897932384626433832.795028841 AS" + " DECIMAL(38,9))",
                 "),",
                 "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
-                "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT)))",
+                "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
+                "MAP('mykey', MAP('subkey', 999))",
                 "FROM (select '1') t")
             .collect(Collectors.joining("\n")));
     // Read the data using the BQ SDK
@@ -163,7 +164,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     FieldValueList row = rows.get(0);
-    assertEquals(16, row.size()); // Number of columns
+    assertEquals(17, row.size()); // Number of columns
     assertEquals(11L, row.get(0).getLongValue());
     assertEquals(22L, row.get(1).getLongValue());
     assertEquals(33L, row.get(2).getLongValue());
@@ -208,6 +209,15 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1, arrayOfStructs.size());
     struct = (FieldValueList) arrayOfStructs.get(0).getValue();
     assertEquals(1L, struct.get(0).getLongValue());
+    // Check the Map type
+    FieldValueList map = (FieldValueList) row.get(16).getRepeatedValue();
+    assertEquals(1, map.size());
+    FieldValueList entry = map.get(0).getRecordValue();
+    assertEquals("mykey", entry.get(0).getStringValue());
+    assertEquals(1, entry.get(1).getRepeatedValue().size());
+    FieldValueList subEntry = entry.get(1).getRepeatedValue().get(0).getRecordValue();
+    assertEquals("subkey", subEntry.get(0).getStringValue());
+    assertEquals(999, subEntry.get(1).getLongValue());
   }
 
   // ---------------------------------------------------------------------------------------------------

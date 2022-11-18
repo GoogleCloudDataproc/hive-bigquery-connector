@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
+import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.TimeZone;
+import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -67,16 +69,55 @@ public class AvroUtils {
     return schemaInfo;
   }
 
-  /** Parse an Avro schema from the given JSON-formatted string. */
-  public static Schema parseSchema(String jsonAvroSchema) {
-    Properties properties = new Properties();
-    properties.setProperty(
-        AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), jsonAvroSchema);
-    try {
-      return AvroSerdeUtils.determineSchemaOrThrowException(new Configuration(), properties);
-    } catch (AvroSerdeException | IOException e) {
-      throw new RuntimeException(e);
+  /**
+   * Makes some modifications to the provided Avro schema to be compatible with the way we store
+   * Hive data in BigQuery. Currently, the only modification that we make is convert the Map type
+   * (which BigQuery doesn't support natively) into a list of key/value records.
+   */
+  public static Schema adaptSchemaForBigQuery(Schema originalSchema) {
+    AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(originalSchema);
+    Schema schema = schemaInfo.getActualSchema();
+
+    if (schema.getType() == Schema.Type.ARRAY) {
+      Schema modifiedElementType = adaptSchemaForBigQuery(schema.getElementType());
+      schema = Schema.createArray(modifiedElementType);
+    } else if (schema.getType() == Schema.Type.RECORD) {
+      List<Schema.Field> originalFields = schema.getFields();
+      List<Schema.Field> modifiedFields = new ArrayList<>();
+      originalFields.forEach(
+          originalField -> {
+            Schema modifiedFieldSchema = adaptSchemaForBigQuery(originalField.schema());
+            modifiedFields.add(
+                new Schema.Field(
+                    originalField.name(),
+                    modifiedFieldSchema,
+                    originalField.doc(),
+                    originalField.defaultValue()));
+          });
+      schema =
+          Schema.createRecord(
+              "record_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
+      schema.setFields(modifiedFields);
+    } else if (schema.getType() == Schema.Type.MAP) {
+      // Convert the Map type into a list of key/value records
+      Schema keySchema = Schema.create(Schema.Type.STRING);
+      Schema.Field keyField =
+          new Schema.Field(KeyValueObjectInspector.KEY_FIELD_NAME, keySchema, null, null);
+      Schema valueSchema = adaptSchemaForBigQuery(schema.getValueType());
+      Schema.Field valueField =
+          new Schema.Field(KeyValueObjectInspector.VALUE_FIELD_NAME, valueSchema, null, null);
+      Schema entrySchema =
+          Schema.createRecord(
+              "map_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
+      entrySchema.setFields(Arrays.asList(keyField, valueField));
+      schema = Schema.createArray(entrySchema);
     }
+
+    if (schemaInfo.isNullable()) {
+      schema = Schema.createUnion(Arrays.asList(Schema.create(Schema.Type.NULL), schema));
+    }
+
+    return schema;
   }
 
   /**

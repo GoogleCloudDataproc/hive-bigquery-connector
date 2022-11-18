@@ -89,7 +89,8 @@ public class TestUtils {
               "dbl FLOAT64,",
               "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
               "int_arr ARRAY<int64>,",
-              "int_struct_arr ARRAY<STRUCT<i INT64>>",
+              "int_struct_arr ARRAY<STRUCT<i INT64>>,",
+              "mp ARRAY<STRUCT<name STRING, value ARRAY<STRUCT<name STRING, value INT64>>>>",
               ")")
           .collect(Collectors.joining("\n"));
 
@@ -121,7 +122,8 @@ public class TestUtils {
               "dbl FLOAT64,",
               "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
               "int_arr ARRAY<int64>,",
-              "int_struct_arr ARRAY<STRUCT<i INT64>>",
+              "int_struct_arr ARRAY<STRUCT<i INT64>>,",
+              "mp ARRAY<STRUCT<name STRING, value ARRAY<STRUCT<name STRING, value INT64>>>>",
               ")")
           .collect(Collectors.joining("\n"));
 
@@ -201,7 +203,8 @@ public class TestUtils {
               "nums STRUCT<min: DECIMAL(38,9), max: DECIMAL(38,9), pi:"
                   + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
               "int_arr ARRAY<BIGINT>,",
-              "int_struct_arr ARRAY<STRUCT<i: BIGINT>>",
+              "int_struct_arr ARRAY<STRUCT<i: BIGINT>>,",
+              "mp MAP<STRING,MAP<STRING,INT>>",
               ")",
               "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
               "TBLPROPERTIES (",
@@ -230,7 +233,8 @@ public class TestUtils {
               "nums STRUCT<min: DECIMAL(38,9), max: DECIMAL(38,9), pi:"
                   + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
               "int_arr ARRAY<BIGINT>,",
-              "int_struct_arr ARRAY<STRUCT<i: BIGINT>>",
+              "int_struct_arr ARRAY<STRUCT<i: BIGINT>>,",
+              "mp MAP<STRING,MAP<STRING,INT>>",
               ")",
               "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
               "TBLPROPERTIES (",

@@ -34,7 +34,6 @@ public class Constants {
 
   // The maximum nesting depth of a BigQuery RECORD:
   public static final int MAX_BIGQUERY_NESTED_DEPTH = 15;
-  public static final String MAPTYPE_ERROR_MESSAGE = "MapType is unsupported.";
 
   public static final List<PrimitiveObjectInspector.PrimitiveCategory> SUPPORTED_HIVE_PRIMITIVES =
       ImmutableList.of(
