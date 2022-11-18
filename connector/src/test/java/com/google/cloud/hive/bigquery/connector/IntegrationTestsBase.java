@@ -66,7 +66,10 @@ public class IntegrationTestsBase {
     uploadBlob(
         getBigLakeBucket(), "test.csv", "a,b,c\n1,2,3\n4,5,6".getBytes(StandardCharsets.UTF_8));
     // Create the test dataset in BigQuery
-    dataset = String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
+    dataset =
+        String.format(
+            "hive_bigquery_%d_%d",
+            Long.MAX_VALUE - System.currentTimeMillis(), Long.MAX_VALUE - System.nanoTime());
     createBqDataset(dataset);
   }
 
