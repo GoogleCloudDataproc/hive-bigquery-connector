@@ -21,9 +21,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 
@@ -202,8 +206,12 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   /** Check that we can read all types of data from BigQuery. */
   @CartesianTest
   public void testReadAllTypes(
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+      @CartesianTest.Values(
+              strings = {
+                HiveBigQueryConfig.ARROW, /*HiveBigQueryConfig.AVRO*/
+              })
+          String readDataFormat)
+      throws IOException {
     // Create the BQ table
     runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
     // Insert data into the BQ table using the BQ SDK
@@ -230,8 +238,9 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "  cast(\"31415926535897932384626433832.795028841\" as numeric)",
                 "),",
                 "[1, 2, 3],",
-                "[(select as struct 1)],",
-                "[struct('key', [struct('subkey', 999)])]",
+                "[(select as struct 111), (select as struct 222), (select as struct 333)],",
+                "[struct('a_key', [struct('a_subkey', 888)]), struct('b_key', [struct('b_subkey',"
+                    + " 999)])]",
                 ")")
             .collect(Collectors.joining("\n")));
     // Read the data using Hive
@@ -258,8 +267,27 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         "{\"min\":-99999999999999999999999999999.999999999,\"max\":99999999999999999999999999999.999999999,\"pi\":3.14,\"big_pi\":31415926535897932384626433832.795028841}",
         row[13]);
     assertEquals("[1,2,3]", row[14]);
-    assertEquals("[{\"i\":1}]", row[15]);
-    assertEquals("{\"key\":{\"subkey\":999}}", row[16]);
+    assertEquals("[{\"i\":111},{\"i\":222},{\"i\":333}]", row[15]);
+    // Map type
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, HashMap<String, Integer>>> typeRef =
+        new TypeReference<HashMap<String, HashMap<String, Integer>>>() {};
+    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[16].toString(), typeRef);
+    assertEquals(2, map.size());
+    assertEquals(
+        new HashMap() {
+          {
+            put("a_subkey", 888);
+          }
+        },
+        map.get("a_key"));
+    assertEquals(
+        new HashMap() {
+          {
+            put("b_subkey", 999);
+          }
+        },
+        map.get("b_key"));
   }
 
   /**
