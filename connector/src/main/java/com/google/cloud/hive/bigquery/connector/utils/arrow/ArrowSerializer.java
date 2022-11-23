@@ -205,33 +205,30 @@ public class ArrowSerializer {
     if (objectInspector instanceof MapObjectInspector) { // Map type
       MapObjectInspector moi = (MapObjectInspector) objectInspector;
       Map<Object, Object> map = new HashMap<>();
-      if (value instanceof ListVector) {
-        KeyValueObjectInspector kvoi = KeyValueObjectInspector.create(moi);
-        ListVector listVector = (ListVector) value;
-        for (int i = 0; i < listVector.getDataVector().getValueCount(); i++) {
-          Object[] item = (Object[]) serialize(listVector.getDataVector(), kvoi, i);
-          map.put(item[0], item[1]);
-        }
-        return map;
-      }
+      List<Map<?, ?>> list;
       if (value instanceof List) {
-        List<Map<?, ?>> list = (List<Map<?, ?>>) value;
-        list.forEach(
-            item -> {
-              Object k =
-                  serialize(
-                      item.get(KeyValueObjectInspector.KEY_FIELD_NAME),
-                      moi.getMapKeyObjectInspector(),
-                      0);
-              Object v =
-                  serialize(
-                      item.get(KeyValueObjectInspector.VALUE_FIELD_NAME),
-                      moi.getMapValueObjectInspector(),
-                      0);
-              map.put(k, v);
-            });
-        return map;
+        list = (List<Map<?, ?>>) value;
+      } else if (value instanceof ListVector) {
+        ListVector listVector = (ListVector) value;
+        list = (List<Map<?, ?>>) listVector.getObject(rowId);
+      } else {
+        throw new RuntimeException("Unexpected map type:" + value.getClass().getName());
       }
+      list.forEach(
+          item -> {
+            Object k =
+                serialize(
+                    item.get(KeyValueObjectInspector.KEY_FIELD_NAME),
+                    moi.getMapKeyObjectInspector(),
+                    0);
+            Object v =
+                serialize(
+                    item.get(KeyValueObjectInspector.VALUE_FIELD_NAME),
+                    moi.getMapValueObjectInspector(),
+                    0);
+            map.put(k, v);
+          });
+      return map;
     }
 
     if (objectInspector instanceof StructObjectInspector) { // Record/Struct type
