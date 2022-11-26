@@ -208,7 +208,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   public void testReadAllTypes(
       @CartesianTest.Values(
               strings = {
-                HiveBigQueryConfig.ARROW, /*HiveBigQueryConfig.AVRO*/
+                HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO
               })
           String readDataFormat)
       throws IOException {
@@ -227,7 +227,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "\"var char\",",
                 "\"string\",",
                 "cast(\"2019-03-18\" as date),",
-                "cast(\"2019-03-18T01:23:45.678901\" as timestamp),",
+                "cast(\"2022-10-04 13:38:12.051000 UTC\" as timestamp),",
                 "cast(\"bytes\" as bytes),",
                 "2.0,",
                 "4.2,",
@@ -259,7 +259,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals("var char", row[6]);
     assertEquals("string", row[7]);
     assertEquals("2019-03-18", row[8]);
-    assertEquals("2019-03-18 01:23:45.678901", row[9]);
+    assertEquals("2022-10-04 19:08:12", row[9]); //IST conversion expected
     assertArrayEquals("bytes".getBytes(), (byte[]) row[10]);
     assertEquals(2.0, row[11]);
     assertEquals(4.2, row[12]);

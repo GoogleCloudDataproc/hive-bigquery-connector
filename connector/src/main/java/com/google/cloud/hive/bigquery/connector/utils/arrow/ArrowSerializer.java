@@ -17,9 +17,7 @@ package com.google.cloud.hive.bigquery.connector.utils.arrow;
 
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.*;
 import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -174,14 +172,15 @@ public class ArrowSerializer {
         long longValue = ((TimeStampMicroTZVector) value).get(rowId);
         TimestampWritableV2 timestamp = new TimestampWritableV2();
         long secondsAsMillis = (longValue / 1_000_000) * 1_000;
-        int nanos = (int) (longValue % 1_000_000) * 1_000;
-        timestamp.setInternal(secondsAsMillis, nanos);
+        //int nanos = (int) (longValue % 1_000_000) * 1_000;
+        LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(secondsAsMillis), ZoneId.systemDefault());
+        timestamp.setInternal(date.atZone(ZoneOffset.UTC).toInstant().toEpochMilli(), date.getNano());
         return timestamp;
       }
       if (value instanceof TimeStampMicroVector) {
         LocalDateTime localDateTime = ((TimeStampMicroVector) value).getObject(rowId);
         TimestampWritableV2 timestamp = new TimestampWritableV2();
-        timestamp.setInternal(localDateTime.toEpochSecond(ZoneOffset.UTC), localDateTime.getNano());
+        timestamp.setInternal(localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), localDateTime.getNano());
         return timestamp;
       }
       // TODO: 'else' case

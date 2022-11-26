@@ -19,7 +19,7 @@ import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspect
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.time.LocalDate;
+import java.time.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,8 +116,9 @@ public class AvroSerializer {
         long longValue = (Long) avroObject;
         TimestampWritableV2 timestamp = new TimestampWritableV2();
         long secondsAsMillis = (longValue / 1_000_000) * 1_000;
-        int nanos = (int) (longValue % 1_000_000) * 1_000;
-        timestamp.setInternal(secondsAsMillis, nanos);
+        LocalDateTime date =
+                LocalDateTime.ofInstant(Instant.ofEpochMilli(secondsAsMillis), ZoneId.systemDefault());
+        timestamp.setInternal(date.atZone(ZoneOffset.UTC).toInstant().toEpochMilli(), date.getNano());
         return timestamp;
       }
       if (objectInspector instanceof ByteObjectInspector) { // Tiny Int
