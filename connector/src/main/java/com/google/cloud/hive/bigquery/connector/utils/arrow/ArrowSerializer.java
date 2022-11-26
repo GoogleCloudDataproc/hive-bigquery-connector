@@ -172,15 +172,16 @@ public class ArrowSerializer {
         long longValue = ((TimeStampMicroTZVector) value).get(rowId);
         TimestampWritableV2 timestamp = new TimestampWritableV2();
         long secondsAsMillis = (longValue / 1_000_000) * 1_000;
-        //int nanos = (int) (longValue % 1_000_000) * 1_000;
+        int nanos = (int) (longValue % 1_000_000) * 1_000;
         LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(secondsAsMillis), ZoneId.systemDefault());
         timestamp.setInternal(date.atZone(ZoneOffset.UTC).toInstant().toEpochMilli(), date.getNano());
+        ///timestamp.setInternal(secondsAsMillis,nanos);
         return timestamp;
       }
       if (value instanceof TimeStampMicroVector) {
         LocalDateTime localDateTime = ((TimeStampMicroVector) value).getObject(rowId);
         TimestampWritableV2 timestamp = new TimestampWritableV2();
-        timestamp.setInternal(localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), localDateTime.getNano());
+        timestamp.setInternal(localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli(), localDateTime.getNano());
         return timestamp;
       }
       // TODO: 'else' case

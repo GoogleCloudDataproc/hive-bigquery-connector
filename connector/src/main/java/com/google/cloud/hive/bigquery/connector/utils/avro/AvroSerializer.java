@@ -161,6 +161,15 @@ public class AvroSerializer {
     }
 
     if (actualSchema.getType() == Schema.Type.STRING) {
+      String logicalType = actualSchema.getProp("logicalType");
+      if (logicalType != null && logicalType.equals("datetime")) {
+        Instant instant = Instant.parse(((Utf8) avroObject).toString()+"Z");
+        TimestampWritableV2 timestamp = new TimestampWritableV2();
+        timestamp.setInternal(instant.toEpochMilli(), instant.getNano());
+        return timestamp;
+
+      }
+
       return new Text(((Utf8) avroObject).toString());
     }
 

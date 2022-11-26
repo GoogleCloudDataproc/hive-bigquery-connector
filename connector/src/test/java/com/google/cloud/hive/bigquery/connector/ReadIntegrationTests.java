@@ -228,6 +228,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "\"string\",",
                 "cast(\"2019-03-18\" as date),",
                 "cast(\"2022-10-04 13:38:12.051000 UTC\" as timestamp),",
+                "cast(\"2022-10-04T13:38:12.051000\" as datetime),",
                 "cast(\"bytes\" as bytes),",
                 "2.0,",
                 "4.2,",
@@ -249,7 +250,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
-    assertEquals(17, row.length); // Number of columns
+    assertEquals(18, row.length); // Number of columns
     assertEquals((byte) 11, row[0]);
     assertEquals((short) 22, row[1]);
     assertEquals((int) 33, row[2]);
@@ -260,19 +261,20 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals("string", row[7]);
     assertEquals("2019-03-18", row[8]);
     assertEquals("2022-10-04 19:08:12", row[9]); //IST conversion expected
-    assertArrayEquals("bytes".getBytes(), (byte[]) row[10]);
-    assertEquals(2.0, row[11]);
-    assertEquals(4.2, row[12]);
+    assertEquals("2022-10-04 13:38:12.051", row[10]); //IST conversion expected
+    assertArrayEquals("bytes".getBytes(), (byte[]) row[11]);
+    assertEquals(2.0, row[12]);
+    assertEquals(4.2, row[13]);
     assertEquals(
         "{\"min\":-99999999999999999999999999999.999999999,\"max\":99999999999999999999999999999.999999999,\"pi\":3.14,\"big_pi\":31415926535897932384626433832.795028841}",
-        row[13]);
-    assertEquals("[1,2,3]", row[14]);
-    assertEquals("[{\"i\":111},{\"i\":222},{\"i\":333}]", row[15]);
+        row[14]);
+    assertEquals("[1,2,3]", row[15]);
+    assertEquals("[{\"i\":111},{\"i\":222},{\"i\":333}]", row[16]);
     // Map type
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, HashMap<String, Integer>>> typeRef =
         new TypeReference<HashMap<String, HashMap<String, Integer>>>() {};
-    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[16].toString(), typeRef);
+    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[17].toString(), typeRef);
     assertEquals(2, map.size());
     assertEquals(
         new HashMap() {
