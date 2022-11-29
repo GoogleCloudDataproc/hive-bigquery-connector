@@ -33,6 +33,7 @@ import org.apache.hadoop.io.*;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.*;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.complex.ListVector;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.complex.StructVector;
+import repackaged.by.hivebqconnector.org.apache.arrow.vector.util.JsonStringArrayList;
 import repackaged.by.hivebqconnector.org.apache.arrow.vector.util.JsonStringHashMap;
 
 public class ArrowSerializer {
@@ -184,33 +185,37 @@ public class ArrowSerializer {
         timestamp.setInternal(localDateTime.toEpochSecond(ZoneOffset.UTC), localDateTime.getNano());
         return timestamp;
       }
-      // TODO: 'else' case
+      throw new RuntimeException("Unexpected timestamp type:" + value.getClass().getName());
     }
 
     if (objectInspector instanceof ListObjectInspector) { // Array/List type
+      ListObjectInspector loi = (ListObjectInspector) objectInspector;
+      JsonStringArrayList<?> listData;
       if (value instanceof ListVector) {
         ListVector listVector = (ListVector) value;
-        ListObjectInspector loi = (ListObjectInspector) objectInspector;
-        int numItems = listVector.getDataVector().getValueCount();
-        Object[] children = new Object[numItems];
-        for (int i = 0; i < numItems; i++) {
-          children[i] =
-              serialize(listVector.getDataVector(), loi.getListElementObjectInspector(), i);
-        }
-        return children;
+        listData = (JsonStringArrayList<?>) listVector.getObject(rowId);
+      } else if (value instanceof JsonStringArrayList) {
+        listData = (JsonStringArrayList) value;
+      } else {
+        throw new RuntimeException("Unexpected list type:" + value.getClass().getName());
       }
-      // TODO: 'else' case
+      int numItems = listData.size();
+      Object[] children = new Object[numItems];
+      for (int i = 0; i < numItems; i++) {
+        children[i] = serialize(listData.get(i), loi.getListElementObjectInspector(), i);
+      }
+      return children;
     }
 
     if (objectInspector instanceof MapObjectInspector) { // Map type
       MapObjectInspector moi = (MapObjectInspector) objectInspector;
       Map<Object, Object> map = new HashMap<>();
-      List<Map<?, ?>> list;
-      if (value instanceof List) {
-        list = (List<Map<?, ?>>) value;
+      JsonStringArrayList<Map<?, ?>> list;
+      if (value instanceof JsonStringArrayList) {
+        list = (JsonStringArrayList<Map<?, ?>>) value;
       } else if (value instanceof ListVector) {
         ListVector listVector = (ListVector) value;
-        list = (List<Map<?, ?>>) listVector.getObject(rowId);
+        list = (JsonStringArrayList<Map<?, ?>>) listVector.getObject(rowId);
       } else {
         throw new RuntimeException("Unexpected map type:" + value.getClass().getName());
       }
@@ -220,37 +225,42 @@ public class ArrowSerializer {
                 serialize(
                     item.get(KeyValueObjectInspector.KEY_FIELD_NAME),
                     moi.getMapKeyObjectInspector(),
-                    0);
+                    -1 /* rowId will be ignored in this case */);
             Object v =
                 serialize(
                     item.get(KeyValueObjectInspector.VALUE_FIELD_NAME),
                     moi.getMapValueObjectInspector(),
-                    0);
+                    -1 /* rowId will be ignored in this case */);
             map.put(k, v);
           });
       return map;
     }
 
     if (objectInspector instanceof StructObjectInspector) { // Record/Struct type
+      StructObjectInspector soi = (StructObjectInspector) objectInspector;
+      JsonStringHashMap<?, ?> structData;
       if (value instanceof StructVector) {
         StructVector structVector = (StructVector) value;
-        JsonStringHashMap<?, ?> structData =
-            (JsonStringHashMap<?, ?>) (structVector).getObject(rowId);
-        List<FieldVector> fieldVectors = structVector.getChildrenFromFields();
-        int numFields = structVector.size();
-        StructObjectInspector soi = (StructObjectInspector) objectInspector;
-        Object[] row = new Object[numFields];
-        int i = 0;
-        for (Object v : structData.values()) {
-          FieldVector fieldVector = fieldVectors.get(i);
-          row[i] =
-              serialize(
-                  v, soi.getStructFieldRef(fieldVector.getName()).getFieldObjectInspector(), 0);
-          i++;
-        }
-        return row;
+        structData = (JsonStringHashMap<?, ?>) (structVector).getObject(rowId);
+      } else if (value instanceof JsonStringHashMap) {
+        structData = (JsonStringHashMap<?, ?>) value;
+      } else {
+        throw new RuntimeException("Unexpected struct type:" + value.getClass().getName());
       }
-      // TODO: 'else' case
+      int numFields = structData.size();
+      Object[] row = new Object[numFields];
+      int i = 0;
+      for (Map.Entry<?, ?> entry : structData.entrySet()) {
+        String fieldName = (String) entry.getKey();
+        Object fieldValue = entry.getValue();
+        row[i] =
+            serialize(
+                fieldValue,
+                soi.getStructFieldRef(fieldName).getFieldObjectInspector(),
+                -1 /* rowId will be ignored in this case */);
+        i++;
+      }
+      return row;
     }
     throw new UnsupportedOperationException(
         "Unsupported ObjectInspector `"

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -203,13 +204,152 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that we can read a Hive Map type from BigQuery. */
+  @CartesianTest
+  public void testMapOfInts(
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat)
+      throws IOException {
+    // Create the BQ table
+    runBqQuery(BIGQUERY_MAP_TABLE_CREATE_QUERY);
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        Stream.of(
+                String.format("INSERT `${dataset}.%s` VALUES ", MAP_TABLE_NAME),
+                "(1, [STRUCT('str11', 11)], NULL, NULL),",
+                "(2, [STRUCT('txt1', 200), STRUCT('txt2', 400)], NULL, NULL),",
+                "(3, [STRUCT('new12', 44), STRUCT('new14', 99), STRUCT('new16', 55)], NULL, NULL)")
+            .collect(Collectors.joining("\n")));
+    initHive("mr", readDataFormat);
+    runHiveScript(HIVE_MAP_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement("SELECT * FROM " + MAP_TABLE_NAME + " ORDER BY id");
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, Integer>> mapOfIntsTypeRef =
+        new TypeReference<HashMap<String, Integer>>() {};
+    HashMap<String, Integer>[] expected =
+        new HashMap[] {
+          new HashMap<String, Integer>() {
+            {
+              put("str11", 11);
+            }
+          },
+          new HashMap<String, Integer>() {
+            {
+              put("txt1", 200);
+              put("txt2", 400);
+            }
+          },
+          new HashMap<String, Integer>() {
+            {
+              put("new12", 44);
+              put("new14", 99);
+              put("new16", 55);
+            }
+          }
+        };
+    assertEquals(expected.length, rows.size());
+    for (int i = 0; i < expected.length; i++) {
+      HashMap<String, Integer> map = mapper.readValue(rows.get(i)[1].toString(), mapOfIntsTypeRef);
+      assertEquals(expected[i], map);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we can read a Hive Map type from BigQuery. */
+  @CartesianTest
+  public void testMapOfStructs(
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat)
+      throws IOException {
+    // Create the BQ table
+    runBqQuery(BIGQUERY_MAP_TABLE_CREATE_QUERY);
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        Stream.of(
+                String.format("INSERT `${dataset}.%s` VALUES ", MAP_TABLE_NAME),
+                "(1, NULL, [STRUCT('hi', STRUCT('green')), STRUCT('hello', STRUCT('pink'))], NULL)")
+            .collect(Collectors.joining("\n")));
+    initHive("tez", readDataFormat);
+    runHiveScript(HIVE_MAP_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement("SELECT * FROM " + MAP_TABLE_NAME + " ORDER BY id");
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, HashMap<String, String>>> mapOfStructsTypeRef =
+        new TypeReference<HashMap<String, HashMap<String, String>>>() {};
+    HashMap<String, Integer>[] expected =
+        new HashMap[] {
+          new HashMap<String, HashMap<String, String>>() {
+            {
+              put(
+                  "hi",
+                  new HashMap<String, String>() {
+                    {
+                      put("color", "green");
+                    }
+                  });
+              put(
+                  "hello",
+                  new HashMap<String, String>() {
+                    {
+                      put("color", "pink");
+                    }
+                  });
+            }
+          }
+        };
+    assertEquals(expected.length, rows.size());
+    for (int i = 0; i < expected.length; i++) {
+      HashMap<String, Integer> map =
+          mapper.readValue(rows.get(i)[2].toString(), mapOfStructsTypeRef);
+      assertEquals(expected[i], map);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we can read a Hive Map type from BigQuery. */
+  @CartesianTest
+  public void testMapOfArrays(
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat)
+      throws IOException {
+    // Create the BQ table
+    runBqQuery(BIGQUERY_MAP_TABLE_CREATE_QUERY);
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        Stream.of(
+                String.format("INSERT `${dataset}.%s` VALUES ", MAP_TABLE_NAME),
+                "(1, NULL, NULL, [STRUCT('hi', [1, 2, 3]), STRUCT('hello', [98, 99])])")
+            .collect(Collectors.joining("\n")));
+    initHive("tez", readDataFormat);
+    runHiveScript(HIVE_MAP_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement("SELECT * FROM " + MAP_TABLE_NAME + " ORDER BY id");
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, List<Integer>>> mapOfArraysTypeRef =
+        new TypeReference<HashMap<String, List<Integer>>>() {};
+    HashMap<String, Integer>[] expected =
+        new HashMap[] {
+          new HashMap<String, List<Integer>>() {
+            {
+              put("hi", Arrays.asList(1, 2, 3));
+              put("hello", Arrays.asList(98, 99));
+            }
+          }
+        };
+    assertEquals(expected.length, rows.size());
+    for (int i = 0; i < expected.length; i++) {
+      HashMap<String, List<Integer>> map =
+          mapper.readValue(rows.get(i)[3].toString(), mapOfArraysTypeRef);
+      assertEquals(expected[i], map);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Check that we can read all types of data from BigQuery. */
   @CartesianTest
   public void testReadAllTypes(
-      @CartesianTest.Values(
-              strings = {
-                HiveBigQueryConfig.ARROW, /*HiveBigQueryConfig.AVRO*/
-              })
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat)
       throws IOException {
     // Create the BQ table

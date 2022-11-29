@@ -43,6 +43,7 @@ public class TestUtils {
   public static final String BIGLAKE_TABLE_NAME = "biglake";
   public static final String TEST_VIEW_NAME = "test_view";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
+  public static final String MAP_TABLE_NAME = "maps";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
@@ -68,6 +69,16 @@ public class TestUtils {
               "CREATE OR REPLACE TABLE ${dataset}." + ANOTHER_TEST_TABLE_NAME + " (",
               "num INT64,",
               "str_val STRING",
+              ")")
+          .collect(Collectors.joining("\n"));
+
+  public static String BIGQUERY_MAP_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE OR REPLACE TABLE ${dataset}." + MAP_TABLE_NAME + " (",
+              "id INT64,",
+              "map_of_ints ARRAY<STRUCT<name STRING, value INT64>>,",
+              "map_of_structs ARRAY<STRUCT<name STRING, value STRUCT<color STRING>>>,",
+              "map_of_arrays ARRAY<STRUCT<name STRING, value ARRAY<INT64>>>",
               ")")
           .collect(Collectors.joining("\n"));
 
@@ -181,6 +192,22 @@ public class TestUtils {
               "  'bq.project'='${project}',",
               "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + ANOTHER_TEST_TABLE_NAME + "'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_MAP_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE EXTERNAL TABLE " + MAP_TABLE_NAME + " (",
+              "id int,",
+              "map_of_ints map<string, int>,",
+              "map_of_structs map<string, struct<color:STRING>>,",
+              "map_of_arrays map<string, array<int>>",
+              ")",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
+              "  'bq.table'='" + MAP_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
 
