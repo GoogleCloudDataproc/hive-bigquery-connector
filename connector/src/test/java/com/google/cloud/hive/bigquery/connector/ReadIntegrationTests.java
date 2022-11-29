@@ -227,8 +227,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "\"var char\",",
                 "\"string\",",
                 "cast(\"2019-03-18\" as date),",
-                "cast(\"2022-10-04 13:38:12.051000 UTC\" as timestamp),",
-                "cast(\"2022-10-04T13:38:12.051000\" as datetime),",
+                "cast(\"2019-02-02 10:10:10\" as timestamp),",
+                "cast(\"2019-02-02 10:10:10\" as datetime),",
                 "cast(\"bytes\" as bytes),",
                 "2.0,",
                 "4.2,",
@@ -260,8 +260,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals("var char", row[6]);
     assertEquals("string", row[7]);
     assertEquals("2019-03-18", row[8]);
-    assertEquals("2022-10-04 19:08:12", row[9]); //IST conversion expected
-    assertEquals("2022-10-04 13:38:12.051", row[10]); //IST conversion expected
+    assertEquals("2019-02-02 15:40:10", row[9]); //IST conversion expected
+    assertEquals("2019-02-02 10:10:10", row[10]); //IST conversion not expected
     assertArrayEquals("bytes".getBytes(), (byte[]) row[11]);
     assertEquals(2.0, row[12]);
     assertEquals(4.2, row[13]);

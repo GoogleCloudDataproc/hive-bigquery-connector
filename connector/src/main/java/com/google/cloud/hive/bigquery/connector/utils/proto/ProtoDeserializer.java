@@ -147,8 +147,11 @@ public class ProtoDeserializer {
       if (fieldValue instanceof Long) {
         return fieldValue;
       }
+
+
       TimestampWritableV2 timestamp = (TimestampWritableV2) fieldValue;
-      return timestamp.getSeconds() * 1_000_000 + timestamp.getNanos() / 1000;
+       return timestamp.toString();
+//      return timestamp.getSeconds() * 1_000_000 + timestamp.getNanos() / 1000;
     }
 
     if (fieldObjectInspector instanceof DateObjectInspector) {
