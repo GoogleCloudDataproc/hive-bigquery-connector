@@ -220,7 +220,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "(2, [STRUCT('txt1', 200), STRUCT('txt2', 400)], NULL, NULL),",
                 "(3, [STRUCT('new12', 44), STRUCT('new14', 99), STRUCT('new16', 55)], NULL, NULL)")
             .collect(Collectors.joining("\n")));
-    initHive("mr", readDataFormat);
+    initHive("tez", readDataFormat);
     runHiveScript(HIVE_MAP_TABLE_CREATE_QUERY);
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + MAP_TABLE_NAME + " ORDER BY id");
     ObjectMapper mapper = new ObjectMapper();
@@ -384,7 +384,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 ")")
             .collect(Collectors.joining("\n")));
     // Read the data using Hive
-    initHive("mr", readDataFormat);
+    initHive("tez", readDataFormat);
     runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
@@ -439,7 +439,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     // Create the BQ table
     runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
     // Read the data using Hive
-    initHive("mr", HiveBigQueryConfig.ARROW);
+    initHive("tez", HiveBigQueryConfig.ARROW);
     runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
     String[] queries = {
       "select * from "
