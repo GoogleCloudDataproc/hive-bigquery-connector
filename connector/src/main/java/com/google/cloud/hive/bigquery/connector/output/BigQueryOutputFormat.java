@@ -24,7 +24,9 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
+import org.apache.hadoop.hive.ql.io.AcidOutputFormat;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
+import org.apache.hadoop.hive.ql.io.RecordUpdater;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
@@ -32,7 +34,7 @@ import org.apache.hadoop.mapred.OutputFormat;
 import org.apache.hadoop.util.Progressable;
 
 public class BigQueryOutputFormat
-    implements OutputFormat<NullWritable, Writable>, HiveOutputFormat<NullWritable, Writable> {
+    implements OutputFormat<NullWritable, Writable>, HiveOutputFormat<NullWritable, Writable>, AcidOutputFormat<NullWritable, Writable> {
 
   /**
    * Get the RecordWriter (direct or indirect) for the given job. Params: fileSystem - Ignored job –
@@ -72,5 +74,15 @@ public class BigQueryOutputFormat
   @Override
   public void checkOutputSpecs(FileSystem fileSystem, JobConf jobConf) throws IOException {
     // Do nothing
+  }
+
+  @Override
+  public RecordUpdater getRecordUpdater(Path path, Options options) throws IOException {
+    return null;
+  }
+
+  @Override
+  public RecordWriter getRawRecordWriter(Path path, Options options) throws IOException {
+    return null;
   }
 }

@@ -44,6 +44,7 @@ public class TestUtils {
   public static final String TEST_VIEW_NAME = "test_view";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String MAP_TABLE_NAME = "maps";
+  public static final String TRANSACTIONAL_TABLE_NAME = "test_transactional";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
@@ -138,6 +139,14 @@ public class TestUtils {
               ")")
           .collect(Collectors.joining("\n"));
 
+  public static String BIGQUERY_TRANSACTIONAL_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE OR REPLACE TABLE ${dataset}." + TRANSACTIONAL_TABLE_NAME + " (",
+              "number INT64,",
+              "text STRING",
+              ")")
+          .collect(Collectors.joining("\n"));
+
   public static String HIVE_TEST_TABLE_CREATE_QUERY =
       Stream.of(
               "CREATE EXTERNAL TABLE " + TEST_TABLE_NAME + " (",
@@ -208,6 +217,21 @@ public class TestUtils {
               "  'bq.project'='${project}',",
               "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + MAP_TABLE_NAME + "'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_TRANSACTIONAL_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE TABLE " + TRANSACTIONAL_TABLE_NAME + " (",
+              "number BIGINT,",
+              "text STRING",
+              ")",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'transactional'='true',",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
+              "  'bq.table'='" + TRANSACTIONAL_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
 

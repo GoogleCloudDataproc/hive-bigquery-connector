@@ -15,6 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
+import java.io.IOException;
+import java.util.List;
+
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
@@ -22,11 +25,20 @@ import com.google.cloud.hive.bigquery.connector.input.arrow.ArrowRecordReader;
 import com.google.cloud.hive.bigquery.connector.input.avro.AvroRecordReader;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.ValidWriteIdList;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedInputFormatInterface;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedSupport;
+import org.apache.hadoop.hive.ql.io.AcidInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.*;
 
-public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWritable> {
+public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWritable>, AcidInputFormat<NullWritable, ObjectWritable>, VectorizedInputFormatInterface {
 
     /**
      * Creates hadoop splits (i.e BigQuery streams) so that each task can read data from the
@@ -56,4 +68,23 @@ public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWrit
 
     }
 
+    @Override
+    public RowReader<ObjectWritable> getReader(InputSplit split, Options options) throws IOException {
+        return null;
+    }
+
+    @Override
+    public RawReader<ObjectWritable> getRawReader(Configuration conf, boolean collapseEvents, int bucket, ValidWriteIdList validWriteIdList, Path baseDirectory, Path[] deltaDirectory) throws IOException {
+        return null;
+    }
+
+    @Override
+    public boolean validateInput(FileSystem fs, HiveConf conf, List<FileStatus> files) throws IOException {
+        return false;
+    }
+
+    @Override
+    public VectorizedSupport.Support[] getSupportedFeatures() {
+        return new VectorizedSupport.Support[] {VectorizedSupport.Support.DECIMAL_64};
+    }
 }

@@ -22,11 +22,23 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.storage.Blob;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.apache.hadoop.hive.ql.io.NullRowsInputFormat;
+import org.apache.hadoop.hive.ql.io.OneNullRowInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.optimizer.physical.Vectorizer;
+import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
@@ -280,5 +292,35 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     assertEquals(999, rows.get(0).get(0).getLongValue());
     assertEquals("hello3", rows.get(0).get(1).getStringValue());
+  }
+
+  @Test
+  public void testMerge() throws NoSuchFieldException, IllegalAccessException {
+    // Client config properties:
+    hive.setHiveConfValue("hive.support.concurrency", "true");
+    hive.setHiveConfValue("hive.enforce.bucketing", "true");
+    hive.setHiveConfValue("hive.exec.dynamic.partition.mode", "nonstrict");
+    hive.setHiveConfValue("hive.txn.manager", "org.apache.hadoop.hive.ql.lockmgr.DbTxnManager");
+    // Server config properties:
+    hive.setHiveConfValue("hive.compactor.initiator.on", "true");
+    hive.setHiveConfValue("hive.compactor.worker.threads", "1");
+    initHive();
+    // Create the table
+    runHiveScript(HIVE_TRANSACTIONAL_TABLE_CREATE_QUERY);
+
+    // Hack to get around the fact that Hive hardcodes the list of supported ACID InputFormat classes
+    Set<String> supportedAcidInputFormats = new TreeSet<>();
+    supportedAcidInputFormats.add(OrcInputFormat.class.getName());
+    supportedAcidInputFormats.add(NullRowsInputFormat.class.getName());
+    supportedAcidInputFormats.add(OneNullRowInputFormat.class.getName());
+    supportedAcidInputFormats.add(BigQueryInputFormat.class.getName());
+    Field field = Vectorizer.class.getDeclaredField("supportedAcidInputFormats");
+    field.setAccessible(true);
+    Field modifiers = Field.class.getDeclaredField("modifiers");
+    modifiers.setAccessible(true);
+    modifiers.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+    field.set(null, supportedAcidInputFormats);
+
+    runHiveScript("MERGE INTO " + TRANSACTIONAL_TABLE_NAME + " x USING (SELECT CAST (222 AS BIGINT) number, \"some text\" text) y ON x.number=y.number WHEN NOT MATCHED THEN INSERT VALUES (999, \"hello\")");
   }
 }
