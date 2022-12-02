@@ -237,6 +237,9 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       StandardTableDefinition tableDefinition = tableDefBuilder.build();
       createTableInfo = TableInfo.newBuilder(opts.getTableId(), tableDefinition).build();
     }
+
+    table.getSd().setInputFormat("com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat");
+    table.getSd().setOutputFormat("com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat");
   }
 
   @Override

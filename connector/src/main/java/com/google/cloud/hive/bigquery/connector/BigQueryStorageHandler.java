@@ -15,15 +15,10 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.bigquery.storage.v1.DataFormat;
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
-import com.google.cloud.hive.bigquery.connector.input.arrow.BigQueryArrowInputFormat;
-import com.google.cloud.hive.bigquery.connector.input.avro.BigQueryAvroInputFormat;
+import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
@@ -62,14 +57,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public Class<? extends InputFormat> getInputFormatClass() {
-    Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(conf));
-    DataFormat readDataFormat = injector.getInstance(HiveBigQueryConfig.class).getReadDataFormat();
-    if (readDataFormat.equals(DataFormat.ARROW)) {
-      return BigQueryArrowInputFormat.class;
-    } else if (readDataFormat.equals(DataFormat.AVRO)) {
-      return BigQueryAvroInputFormat.class;
-    }
-    throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
+    return BigQueryInputFormat.class;
   }
 
   @Override
