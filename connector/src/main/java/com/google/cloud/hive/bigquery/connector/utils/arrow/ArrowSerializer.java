@@ -175,7 +175,6 @@ public class ArrowSerializer {
         int nanos = (int) (longValue % 1_000_000) * 1_000;
         LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(secondsAsMillis), ZoneId.systemDefault());
         timestamp.setInternal(date.atZone(ZoneOffset.UTC).toInstant().toEpochMilli(), nanos);
-        ///timestamp.setInternal(secondsAsMillis,nanos);
         return timestamp;
       }
       if (value instanceof TimeStampMicroVector) {

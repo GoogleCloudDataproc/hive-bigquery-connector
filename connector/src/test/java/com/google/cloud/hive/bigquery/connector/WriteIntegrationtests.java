@@ -117,7 +117,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
   /** Check that we can write all types of data to BigQuery. */
   @CartesianTest
   public void testWriteAllTypes(
-      @CartesianTest.Values(strings = {/*"mr",*/ "tez"}) String engine,
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(
               strings = {
                 HiveBigQueryConfig.WRITE_METHOD_DIRECT,
