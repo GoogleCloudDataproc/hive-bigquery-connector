@@ -29,6 +29,7 @@ import java.util.stream.Stream;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.DefaultTimeZone;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 
 public class ReadIntegrationTests extends IntegrationTestsBase {
@@ -205,6 +206,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
 
   /** Check that we can read all types of data from BigQuery. */
   @CartesianTest
+  @DefaultTimeZone("IST")
   public void testReadAllTypes(
       @CartesianTest.Values(
               strings = {
@@ -227,7 +229,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "\"var char\",",
                 "\"string\",",
                 "cast(\"2019-03-18\" as date),",
-                "cast(\"2019-02-02 10:10:10\" as timestamp),",
+                "cast(\"2019-03-18T01:23:45.678901\" as timestamp),",
                 "cast(\"2019-02-02 10:10:10\" as datetime),",
                 "cast(\"bytes\" as bytes),",
                 "2.0,",
@@ -260,7 +262,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals("var char", row[6]);
     assertEquals("string", row[7]);
     assertEquals("2019-03-18", row[8]);
-    assertEquals("2019-02-02 15:40:10", row[9]); //IST conversion expected
+    assertEquals("2019-03-18 06:53:45.678901", row[9]); //IST conversion expected
     assertEquals("2019-02-02 10:10:10", row[10]); //IST conversion not expected
     assertArrayEquals("bytes".getBytes(), (byte[]) row[11]);
     assertEquals(2.0, row[12]);

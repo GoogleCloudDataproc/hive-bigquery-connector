@@ -77,7 +77,6 @@ public class AvroUtils {
   public static Schema adaptSchemaForBigQuery(Schema originalSchema) {
     AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(originalSchema);
     Schema schema = schemaInfo.getActualSchema();
-
     if (schema.getType() == Schema.Type.ARRAY) {
       Schema modifiedElementType = adaptSchemaForBigQuery(schema.getElementType());
       schema = Schema.createArray(modifiedElementType);

@@ -116,9 +116,10 @@ public class AvroSerializer {
         long longValue = (Long) avroObject;
         TimestampWritableV2 timestamp = new TimestampWritableV2();
         long secondsAsMillis = (longValue / 1_000_000) * 1_000;
+        int nanos = (int) (longValue % 1_000_000) * 1_000;
         LocalDateTime date =
                 LocalDateTime.ofInstant(Instant.ofEpochMilli(secondsAsMillis), ZoneId.systemDefault());
-        timestamp.setInternal(date.atZone(ZoneOffset.UTC).toInstant().toEpochMilli(), date.getNano());
+        timestamp.setInternal(date.atZone(ZoneOffset.UTC).toInstant().toEpochMilli(), nanos);
         return timestamp;
       }
       if (objectInspector instanceof ByteObjectInspector) { // Tiny Int

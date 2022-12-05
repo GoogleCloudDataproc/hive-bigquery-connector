@@ -117,7 +117,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
   /** Check that we can write all types of data to BigQuery. */
   @CartesianTest
   public void testWriteAllTypes(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {/*"mr",*/ "tez"}) String engine,
       @CartesianTest.Values(
               strings = {
                 HiveBigQueryConfig.WRITE_METHOD_DIRECT,
@@ -143,7 +143,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 "\"string\",",
                 "CAST(\"2019-03-18\" AS DATE),",
                 "CAST(\"2019-03-18T01:23:45.678901\" AS TIMESTAMP),",
-                "CAST(\"2019-03-18 01:23:45.678\" AS TIMESTAMP),",
+                "CAST(\"2019-03-18T01:23:45.678000\" AS TIMESTAMP),",
                 "CAST(\"bytes\" AS BINARY),",
                 "2.0,",
                 "4.2,",

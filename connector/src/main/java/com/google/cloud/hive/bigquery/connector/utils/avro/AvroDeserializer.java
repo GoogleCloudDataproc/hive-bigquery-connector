@@ -141,6 +141,7 @@ public class AvroDeserializer {
       TimestampWritableV2 timestamp = (TimestampWritableV2) fieldValue;
       if (logicalType != null) {
         if (logicalType.asText().equals("timestamp-millis")) {
+        //  return timestamp.toString();
           return timestamp.getSeconds() * 1_000;
         }
       }
