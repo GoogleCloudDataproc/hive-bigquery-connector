@@ -152,7 +152,7 @@ public class ProtoDeserializer {
       if (fieldValue instanceof Long) {
         return fieldValue;
       }
-      
+
       TimestampWritableV2 timestamp = (TimestampWritableV2) fieldValue;
       long secondsAsMillis = timestamp.getTimestamp().toEpochMilli();
       int nanos = timestamp.getTimestamp().getNanos();

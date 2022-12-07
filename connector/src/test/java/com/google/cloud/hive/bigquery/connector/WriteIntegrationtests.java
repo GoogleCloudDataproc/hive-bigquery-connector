@@ -176,7 +176,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals("string", row.get(7).getStringValue());
     assertEquals("2019-03-18", row.get(8).getStringValue());
     if (Objects.equals(writeMethod, HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      assertEquals(1552872225678901L, row.get(9).getTimestampValue());
+      assertEquals(1552852425678901L, row.get(9).getTimestampValue());
     } else {
       // As we rely on the AvroSerde to generate the Avro schema for the
       // indirect write method, we lose the micro-second precision due
@@ -188,7 +188,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
       assertEquals(1552872225000000L, row.get(9).getTimestampValue());
     }
     if (Objects.equals(writeMethod, HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      assertEquals("2019-03-18T01:23:45.678000", row.get(10).getStringValue());
+      assertEquals("2019-03-17T19:53:45.678000", row.get(10).getStringValue());
     }
     assertArrayEquals("bytes".getBytes(), row.get(11).getBytesValue());
     assertEquals(2.0, row.get(12).getDoubleValue());
