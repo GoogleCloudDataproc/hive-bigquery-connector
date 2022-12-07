@@ -16,6 +16,11 @@
 package com.google.cloud.hive.bigquery.connector.utils.proto;
 
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.*;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
@@ -147,11 +152,14 @@ public class ProtoDeserializer {
       if (fieldValue instanceof Long) {
         return fieldValue;
       }
-
-
+      
       TimestampWritableV2 timestamp = (TimestampWritableV2) fieldValue;
-       return timestamp.toString();
-//      return timestamp.getSeconds() * 1_000_000 + timestamp.getNanos() / 1000;
+      long secondsAsMillis = timestamp.getTimestamp().toEpochMilli();
+      int nanos = timestamp.getTimestamp().getNanos();
+      LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(secondsAsMillis), ZoneId.of("UTC"));
+      date= date.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+      timestamp.setInternal(date.toInstant(ZoneOffset.UTC).toEpochMilli(), nanos);
+      return timestamp.toString();
     }
 
     if (fieldObjectInspector instanceof DateObjectInspector) {
