@@ -102,7 +102,7 @@ public class ArrowSerializer {
       if (value instanceof Float8Vector) {
         floatValue = (float) ((Float8Vector) value).get(rowId);
       } else {
-        floatValue = (float) value;
+        floatValue = ((Double) value).floatValue();
       }
       return new FloatWritable(floatValue);
     }

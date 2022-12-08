@@ -379,6 +379,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "),",
                 "[1, 2, 3],",
                 "[(select as struct 111), (select as struct 222), (select as struct 333)],",
+                "struct(4.2),",
                 "[struct('a_key', [struct('a_subkey', 888)]), struct('b_key', [struct('b_subkey',"
                     + " 999)])]",
                 ")")
@@ -389,7 +390,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
-    assertEquals(17, row.length); // Number of columns
+    assertEquals(18, row.length); // Number of columns
     assertEquals((byte) 11, row[0]);
     assertEquals((short) 22, row[1]);
     assertEquals((int) 33, row[2]);
@@ -408,11 +409,12 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         row[13]);
     assertEquals("[1,2,3]", row[14]);
     assertEquals("[{\"i\":111},{\"i\":222},{\"i\":333}]", row[15]);
+    assertEquals("{\"float_field\":4.2}", row[16]);
     // Map type
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, HashMap<String, Integer>>> typeRef =
         new TypeReference<HashMap<String, HashMap<String, Integer>>>() {};
-    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[16].toString(), typeRef);
+    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[17].toString(), typeRef);
     assertEquals(2, map.size());
     assertEquals(
         new HashMap() {
