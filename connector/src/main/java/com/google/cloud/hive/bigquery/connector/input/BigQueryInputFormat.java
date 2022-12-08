@@ -28,32 +28,30 @@ import org.apache.hadoop.mapred.*;
 
 public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWritable> {
 
-    /**
-     * Creates hadoop splits (i.e BigQuery streams) so that each task can read data from the
-     * corresponding stream.
-     *
-     * @param jobConf The job's configuration
-     * @param numSplits Number of splits requested by MapReduce, but ignored as BigQuery decides the
-     *     number of streams used in the read session.
-     * @return InputSplit[] - Collection of FileSplits
-     */
-    @Override
-    public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
-        return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf);
+  /**
+   * Creates hadoop splits (i.e BigQuery streams) so that each task can read data from the
+   * corresponding stream.
+   *
+   * @param jobConf The job's configuration
+   * @param numSplits Number of splits requested by MapReduce, but ignored as BigQuery decides the
+   *     number of streams used in the read session.
+   * @return InputSplit[] - Collection of FileSplits
+   */
+  @Override
+  public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
+    return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf);
+  }
+
+  @Override
+  public RecordReader<NullWritable, ObjectWritable> getRecordReader(
+      InputSplit inputSplit, JobConf jobConf, Reporter reporter) {
+    Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(jobConf));
+    DataFormat readDataFormat = injector.getInstance(HiveBigQueryConfig.class).getReadDataFormat();
+    if (readDataFormat.equals(DataFormat.ARROW)) {
+      return new ArrowRecordReader((BigQueryInputSplit) inputSplit, jobConf);
+    } else if (readDataFormat.equals(DataFormat.AVRO)) {
+      return new AvroRecordReader((BigQueryInputSplit) inputSplit, jobConf);
     }
-
-    @Override
-    public RecordReader<NullWritable, ObjectWritable> getRecordReader(
-        InputSplit inputSplit, JobConf jobConf, Reporter reporter) {
-        Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(jobConf));
-        DataFormat readDataFormat = injector.getInstance(HiveBigQueryConfig.class).getReadDataFormat();
-        if (readDataFormat.equals(DataFormat.ARROW)) {
-            return new ArrowRecordReader((BigQueryInputSplit) inputSplit, jobConf);
-        } else if (readDataFormat.equals(DataFormat.AVRO)) {
-            return new AvroRecordReader((BigQueryInputSplit) inputSplit, jobConf);
-        }
-        throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
-
-    }
-
+    throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
+  }
 }

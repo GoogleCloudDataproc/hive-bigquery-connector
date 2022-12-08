@@ -18,7 +18,6 @@ package com.google.cloud.hive.bigquery.connector;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
-
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
