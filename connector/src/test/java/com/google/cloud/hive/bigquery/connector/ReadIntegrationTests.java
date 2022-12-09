@@ -204,6 +204,36 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Test the "SELECT COUNT(*) where rlike expression " statement. */
+  @CartesianTest
+  public void testCountWithWhereRlikeFilter(
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat) {
+    // Create some initial data in BQ
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    runBqQuery(
+        String.format(
+            "INSERT `${dataset}.%s` VALUES (123, 'email@gmail.com'), (999, 'notanemail')",
+            TEST_TABLE_NAME));
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Run COUNT query in Hive
+    initHive(engine, readDataFormat);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    List<Object[]> rows =
+        runHiveStatement(
+            "SELECT count(*) FROM "
+                + TEST_TABLE_NAME
+                + " where text RLIKE  '^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$'");
+    assertEquals(1, rows.size());
+    assertEquals(1L, rows.get(0)[0]); // right regex working
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Check that we can read a Hive Map type from BigQuery. */
   @CartesianTest
   public void testMapOfInts(
@@ -434,7 +464,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
 
   /**
    * Runs a series of smoke tests to make sure that Hive UDFs used in WHERE clauses are properly
-   * translated to BigQuery's flavor of SQL.
+   * translated to BigQuery's flavor of SQL. To check the actual translations, see unit tests in the
+   * "input.udfs" package.
    */
   @Test
   public void testUDFWhereClauseSmoke() {
@@ -449,11 +480,44 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
           + " where date(day + interval(5) DAY) > date('2001-09-05')",
       "select * from " + ALL_TYPES_TABLE_NAME + " where datediff('2022-09-07', day) > 0",
       "select * from " + ALL_TYPES_TABLE_NAME + " where date_sub(day, 2) > date('2001-01-01')",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')"
+      "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where str RLIKE '^([0-9]|[a-z]|[A-Z])'",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where ((big_int_val / 2.0) = 1.0)",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where ((big_int_val % 2) = 1)"
     };
     for (String query : queries) {
       runHiveStatement(query);
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Test the "RLIKE" expression */
+  @CartesianTest
+  public void testSelectWithWhereRlikeFilter(
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat) {
+    // Create some initial data in BQ
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    runBqQuery(
+        String.format(
+            "INSERT `${dataset}.%s` VALUES (123, 'email@gmail.com'), (999, 'notanemail')",
+            TEST_TABLE_NAME));
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Run RLIKE query in Hive
+    initHive(engine, readDataFormat);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    List<Object[]> rows =
+        runHiveStatement(
+            "SELECT * FROM "
+                + TEST_TABLE_NAME
+                + " where text RLIKE  '^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$'");
+    assertEquals(1, rows.size());
+    assertEquals("email@gmail.com", rows.get(0)[1]);
   }
 
   // ---------------------------------------------------------------------------------------------------
