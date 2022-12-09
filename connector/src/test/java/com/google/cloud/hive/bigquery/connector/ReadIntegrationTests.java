@@ -353,8 +353,6 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     initHive("mr", HiveBigQueryConfig.ARROW);
     runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
     String[] queries = {
-
-            "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')",
             "select * from "
                     + ALL_TYPES_TABLE_NAME
                     + " where ((big_int_val/2.0) = 1.0)"
