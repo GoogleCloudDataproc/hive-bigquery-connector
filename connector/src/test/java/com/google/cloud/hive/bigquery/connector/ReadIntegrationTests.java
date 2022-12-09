@@ -320,7 +320,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
    * translated to BigQuery's flavor of SQL.
    */
   @Test
-  public void testUDFWhereClauseModDivSmoke() {
+  public void testUDFWhereClauseModSmoke() {
     // Create the BQ table
     runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
     // Read the data using Hive
@@ -332,6 +332,51 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "select * from "
                     + ALL_TYPES_TABLE_NAME
                     + " where ((big_int_val%2) = 1)"
+    };
+    for (String query : queries) {
+      runHiveStatement(query);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------------------------------
+  /**
+   * Runs a series of smoke tests to make sure that Hive UDFs used in WHERE clauses are properly
+   * translated to BigQuery's flavor of SQL.
+   */
+  @Test
+  public void testUDFWhereClauseDivUDFSmoke() {
+    // Create the BQ table
+    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+    // Read the data using Hive
+    initHive("mr", HiveBigQueryConfig.ARROW);
+    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    String[] queries = {
+
+            "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')",
+            "select * from "
+                    + ALL_TYPES_TABLE_NAME
+                    + " where ((big_int_val/2.0) = 1.0)"
+    };
+    for (String query : queries) {
+      runHiveStatement(query);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+  @Test
+  public void testUDFWhereClauseRLIKEEXPSmoke() {
+    // Create the BQ table
+    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+    // Read the data using Hive
+    initHive("mr", HiveBigQueryConfig.ARROW);
+    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    String[] queries = {
+
+            "select * from "
+                    + ALL_TYPES_TABLE_NAME
+                    + " where str RLIKE '^([0-9]|[a-z]|[A-Z])'"
     };
     for (String query : queries) {
       runHiveStatement(query);

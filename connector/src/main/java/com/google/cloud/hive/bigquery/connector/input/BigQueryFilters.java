@@ -16,21 +16,16 @@
 package com.google.cloud.hive.bigquery.connector.input;
 
 import com.google.cloud.hive.bigquery.connector.Constants;
-import com.google.cloud.hive.bigquery.connector.input.udfs.BigQueryUDFDateAdd;
-import com.google.cloud.hive.bigquery.connector.input.udfs.BigQueryUDFDateDiff;
-import com.google.cloud.hive.bigquery.connector.input.udfs.BigQueryUDFDateSub;
+import com.google.cloud.hive.bigquery.connector.input.udfs.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.cloud.hive.bigquery.connector.input.udfs.BigQueryUDFMod;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateAdd;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateDiff;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateSub;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPMod;
+import org.apache.hadoop.hive.ql.udf.generic.*;
 
 public class BigQueryFilters {
 
@@ -51,6 +46,8 @@ public class BigQueryFilters {
         function.setGenericUDF(new BigQueryUDFDateAdd());
       } else if (function.getGenericUDF() instanceof GenericUDFOPMod) {
         function.setGenericUDF(new BigQueryUDFMod());
+      }else if (function.getGenericUDF() instanceof GenericUDFRegExp) {
+        function.setGenericUDF(new BigQueryUDFRLike());
       }
       // Translate the children parameters
       List<ExprNodeDesc> translatedChildren = new ArrayList<>();
