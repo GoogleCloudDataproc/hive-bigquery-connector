@@ -201,6 +201,55 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals(2L, rows.get(0)[0]);
   }
 
+// ---------------------------------------------------------------------------------------------------
+
+  /** Test the "SELECT COUNT(*) where rlike expression " statement. */
+  @CartesianTest
+  public void testCountWithWhereRlikeFilter(
+          @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+          @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+                  String readDataFormat) {
+    // Create some initial data in BQ
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    runBqQuery(
+            String.format(
+                    "INSERT `${dataset}.%s` VALUES (123, 'email@gmail.com'), (999, 'notanemail')", TEST_TABLE_NAME));
+    TableResult result =
+            runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Run COUNT query in Hive
+    initHive(engine, readDataFormat);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement("SELECT count(*) FROM " + TEST_TABLE_NAME+" where text RLIKE  '^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$'");
+    assertEquals(1, rows.size());
+    assertEquals(1L, rows.get(0)[0]);//right regex working
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+  /** Test the "SELECT * with where rlike expression " statement. */
+  @CartesianTest
+  public void testSelectWithWhereRlikeFilter(
+          @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+          @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+                  String readDataFormat) {
+    // Create some initial data in BQ
+    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    runBqQuery(
+            String.format(
+                    "INSERT `${dataset}.%s` VALUES (123, 'email@gmail.com'), (999, 'notanemail')", TEST_TABLE_NAME));
+    TableResult result =
+            runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Run COUNT query in Hive
+    initHive(engine, readDataFormat);
+    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    List<Object[]> rows = runHiveStatement("SELECT * FROM " + TEST_TABLE_NAME+" where text RLIKE  '^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$'");
+    assertEquals(1, rows.size());
+    assertEquals("email@gmail.com", rows.get(0)[1]);//right regex working
+  }
+
   // ---------------------------------------------------------------------------------------------------
 
   /** Check that we can read all types of data from BigQuery. */
