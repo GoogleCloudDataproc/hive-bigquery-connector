@@ -263,6 +263,7 @@ public class TestUtils {
                   + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
               "int_arr ARRAY<BIGINT>,",
               "int_struct_arr ARRAY<STRUCT<i: BIGINT>>,",
+              "float_struct STRUCT<float_field:FLOAT>,",
               "mp MAP<STRING,MAP<STRING,INT>>",
               ")",
               "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
