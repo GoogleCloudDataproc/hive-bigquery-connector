@@ -214,17 +214,40 @@ You can set the following Hive/Hadoop configuration properties in your environme
 
 ## Data Type Mapping
 
-| BigQuery  | Hive      | DESCRIPTION                                                                                                                               |
-|-----------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| INTEGER   | BIGINT    | Signed 8-byte Integer                                                                                                                     |
-| FLOAT     | DOUBLE    | 8-byte double precision floating point number                                                                                             |
-| DATE      | DATE      | FORMAT IS YYYY-[M]M-[D]D. The range of values supported for the Date type is 0001-­01-­01 to 9999-­12-­31                                 |
-| TIMESTAMP | TIMESTAMP | Represents an absolute point in time since Unix epoch with millisecond precision (on Hive) compared to Microsecond precision on Bigquery. |
-| BOOLEAN   | BOOLEAN   | Boolean values are represented by the keywords TRUE and FALSE                                                                             |
-| STRING    | STRING    | Variable-length character data                                                                                                            |
-| BYTES     | BINARY    | Variable-length binary data                                                                                                               |
-| REPEATED  | ARRAY     | Represents repeated values                                                                                                                |
-| RECORD    | STRUCT    | Represents nested structures                                                                                                              |
+Add links to Hive & BQ types doc.
+
+| Hive        | Hive type description                                                                                                                                                                      | BigQuery        | BigQuery type description                                                                                                                        |
+|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TINYINT`   | 1-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `SMALLINT`  | 2-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `INT`       | 4-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `BIGINT`    | 8-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `FLOAT`     | 4-byte single precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
+| `DOUBLE`    | 8-byte double precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
+| `DECIMAL`   | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                                                                                                               | `DECIMAL`       | Alias of `NUMERIC`                                                                                                                               |
+| `DATE`      | Format: `YYYY-MM-DD`                                                                                                                                                                       | `DATE`          | Format: `YYYY-[M]M-[D]D`. Supported range: 0001-01-01 to 9999-12-31                                                                              |
+| `TIMESTAMP` | Represents an absolute point in time since Unix epoch with millisecond precision (on Hive) compared to Microsecond precision on Bigquery. Considered timezoneless and based on local time. | `TIMESTAMP`     |                                                                                                                                                  |
+| `BOOLEAN`   | Boolean values are represented by the keywords TRUE and FALSE                                                                                                                              | `BOOLEAN`       |                                                                                                                                                  |
+| `CHAR`      | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
+| `VARCHAR`   | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
+| `STRING`    | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
+| `BINARY`    | Variable-length binary data                                                                                                                                                                | `BYTES`         |                                                                                                                                                  |
+| `ARRAY`     | Represents repeated values                                                                                                                                                                 | `ARRAY`         |                                                                                                                                                  |
+| `STRUCT`    | Represents nested structures                                                                                                                                                               | `STRUCT`        |                                                                                                                                                  |
+| `MAP`       | Dictionary of keys and values. Keys must be of primitive type, whereas values can be of any type.                                                                                          | `ARRAY<STRUCT>` | BigQuery doesn't support Maps natively. The connector implements it as a list of structs, where each struct has two columns: `name` and `value`. |
+
+## Hive Generic UDFs
+
+The following Hive generic UDFs and operators are supported and mapped to equivalent BigQuery functions and operators:
+
+| Hive generic UDF | BigQuery function |
+|------------------|-------------------|
+| `%`              | `MOD`             |
+| `DATE_ADD`       | `DATE_ADD`        |
+| `DATE_SUB`       | `DATE_SUB`        |
+| `DATEDIFF`       | `DATE_DIFF`       |
+| `DATEDIFF`       | `DATE_DIFF`       |
+| `RLIKE`          | `REGEXP_CONTAINS` |
 
 ## Execution engines
 
@@ -263,20 +286,20 @@ Please note there are a few caveats:
 
 ## Known issues and limitations
 
-1. The `TINYINT`, `SMALLINT`, and `INT`/`INTEGER` Hive types are not supported. Instead, use the `BIGINT` type, which
-   corresponds to BigQuery's `INT64` type. Similarly, the `FLOAT` Hive type is not supported. Instead, use the `DOUBLE`
-   type, which corresponds to BigQuery's `FLOAT64` type.
-2. Ensure that the table exists in BigQuery and column names are always lowercase.
-3. A `TIMESTAMP` column in hive is interpreted to be timezone-less and stored as an offset from the UNIX epoch with
+1. Ensure that the table exists in BigQuery and column names are always lowercase.
+2. A `TIMESTAMP` column in hive is interpreted to be timezone-less and stored as an offset from the UNIX epoch with
    milliseconds precision. To display in human-readable format, use the `from_unix_time` UDF:
 
    ```sql
    from_unixtime(cast(cast(<timestampcolumn> as bigint)/1000 as bigint), 'yyyy-MM-dd hh:mm:ss')
    ```
-4. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
+3. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
    files might not be automatically cleaned up from the GCS bucket. The MR execution engine does not have that
    limitation. The temporary files are always cleaned up when the job is successful, regardless of the execution engine
    in use.
+4. If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro format for reading
+   or the indirect method for writing. This is because Avro requires keys to be strings. If you use the Arrow format for
+   reading (default) and the direct method for writing (also default), then there are no type limitations for the keys.
 
 ## Missing features
 
