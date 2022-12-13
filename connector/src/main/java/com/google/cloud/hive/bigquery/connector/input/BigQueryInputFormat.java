@@ -39,6 +39,7 @@ public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWrit
    */
   @Override
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
+    jobConf.set(HiveBigQueryConfig.READ_PREFERRED_PARALLELISM, String.valueOf(numSplits));
     return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf);
   }
 

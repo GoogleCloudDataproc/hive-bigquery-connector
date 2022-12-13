@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.config;
 
+import static com.google.cloud.bigquery.connector.common.BigQueryConfigurationUtil.*;
 import static com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
 
 import com.google.api.gax.retrying.RetrySettings;
@@ -54,6 +55,8 @@ public class HiveBigQueryConfig
   public static final String WORK_DIR_NAME_PREFIX_KEY = "bq.work.dir.name.prefix";
   public static final String READ_DATA_FORMAT_KEY = "bq.read.data.format";
   public static final String READ_CREATE_SESSION_TIMEOUT_KEY = "bq.read.create.session.timeout";
+  public static final String READ_MAX_PARALLELISM = "maxParallelism";
+  public static final String READ_PREFERRED_PARALLELISM = "preferredMinParallelism";
   public static final String CREDENTIALS_KEY_KEY = "bq.credentials.key";
   public static final String CREDENTIALS_FILE_KEY = "bq.credentials.file";
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
@@ -127,6 +130,7 @@ public class HiveBigQueryConfig
   boolean useParentProjectForMetadataOperations;
   int maxReadRowsRetries = 3;
   Integer maxParallelism = null;
+  Integer preferredMinParallelism = null;
   private Optional<String> encodedCreateReadSessionRequest = empty();
   private int numBackgroundThreadsPerStream = 0;
   boolean pushAllFilters = true;
@@ -193,6 +197,14 @@ public class HiveBigQueryConfig
     config.createReadSessionTimeoutInSeconds =
         getAnyOption(READ_CREATE_SESSION_TIMEOUT_KEY, conf, tableParameters)
             .transform(Long::parseLong);
+    config.maxParallelism =
+        getAnyOption(READ_MAX_PARALLELISM, conf, tableParameters)
+            .transform(Integer::parseInt)
+            .orNull();
+    config.preferredMinParallelism =
+        getAnyOption(READ_PREFERRED_PARALLELISM, conf, tableParameters)
+            .transform(Integer::parseInt)
+            .orNull();
 
     // Credentials management
     config.credentialsKey = getAnyOption(CREDENTIALS_KEY_KEY, conf, tableParameters);
@@ -392,6 +404,12 @@ public class HiveBigQueryConfig
     return maxParallelism == null ? OptionalInt.empty() : OptionalInt.of(maxParallelism);
   }
 
+  public OptionalInt getPreferredMinParallelism() {
+    return preferredMinParallelism == null
+        ? OptionalInt.empty()
+        : OptionalInt.of(preferredMinParallelism);
+  }
+
   public Optional<String> getTraceId() {
     return traceId;
   }
@@ -407,6 +425,7 @@ public class HiveBigQueryConfig
         .setViewEnabledParamName(VIEWS_ENABLED_KEY)
         .setDefaultParallelism(1) // TODO: Make configurable?
         .setMaxParallelism(getMaxParallelism())
+        .setPreferredMinParallelism(getPreferredMinParallelism())
         .setRequestEncodedBase(encodedCreateReadSessionRequest.toJavaUtil())
         .setEndpoint(storageReadEndpoint.toJavaUtil())
         .setBackgroundParsingThreads(numBackgroundThreadsPerStream)
