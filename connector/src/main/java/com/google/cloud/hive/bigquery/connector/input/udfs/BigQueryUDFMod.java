@@ -6,24 +6,12 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 /** Converts Hive's modulo operator operator to BigQuery's mod() function. */
-public class BigQueryUDFMod extends GenericUDF {
+public class BigQueryUDFMod extends BigQueryUDFBase {
 
-    public BigQueryUDFMod() {}
+  public BigQueryUDFMod() {}
 
-    @Override
-    public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
-        // Ignore
-        return null;
-    }
-
-    @Override
-    public Object evaluate(DeferredObject[] arguments) throws HiveException {
-        // Ignore
-        return null;
-    }
-
-    @Override
-    public String getDisplayString(String[] children) {
-        return String.format("mod(%s,%s)", children[0], children[1]);
-    }
+  @Override
+  public String getDisplayString(String[] children) {
+    return String.format("MOD(%s,%s)", children[0], children[1]);
+  }
 }

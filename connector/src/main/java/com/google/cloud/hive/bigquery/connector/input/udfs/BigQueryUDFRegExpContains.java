@@ -15,13 +15,13 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-/** Converts Hive's date_add() function to BigQuery's date_add() function. */
-public class BigQueryUDFDateAdd extends BigQueryUDFBase {
+/** Converts Hive's modulo operator operator to BigQuery's mod() function. */
+public class BigQueryUDFRegExpContains extends BigQueryUDFBase {
 
-  public BigQueryUDFDateAdd() {}
+  public BigQueryUDFRegExpContains() {}
 
   @Override
   public String getDisplayString(String[] children) {
-    return String.format("DATE_ADD(%s, INTERVAL %s DAY)", children[0], children[1]);
+    return String.format("REGEXP_CONTAINS(%s, r%s)", children[0], children[1]);
   }
 }

@@ -122,7 +122,7 @@ public class IntegrationTestsBase {
   }
 
   public void initHive() {
-    initHive("mr", HiveBigQueryConfig.ARROW);
+    initHive("tez", HiveBigQueryConfig.ARROW);
   }
 
   public void initHive(String engine, String readDataFormat) {

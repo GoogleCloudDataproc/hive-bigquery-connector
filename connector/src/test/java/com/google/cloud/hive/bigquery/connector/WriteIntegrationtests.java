@@ -154,6 +154,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 "),",
                 "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
                 "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
+                "NAMED_STRUCT('float_field', CAST(4.2 AS FLOAT)),",
                 "MAP('mykey', MAP('subkey', 999))",
                 "FROM (select '1') t")
             .collect(Collectors.joining("\n")));
@@ -164,7 +165,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     FieldValueList row = rows.get(0);
-    assertEquals(17, row.size()); // Number of columns
+    assertEquals(18, row.size()); // Number of columns
     assertEquals(11L, row.get(0).getLongValue());
     assertEquals(22L, row.get(1).getLongValue());
     assertEquals(33L, row.get(2).getLongValue());
@@ -209,8 +210,11 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1, arrayOfStructs.size());
     struct = (FieldValueList) arrayOfStructs.get(0).getValue();
     assertEquals(1L, struct.get(0).getLongValue());
+    // Struct of float
+    struct = row.get(16).getRecordValue();
+    assertEquals(4.199999809265137, struct.get("float_field").getDoubleValue());  // TODO: Address discrepancy here
     // Check the Map type
-    FieldValueList map = (FieldValueList) row.get(16).getRepeatedValue();
+    FieldValueList map = (FieldValueList) row.get(17).getRepeatedValue();
     assertEquals(1, map.size());
     FieldValueList entry = map.get(0).getRecordValue();
     assertEquals("mykey", entry.get(0).getStringValue());

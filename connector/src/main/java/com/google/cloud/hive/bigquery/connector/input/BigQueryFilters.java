@@ -17,10 +17,8 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.input.udfs.*;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
@@ -48,6 +46,8 @@ public class BigQueryFilters {
         function.setGenericUDF(new BigQueryUDFMod());
       }else if (function.getGenericUDF() instanceof GenericUDFRegExp) {
         function.setGenericUDF(new BigQueryUDFRLike());
+      } else if (function.getGenericUDF() instanceof GenericUDFRegExp) {
+        function.setGenericUDF(new BigQueryUDFRegExpContains());
       }
       // Translate the children parameters
       List<ExprNodeDesc> translatedChildren = new ArrayList<>();

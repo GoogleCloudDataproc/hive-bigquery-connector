@@ -15,13 +15,26 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-/** Converts Hive's date_add() function to BigQuery's date_add() function. */
-public class BigQueryUDFDateAdd extends BigQueryUDFBase {
+import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
-  public BigQueryUDFDateAdd() {}
+/**
+ * Base class for the translation of Hive's built-in UDFs to the equivalent BigQuery SQL functions
+ * and operators.
+ */
+public abstract class BigQueryUDFBase extends GenericUDF {
 
   @Override
-  public String getDisplayString(String[] children) {
-    return String.format("DATE_ADD(%s, INTERVAL %s DAY)", children[0], children[1]);
+  public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
+    // Ignore
+    return null;
+  }
+
+  @Override
+  public Object evaluate(DeferredObject[] arguments) throws HiveException {
+    // Ignore
+    return null;
   }
 }
