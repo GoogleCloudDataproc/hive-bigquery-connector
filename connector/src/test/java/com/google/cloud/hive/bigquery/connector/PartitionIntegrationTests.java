@@ -23,6 +23,10 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TimePartitioning;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import org.junit.jupiter.api.Test;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 
@@ -43,6 +47,76 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     assertEquals(TimePartitioning.Type.MONTH, timePartitioning.getType());
     Clustering clustering = tableDef.getClustering();
     assertEquals(ImmutableList.of("int_val"), Objects.requireNonNull(clustering).getFields());
+  }
+
+  @Test
+  public void testPartitionClause() {
+    // Make sure the BQ table doesn't exist
+    dropBqTableIfExists(dataset, PARTITION_CLAUSE_TABLE_NAME);
+    // Create the table using Hive
+    initHive();
+    runHiveScript(HIVE_PARTITION_CLAUSE_TABLE_CREATE_QUERY);
+    StandardTableDefinition tableDef =
+        getTableInfo(dataset, PARTITION_CLAUSE_TABLE_NAME).getDefinition();
+    TimePartitioning timePartitioning = tableDef.getTimePartitioning();
+    assertEquals(2592000000L, Objects.requireNonNull(timePartitioning).getExpirationMs());
+    assertEquals("ts", timePartitioning.getField());
+    assertEquals(TimePartitioning.Type.MONTH, timePartitioning.getType());
+    Clustering clustering = tableDef.getClustering();
+    assertEquals(ImmutableList.of("int_val"), Objects.requireNonNull(clustering).getFields());
+  }
+
+
+  @Test
+  public void testPartitionByClauseDate() {
+//    initHive("mr", HiveBigQueryConfig.ARROW);
+    initHive();
+    String tableName = "lala";
+    String query = String.join("\n",
+        "CREATE TABLE " + tableName + " (",
+        "int_val BIGINT, bobo TIMESTAMP WITH LOCAL TIME ZONE",
+        ")",
+        "PARTITIONED BY (dt DATE)",
+        "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+        "TBLPROPERTIES (",
+        "  'bq.project'='${project}',",
+        "  'bq.dataset'='${dataset}',",
+        "  'bq.table'='" + tableName + "'",
+        ");");
+    runHiveScript(query);
+    query = String.join("\n",
+        "INSERT INTO TABLE " + tableName + " PARTITION(dt='2022-12-01') VALUES(",
+        "999",
+        ");");
+
+//    query = String.join("\n",
+//        "INSERT INTO TABLE " + tableName + " VALUES(",
+//        "999, '2022-12-01'",
+//        ");");
+
+//    query = Stream.of(
+//            "INSERT INTO TABLE " + tableName + " VALUES(",
+//              "999, '2022-12-01'",
+//            ");")
+//        .collect(Collectors.joining("\n"));
+    runHiveScript(query);
+    int a = 1;
+  }
+
+
+  @Test
+  public void testInsertOverwriteWithPartition() {
+    initHive();
+    // Make sure the BQ table doesn't exist
+    dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
+    // Create the table using Hive
+    runHiveScript(HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY);
+    runHiveScript(
+        String.format(
+            "INSERT OVERWRITE TABLE %s\n" +
+                "PARTITION(order_date='2018-08-01') VALUES \n" +
+                "(999);\n",
+            INGESTION_TIME_PARTITIONED_TABLE_NAME));
   }
 
   @Test
@@ -89,4 +163,5 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
             "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
   }
+
 }

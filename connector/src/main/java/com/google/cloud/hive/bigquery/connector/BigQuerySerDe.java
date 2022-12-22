@@ -17,6 +17,8 @@ package com.google.cloud.hive.bigquery.connector;
 
 import java.util.*;
 import javax.annotation.Nullable;
+
+import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.*;
@@ -40,28 +42,29 @@ public class BigQuerySerDe extends AbstractSerDe {
     String columnTypeProperty = conf.get(serdeConstants.LIST_COLUMN_TYPES);
     String columnNameDelimiter =
         conf.get(serdeConstants.COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
-    return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter);
+    return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter, null);
   }
 
-  public static StructObjectInspector getRowObjectInspector(Map<Object, Object> tableProperties) {
+  public static StructObjectInspector getRowObjectInspector(Map<Object, Object> tableProperties, BigQueryOutputFormat.Partition partition) {
     String columnNameProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMNS);
     String columnTypeProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMN_TYPES);
     String columnNameDelimiter =
         String.valueOf(
             tableProperties.getOrDefault(serdeConstants.COLUMN_NAME_DELIMITER, SerDeUtils.COMMA));
-    return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter);
+    return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter, partition);
   }
 
   public static StructObjectInspector getRowObjectInspector(
-      String columnNameProperty, String columnTypeProperty, String columnNameDelimiter) {
-    List<String> columnNames;
-    List<TypeInfo> columnTypes;
-    if (columnNameProperty.length() == 0) {
-      columnNames = new ArrayList<>();
-      columnTypes = new ArrayList<>();
-    } else {
-      columnNames = Arrays.asList(columnNameProperty.split(columnNameDelimiter));
-      columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
+      String columnNameProperty, String columnTypeProperty, String columnNameDelimiter, BigQueryOutputFormat.Partition partition) {
+    List<String> columnNames = new ArrayList<>();
+    List<TypeInfo> columnTypes = new ArrayList<>();
+    if (columnNameProperty.length() > 0) {
+      columnNames.addAll(Arrays.asList(columnNameProperty.split(columnNameDelimiter)));
+      columnTypes.addAll(TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty));
+    }
+    if (partition != null) {
+      columnNames.add(partition.getName());
+      columnTypes.add(partition.getType());
     }
     StructTypeInfo rowTypeInfo =
         (StructTypeInfo) TypeInfoFactory.getStructTypeInfo(columnNames, columnTypes);
@@ -72,7 +75,7 @@ public class BigQuerySerDe extends AbstractSerDe {
   @Override
   public void initialize(@Nullable Configuration configuration, Properties tableProperties)
       throws SerDeException {
-    this.rowObjectInspector = getRowObjectInspector(tableProperties);
+    this.rowObjectInspector = getRowObjectInspector(tableProperties, null);
   }
 
   @Override

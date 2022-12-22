@@ -119,6 +119,12 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
    */
   @Override
   public void preCreateTable(Table table) throws MetaException {
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(),
+            new HiveBigQueryConnectorModule(conf, table.getParameters()));
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+
     // Make sure the specified types are supported
     validateHiveTypes(table.getSd().getCols());
 
@@ -137,14 +143,36 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
               + String.join(", ", missingProperties));
     }
 
-    if (table.getPartitionKeysSize() > 0) {
+    // Validate the "PARTITIONED BY" clause
+    if (table.getPartitionKeysSize() > 1) {
       throw new MetaException(
-          String.format(
-              "Creating a partitioned table with the `PARTITIONED BY` clause is not supported. Use"
-                  + " the `%s` table property instead.",
-              HiveBigQueryConfig.TIME_PARTITION_FIELD_KEY));
+          "BigQuery supports only up to 1 partition");
+    }
+    // TODO: Validate partition type
+    FieldSchema partitionColumn = table.getPartitionKeysSize() == 1 ? table.getPartitionKeys().get(0) : null;
+    Optional<String> tblPropPartitionField = opts.getPartitionField();
+    Optional<TimePartitioning.Type> tblPropPartitionType = opts.getPartitionType();
+    String partitionColumnName = null;
+    if (partitionColumn != null && tblPropPartitionField.isPresent()) {
+      throw new MetaException(
+        String.format("Please provide either `PARTITIONED BY` or `%s` but not both", HiveBigQueryConfig.TIME_PARTITION_FIELD_KEY)
+      );
+    }
+    if (partitionColumn != null) {
+      partitionColumnName = partitionColumn.getName();
+      table.putToParameters("bq.partition.hive.type", String.format("%s:%s", partitionColumn.getName(), partitionColumn.getType()));
+    }
+    if (tblPropPartitionField.isPresent()) {
+      partitionColumnName = tblPropPartitionField.get();
+      for (FieldSchema column : table.getSd().getCols()) {
+        if (column.getName().equals(partitionColumnName)) {
+          table.putToParameters("bq.partition.hive.type", String.format("%s:%s", column.getName(), column.getType()));
+          break;
+        }
+      }
     }
 
+    // Hive's clustering is not supported
     if (table.getSd().getBucketColsSize() > 0) {
       throw new MetaException(
           String.format(
@@ -176,17 +204,12 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     // If it's a managed table, generate the BigQuery schema
     if (!MetaStoreUtils.isExternalTable(table)) {
-      Injector injector =
-          Guice.createInjector(
-              new BigQueryClientModule(),
-              new HiveBigQueryConnectorModule(conf, table.getParameters()));
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-      HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
       if (bqClient.tableExists(opts.getTableId())) {
         throw new MetaException("BigQuery table already exists: " + opts.getTableId());
       }
 
-      Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd());
+      Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd(), partitionColumn);
 
       StandardTableDefinition.Builder tableDefBuilder =
           StandardTableDefinition.newBuilder().setSchema(tableSchema);
@@ -199,12 +222,11 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       }
 
       // Time partitioning
-      Optional<TimePartitioning.Type> partitionType = opts.getPartitionType();
-      if (partitionType.isPresent()) {
-        TimePartitioning.Builder tpBuilder = TimePartitioning.newBuilder(partitionType.get());
-        Optional<String> partitionField = opts.getPartitionField();
-        if (partitionField.isPresent()) {
-          tpBuilder.setField(partitionField.get());
+
+      if (tblPropPartitionType.isPresent()) {
+        TimePartitioning.Builder tpBuilder = TimePartitioning.newBuilder(tblPropPartitionType.get());
+        if (partitionColumnName != null) {
+          tpBuilder.setField(partitionColumnName);
         } else {
           // This is an ingestion-time partition table, so we add the BigQuery
           // pseudo columns to the Hive MetaStore schema.
@@ -225,12 +247,12 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                       "date",
                       "Ingestion time pseudo column"));
         }
-        OptionalLong partitionExpirationMs = opts.getPartitionExpirationMs();
-        if (partitionExpirationMs.isPresent()) {
-          tpBuilder.setExpirationMs(partitionExpirationMs.getAsLong());
+        OptionalLong tblPropPartitionExpirationMs = opts.getPartitionExpirationMs();
+        if (tblPropPartitionExpirationMs.isPresent()) {
+          tpBuilder.setExpirationMs(tblPropPartitionExpirationMs.getAsLong());
         }
-        Optional<Boolean> partitionRequireFilter = opts.getPartitionRequireFilter();
-        partitionRequireFilter.ifPresent(tpBuilder::setRequirePartitionFilter);
+        Optional<Boolean> tblPropPartitionRequireFilter = opts.getPartitionRequireFilter();
+        tblPropPartitionRequireFilter.ifPresent(tpBuilder::setRequirePartitionFilter);
         tableDefBuilder.setTimePartitioning(tpBuilder.build());
       }
 
@@ -279,11 +301,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       throw new RuntimeException(e);
     }
 
-    Map<String, String> tableParameters = table.getParameters();
-    jobDetails.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
-    jobDetails.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
-    String tableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
-    jobDetails.setTable(tableName);
     jobDetails.setOverwrite(overwrite);
 
     // Note: Unfortunately the table properties do not contain constraints like
@@ -297,7 +314,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     Injector injector =
         Guice.createInjector(
-            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));
+            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, table.getParameters()));
     if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
       // Get an instance of the BigQuery client
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
@@ -316,7 +333,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       // `IndirectOutputCommitter` class).
       if (overwrite) {
         // Set the final destination table as the job's original table
-        jobDetails.setFinalTable(tableName);
+        jobDetails.setFinalTable(jobDetails.getTableId().getTable());
         // Create a temporary table with the same schema
         // TODO: It'd be useful to add a description to the table explaining that it was
         //  created as a temporary table for a Hive query.
@@ -325,7 +342,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                 TableId.of(
                     jobDetails.getProject(),
                     jobDetails.getDataset(),
-                    tableName + "-" + HiveUtils.getHiveId(conf) + "-"),
+                    jobDetails.getTableId().getTable() + "-" + HiveUtils.getHiveId(conf) + "-"),
                 bigQuerySchema);
         // Set the temp table as the job's output table
         jobDetails.setTable(tableInfo.getTableId().getTable());

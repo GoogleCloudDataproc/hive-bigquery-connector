@@ -48,6 +48,7 @@ public class TestUtils {
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
+  public static final String PARTITION_CLAUSE_TABLE_NAME = "partition_clause";
   public static final String INDIRECT_WRITE_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
   public static final String TEMP_GCS_PATH = "gs://" + getIndirectWriteBucket() + "/temp";
 
@@ -303,6 +304,20 @@ public class TestUtils {
               "  'bq.dataset'='${dataset}',",
               "  'bq.table'='" + INGESTION_TIME_PARTITIONED_TABLE_NAME + "',",
               "  'bq.time.partition.type'='DAY'",
+              ");")
+          .collect(Collectors.joining("\n"));
+
+  public static String HIVE_PARTITION_CLAUSE_TABLE_CREATE_QUERY =
+      Stream.of(
+              "CREATE TABLE " + PARTITION_CLAUSE_TABLE_NAME + " (",
+                "int_val BIGINT",
+              ")",
+              "PARTITIONED BY (ts TIMESTAMP)",
+              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+              "TBLPROPERTIES (",
+              "  'bq.project'='${project}',",
+              "  'bq.dataset'='${dataset}',",
+              "  'bq.table'='" + PARTITION_CLAUSE_TABLE_NAME + "'",
               ");")
           .collect(Collectors.joining("\n"));
 

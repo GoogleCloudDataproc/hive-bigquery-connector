@@ -25,6 +25,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
@@ -44,17 +46,32 @@ public class BigQueryOutputFormat
   public org.apache.hadoop.mapred.RecordWriter<NullWritable, Writable> getRecordWriter(
       FileSystem fileSystem, JobConf jobConf, String name, Progressable progressable)
       throws IOException {
-    // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
-    String writeMethod =
-        jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
-      return new IndirectAvroRecordWriter(jobConf, jobDetails);
-    } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
-      return new DirectRecordWriter(jobConf, jobDetails);
-    } else {
-      throw new RuntimeException("Invalid write mode: " + writeMethod);
+    throw new RuntimeException("Code path not expected");
+  }
+
+  public static class Partition {
+    private final String name;
+    private final TypeInfo type;
+    private final String value;
+
+    private Partition(String name, String type, String value) {
+      this.name = name;
+      this.type = TypeInfoUtils.getTypeInfosFromTypeString(type).get(0);
+      this.value = value;
     }
+
+    public String getName() {
+      return name;
+    }
+
+    public TypeInfo getType() {
+      return type;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
   }
 
   @Override
@@ -63,10 +80,48 @@ public class BigQueryOutputFormat
       Path path,
       Class<? extends Writable> aClass,
       boolean b,
-      Properties properties,
+      Properties tableProperties,
       Progressable progressable)
       throws IOException {
-    return (RecordWriter) getRecordWriter(null, jobConf, null, null);
+
+    // The path for an insert query partitioned by a column named "dt" is formatter like so:
+    // hdfs:/path/to/my/warehouse/mytable/dt=2020-09-01/.hive-staging/-ext-10000
+
+    Partition partition = null;
+    String tableLocation = jobConf.get("location");
+    String pathString = path.toString();
+    assert(pathString.startsWith(tableLocation));
+    if (pathString.length() > tableLocation.length()) {
+      String substring = pathString.substring(tableLocation.length() + 1);
+      String stagingDir = jobConf.get("hive.exec.stagingdir");
+      int index = substring.indexOf(stagingDir);
+      substring = substring.substring(0, index - 1);
+      String[] partitionStrings = substring.split("/");
+      if (partitionStrings.length > 1) {
+        throw new RuntimeException("BigQuery supports only up to 1 partition");
+      }
+      if (partitionStrings.length == 1) {
+        String[] partitionValues = partitionStrings[0].split("=");
+        String partitionName = partitionValues[0];
+        String partitionValue = partitionValues[1];
+        // TODO: Add some error handling if property is missing or misformatted
+        String[] partitionType = tableProperties.getProperty("bq.partition.hive.type").split(":");
+        assert(partitionName.equals(partitionType[0]));
+        partition = new Partition(partitionName, partitionType[1], partitionValue);
+      }
+    }
+
+    // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+    String writeMethod =
+        jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
+    if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
+      return new IndirectAvroRecordWriter(jobConf, jobDetails, partition);
+    } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
+      return new DirectRecordWriter(jobConf, jobDetails, partition);
+    } else {
+      throw new RuntimeException("Invalid write mode: " + writeMethod);
+    }
   }
 
   @Override

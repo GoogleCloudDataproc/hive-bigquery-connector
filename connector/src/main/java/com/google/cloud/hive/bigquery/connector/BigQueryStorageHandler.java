@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
@@ -121,6 +122,9 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     conf.set(Constants.THIS_IS_AN_OUTPUT_JOB, "true");
     JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();
+    jobDetails.setProject(tableProperties.get(HiveBigQueryConfig.PROJECT_KEY).toString());
+    jobDetails.setDataset(tableProperties.get(HiveBigQueryConfig.DATASET_KEY).toString());
+    jobDetails.setTable(tableProperties.get(HiveBigQueryConfig.TABLE_KEY).toString());
     jobDetails.setTableProperties(tableProperties);
     JobDetails.writeJobDetailsFile(conf, jobDetails);
   }

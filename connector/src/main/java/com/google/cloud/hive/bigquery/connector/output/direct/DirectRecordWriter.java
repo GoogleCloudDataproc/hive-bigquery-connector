@@ -19,11 +19,17 @@ import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoDeserializer;
 import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -51,11 +57,13 @@ public class DirectRecordWriter
   BigQueryDirectDataWriterHelper streamWriter;
   StructObjectInspector rowObjectInspector;
   Descriptors.Descriptor descriptor;
+  BigQueryOutputFormat.Partition partition;
 
-  public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails) {
+  public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails, BigQueryOutputFormat.Partition partition) {
     this.jobConf = jobConf;
+    this.partition = partition;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
+    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties(), partition);
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);
     } catch (Descriptors.DescriptorValidationException e) {
@@ -76,9 +84,13 @@ public class DirectRecordWriter
   /** Appends the row to the BQ stream. */
   @Override
   public void write(Writable writable) throws IOException {
-    Object object = ((ObjectWritable) writable).get();
+    Object[] objectArray = (Object[]) ((ObjectWritable) writable).get();
+    List<Object> values = new ArrayList<>(Arrays.asList(objectArray));
+    if (partition != null) {
+      values.add(partition.getValue());
+    }
     DynamicMessage message =
-        ProtoDeserializer.buildSingleRowMessage(rowObjectInspector, descriptor, object);
+        ProtoDeserializer.buildSingleRowMessage(rowObjectInspector, descriptor, values);
     streamWriter.addRow(message.toByteString());
   }
 
