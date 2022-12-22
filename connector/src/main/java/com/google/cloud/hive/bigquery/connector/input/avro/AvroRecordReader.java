@@ -19,7 +19,6 @@ import com.google.cloud.bigquery.connector.common.ReadRowsHelper;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
-import com.google.cloud.hive.bigquery.connector.utils.avro.AvroSerializer;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import java.io.IOException;
 import java.util.Collections;

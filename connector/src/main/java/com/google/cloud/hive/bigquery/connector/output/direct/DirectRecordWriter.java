@@ -20,8 +20,7 @@ import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
-import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoDeserializer;
-import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.apache.hadoop.fs.FSDataOutputStream;

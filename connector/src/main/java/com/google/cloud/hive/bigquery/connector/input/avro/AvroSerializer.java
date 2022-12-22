@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.utils.avro;
+package com.google.cloud.hive.bigquery.connector.input.avro;
 
+import com.google.cloud.hive.bigquery.connector.utils.avro.AvroSchemaInfo;
+import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.math.BigDecimal;
 import java.math.BigInteger;

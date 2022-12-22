@@ -13,117 +13,127 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.utils.avro;
+package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
 import java.util.*;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData.Record;
-import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
-import org.apache.hadoop.hive.serde2.objectinspector.*;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructField;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
-import org.codehaus.jackson.JsonNode;
+import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
+import repackaged.by.hivebqconnector.com.google.protobuf.DynamicMessage;
 
-public class AvroDeserializer {
+public class ProtoDeserializer {
 
   /**
-   * Converts the given Hive-serialized object into an Avro record, so it can later be written to
-   * GCS and then loaded into BigQuery via the File Load API.
+   * Converts the given Hive-serialized object into a Proto message, so it can later be written to a
+   * BigQuery stream using the Storage Write API.
    */
-  public static Record buildSingleRecord(StructObjectInspector soi, Schema schema, Object object) {
-    Record record = new Record(schema);
+  public static DynamicMessage buildSingleRowMessage(
+      StructObjectInspector soi, Descriptors.Descriptor schemaDescriptor, Object record) {
+    DynamicMessage.Builder messageBuilder = DynamicMessage.newBuilder(schemaDescriptor);
+
     List<? extends StructField> allStructFieldRefs = soi.getAllStructFieldRefs();
-    List<Object> structFieldsDataAsList = soi.getStructFieldsDataAsList(object);
-    for (int fieldIndex = 0; fieldIndex < schema.getFields().size(); fieldIndex++) {
+    List<Object> structFieldsDataAsList = soi.getStructFieldsDataAsList(record);
+
+    for (int fieldIndex = 0; fieldIndex < schemaDescriptor.getFields().size(); fieldIndex++) {
+      int protoFieldNumber = fieldIndex + 1;
+
       Object hiveValue = structFieldsDataAsList.get(fieldIndex);
       ObjectInspector fieldObjectInspector =
           allStructFieldRefs.get(fieldIndex).getFieldObjectInspector();
-      String fieldName = allStructFieldRefs.get(fieldIndex).getFieldName();
-      Schema fieldSchema = schema.getField(fieldName).schema();
-      Object avroValue = convertHiveValueToAvroValue(fieldObjectInspector, hiveValue, fieldSchema);
-      record.put(fieldIndex, avroValue);
+
+      Descriptors.Descriptor nestedTypeDescriptor =
+          schemaDescriptor.findNestedTypeByName(
+              ProtoSchemaConverter.RESERVED_NESTED_TYPE_NAME + protoFieldNumber);
+      Object protoValue =
+          convertHiveValueToProtoRowValue(fieldObjectInspector, hiveValue, nestedTypeDescriptor);
+
+      if (protoValue == null) {
+        continue;
+      }
+
+      Descriptors.FieldDescriptor fieldDescriptor =
+          schemaDescriptor.findFieldByNumber(protoFieldNumber);
+      messageBuilder.setField(fieldDescriptor, protoValue);
     }
-    return record;
+
+    return messageBuilder.build();
   }
 
-  private static Object convertHiveValueToAvroValue(
-      ObjectInspector fieldObjectInspector, Object fieldValue, Schema fieldSchema) {
+  private static Object convertHiveValueToProtoRowValue(
+      ObjectInspector fieldObjectInspector,
+      Object fieldValue,
+      Descriptors.Descriptor nestedTypeDescriptor) {
     if (fieldValue == null) {
       return null;
     }
 
-    AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(fieldSchema);
-
-    if (fieldObjectInspector instanceof ListObjectInspector) { // Array type
+    if (fieldObjectInspector instanceof ListObjectInspector) {
       ListObjectInspector loi = (ListObjectInspector) fieldObjectInspector;
       ObjectInspector elementObjectInspector = loi.getListElementObjectInspector();
       Iterator<?> iterator = loi.getList(fieldValue).iterator();
-      Schema elementSchema = schemaInfo.getActualSchema().getElementType();
-      List<Object> array = new ArrayList<>();
+      List<Object> protoValue = new ArrayList<>();
       while (iterator.hasNext()) {
         Object elementValue = iterator.next();
         Object converted =
-            convertHiveValueToAvroValue(elementObjectInspector, elementValue, elementSchema);
-        array.add(converted);
+            convertHiveValueToProtoRowValue(
+                elementObjectInspector, elementValue, nestedTypeDescriptor);
+        if (converted == null) {
+          continue;
+        }
+        protoValue.add(converted);
       }
-      return array;
+      return protoValue;
     }
 
-    if (fieldObjectInspector instanceof StructObjectInspector) { // Record/Struct type
-      return buildSingleRecord(
-          (StructObjectInspector) fieldObjectInspector, schemaInfo.getActualSchema(), fieldValue);
+    if (fieldObjectInspector instanceof StructObjectInspector) {
+      return buildSingleRowMessage(
+          (StructObjectInspector) fieldObjectInspector, nestedTypeDescriptor, fieldValue);
     }
 
-    if (fieldObjectInspector instanceof MapObjectInspector) { // Map type
-      // Convert the map into a list of key/value Avro records
+    // Convert Hive map to a list of BigQuery structs (proto messages)
+    if (fieldObjectInspector instanceof MapObjectInspector) {
       MapObjectInspector moi = (MapObjectInspector) fieldObjectInspector;
-      List<Object> array = new ArrayList<>();
-      Map<?, ?> map = moi.getMap(fieldValue);
-      Schema valueSchema =
-          schemaInfo
-              .getActualSchema()
-              .getElementType()
-              .getField(KeyValueObjectInspector.VALUE_FIELD_NAME)
-              .schema();
-      Record record = new Record(schemaInfo.getActualSchema().getElementType());
-      for (Map.Entry<?, ?> entry : map.entrySet()) {
-        Object key = entry.getKey().toString();
-        Object convertedValue =
-            convertHiveValueToAvroValue(
-                moi.getMapValueObjectInspector(), entry.getValue(), valueSchema);
-        record.put(KeyValueObjectInspector.KEY_FIELD_NAME, key);
-        record.put(KeyValueObjectInspector.VALUE_FIELD_NAME, convertedValue);
-        array.add(record);
+      List<Object> list = new ArrayList<>();
+      KeyValueObjectInspector kvoi = KeyValueObjectInspector.create(moi);
+      for (Map.Entry<?, ?> entry : ((Map<?, ?>) fieldValue).entrySet()) {
+        DynamicMessage entryMessage =
+            buildSingleRowMessage(
+                kvoi, nestedTypeDescriptor, Arrays.asList(entry.getKey(), entry.getValue()));
+        list.add(entryMessage);
       }
-      return array;
+      return list;
     }
 
     if (fieldObjectInspector instanceof ByteObjectInspector) { // Tiny Int
       if (fieldValue instanceof Byte) {
         return fieldValue;
       }
-      return (int) ((ByteWritable) fieldValue).get();
+      return (long) ((ByteWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof ShortObjectInspector) { // Small Int
       if (fieldValue instanceof Short) {
         return fieldValue;
       }
-      return (int) ((ShortWritable) fieldValue).get();
+      return (long) ((ShortWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof IntObjectInspector) { // Regular Int
       if (fieldValue instanceof Integer) {
         return fieldValue;
       }
-      return ((IntWritable) fieldValue).get();
+      return (long) ((IntWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof LongObjectInspector) { // Big Int
@@ -137,13 +147,7 @@ public class AvroDeserializer {
       if (fieldValue instanceof Long) {
         return fieldValue;
       }
-      JsonNode logicalType = schemaInfo.getActualSchema().getJsonProp("logicalType");
       TimestampWritableV2 timestamp = (TimestampWritableV2) fieldValue;
-      if (logicalType != null) {
-        if (logicalType.asText().equals("timestamp-millis")) {
-          return timestamp.getSeconds() * 1_000;
-        }
-      }
       return timestamp.getSeconds() * 1_000_000 + timestamp.getNanos() / 1000;
     }
 
@@ -158,7 +162,7 @@ public class AvroDeserializer {
       if (fieldValue instanceof Float) {
         return fieldValue;
       }
-      return ((FloatWritable) fieldValue).get();
+      return (double) ((FloatWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof DoubleObjectInspector) {
@@ -176,15 +180,13 @@ public class AvroDeserializer {
     }
 
     if (fieldObjectInspector instanceof BinaryObjectInspector) {
-      if (fieldValue instanceof Buffer) {
+      if (fieldValue instanceof byte[]) {
         return fieldValue;
       }
       BytesWritable bytes = (BytesWritable) fieldValue;
       // Resize the bytes' array to remove any unnecessary extra capacity it might have
       bytes.setCapacity(bytes.getLength());
-      // Wrap into a ByteBuffer
-      ByteBuffer buffer = ByteBuffer.wrap(bytes.getBytes());
-      return buffer.rewind();
+      return bytes.getBytes();
     }
 
     if (fieldObjectInspector instanceof HiveCharObjectInspector) {
@@ -200,14 +202,11 @@ public class AvroDeserializer {
     }
 
     if (fieldObjectInspector instanceof HiveDecimalObjectInspector) {
-      if (fieldValue instanceof Buffer) {
+      if (fieldValue instanceof String) {
         return fieldValue;
       }
-      HiveDecimal decimal = ((HiveDecimalWritable) fieldValue).getHiveDecimal();
-      int scale = ((HiveDecimalObjectInspector) fieldObjectInspector).scale();
-      byte[] bytes = decimal.bigIntegerBytesScaled(scale);
-      ByteBuffer buffer = ByteBuffer.wrap(bytes);
-      return buffer.rewind();
+      HiveDecimalWritable decimal = (HiveDecimalWritable) fieldValue;
+      return decimal.getHiveDecimal().bigDecimalValue().toPlainString();
     }
 
     String unsupportedCategory;

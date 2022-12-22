@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.utils.avro.AvroDeserializer;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils.AvroOutput;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
