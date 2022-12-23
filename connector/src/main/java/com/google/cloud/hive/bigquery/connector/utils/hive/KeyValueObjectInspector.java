@@ -26,7 +26,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.*;
 public class KeyValueObjectInspector extends StandardStructObjectInspector {
 
   // TODO: Maybe make these customizable via configuration:
-  public static final String KEY_FIELD_NAME = "name";
+  public static final String KEY_FIELD_NAME = "key";
   public static final String VALUE_FIELD_NAME = "value";
 
   KeyValueObjectInspector(ObjectInspector keyOI, ObjectInspector valueOI) {

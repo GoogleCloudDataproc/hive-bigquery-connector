@@ -76,9 +76,9 @@ public class TestUtils {
       Stream.of(
               "CREATE OR REPLACE TABLE ${dataset}." + MAP_TABLE_NAME + " (",
               "id INT64,",
-              "map_of_ints ARRAY<STRUCT<name STRING, value INT64>>,",
-              "map_of_structs ARRAY<STRUCT<name STRING, value STRUCT<color STRING>>>,",
-              "map_of_arrays ARRAY<STRUCT<name STRING, value ARRAY<INT64>>>",
+              "map_of_ints ARRAY<STRUCT<key STRING, value INT64>>,",
+              "map_of_structs ARRAY<STRUCT<key STRING, value STRUCT<color STRING>>>,",
+              "map_of_arrays ARRAY<STRUCT<key STRING, value ARRAY<INT64>>>",
               ")")
           .collect(Collectors.joining("\n"));
 
@@ -102,7 +102,7 @@ public class TestUtils {
               "int_arr ARRAY<int64>,",
               "int_struct_arr ARRAY<STRUCT<i INT64>>,",
               "float_struct STRUCT<float_field FLOAT64>,",
-              "mp ARRAY<STRUCT<name STRING, value ARRAY<STRUCT<name STRING, value INT64>>>>",
+              "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>>",
               ")")
           .collect(Collectors.joining("\n"));
 
@@ -135,7 +135,7 @@ public class TestUtils {
               "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
               "int_arr ARRAY<int64>,",
               "int_struct_arr ARRAY<STRUCT<i INT64>>,",
-              "mp ARRAY<STRUCT<name STRING, value ARRAY<STRUCT<name STRING, value INT64>>>>",
+              "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>>",
               ")")
           .collect(Collectors.joining("\n"));
 
