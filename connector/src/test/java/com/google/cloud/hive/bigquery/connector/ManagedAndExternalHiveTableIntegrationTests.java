@@ -32,9 +32,9 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     dropBqTableIfExists(dataset, MANAGED_TEST_TABLE_NAME);
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Create the managed table using Hive
-    runHiveScript(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_MANAGED_TEST_TABLE_DDL);
     // Create another BQ table with the same schema
-    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+    createBqTable(ALL_TYPES_TABLE_NAME, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Make sure that the managed table was created in BQ
     // and that the two schemas are the same
     TableInfo managedTableInfo = getTableInfo(dataset, MANAGED_TEST_TABLE_NAME);
@@ -51,12 +51,12 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
   public void testCreateManagedTableAlreadyExists() {
     initHive();
     // Create the table in BigQuery
-    runBqQuery(BIGQUERY_MANAGED_TEST_TABLE_CREATE_QUERY);
+    createBqTable(MANAGED_TEST_TABLE_NAME, BIGQUERY_MANAGED_TEST_TABLE_DDL);
     // Try to create the managed table using Hive
     Throwable exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> runHiveScript(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY));
+            () -> createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_MANAGED_TEST_TABLE_DDL));
     assertTrue(exception.getMessage().contains("BigQuery table already exists"));
   }
 
@@ -69,7 +69,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     dropBqTableIfExists(dataset, MANAGED_TEST_TABLE_NAME);
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Create the managed table using Hive
-    runHiveScript(HIVE_MANAGED_TEST_TABLE_CREATE_QUERY);
+    createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_MANAGED_TEST_TABLE_DDL);
     // Check that the table was created in BigQuery
     assertTrue(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Drop the managed table using hive
@@ -83,11 +83,8 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
   @Test
   public void testDropExternalTable() {
     initHive();
-    // Create the table in BigQuery
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
-    // Create the corresponding external table in Hive
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
-    // Drop the external table
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    // Drop the external table in Hive
     runHiveScript("DROP TABLE " + TEST_TABLE_NAME);
     // Check that the table still exists in BigQuery
     assertTrue(bQTableExists(dataset, TEST_TABLE_NAME));

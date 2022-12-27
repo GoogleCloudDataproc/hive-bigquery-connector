@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector.input.arrow;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
-
 import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
