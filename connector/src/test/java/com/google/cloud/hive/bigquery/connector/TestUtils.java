@@ -61,24 +61,28 @@ public class TestUtils {
   public static String BIGQUERY_ALL_TYPES_TABLE_DDL =
       String.join(
           "\n",
-          "tiny_int_val INT64,",
-          "small_int_val INT64,",
-          "int_val INT64,",
-          "big_int_val INT64,",
-          "bl BOOL,",
-          "fixed_char STRING,",
-          "var_char STRING,",
-          "str STRING,",
-          "day DATE,",
-          "ts TIMESTAMP,",
-          "bin BYTES,",
-          "fl FLOAT64,",
-          "dbl FLOAT64,",
-          "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
-          "int_arr ARRAY<int64>,",
-          "int_struct_arr ARRAY<STRUCT<i INT64>>,",
-          "float_struct STRUCT<float_field FLOAT64>,",
-          "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>>");
+          "tiny_int_val INT64 OPTIONS (description = 'A description for a TINYINT'),",
+          "small_int_val INT64 OPTIONS (description = 'A description for a SMALLINT'),",
+          "int_val INT64 OPTIONS (description = 'A description for a INT'),",
+          "big_int_val INT64 OPTIONS (description = 'A description for a BIGINT'),",
+          "bl BOOL OPTIONS (description = 'A description for a BOOLEAN'),",
+          "fixed_char STRING OPTIONS (description = 'A description for a CHAR'),",
+          "var_char STRING OPTIONS (description = 'A description for a VARCHAR'),",
+          "str STRING OPTIONS (description = 'A description for a STRING'),",
+          "day DATE OPTIONS (description = 'A description for a DATE'),",
+          "ts TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMP'),",
+          "bin BYTES OPTIONS (description = 'A description for a BINARY'),",
+          "fl FLOAT64 OPTIONS (description = 'A description for a FLOAT'),",
+          "dbl FLOAT64 OPTIONS (description = 'A description for a DOUBLE'),",
+          "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC> OPTIONS (description"
+              + " = 'A description for a STRUCT'),",
+          "int_arr ARRAY<int64> OPTIONS (description = 'A description for a ARRAY-BIGINT'),",
+          "int_struct_arr ARRAY<STRUCT<i INT64>> OPTIONS (description = 'A description for a"
+              + " ARRAY-STRUCT'),",
+          "float_struct STRUCT<float_field FLOAT64> OPTIONS (description = 'A description for a"
+              + " STRUCT-FLOAT'),",
+          "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>> OPTIONS"
+              + " (description = 'A description for a MAP')");
 
   public static String BIGQUERY_BIGLAKE_TABLE_CREATE_QUERY =
       String.join(
@@ -89,27 +93,6 @@ public class TestUtils {
           "format = 'CSV',",
           "uris = ['gs://" + getBigLakeBucket() + "/test.csv']",
           ")");
-
-  public static String BIGQUERY_MANAGED_TEST_TABLE_DDL =
-      String.join(
-          "\n",
-          "tiny_int_val INT64,",
-          "small_int_val INT64,",
-          "int_val INT64,",
-          "big_int_val INT64,",
-          "bl BOOL,",
-          "fixed_char STRING,",
-          "var_char STRING,",
-          "str STRING,",
-          "day DATE,",
-          "ts TIMESTAMP,",
-          "bin BYTES,",
-          "fl FLOAT64,",
-          "dbl FLOAT64,",
-          "nums STRUCT<min NUMERIC, max NUMERIC, pi NUMERIC, big_pi NUMERIC>,",
-          "int_arr ARRAY<int64>,",
-          "int_struct_arr ARRAY<STRUCT<i INT64>>,",
-          "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>>");
 
   public static String HIVE_TEST_TABLE_DDL = String.join("\n", "number BIGINT,", "text STRING");
 
@@ -124,48 +107,25 @@ public class TestUtils {
   public static String HIVE_ALL_TYPES_TABLE_DDL =
       String.join(
           "\n",
-          "tiny_int_val TINYINT,",
-          "small_int_val SMALLINT,",
-          "int_val INT,",
-          "big_int_val BIGINT,",
-          "bl BOOLEAN,",
-          "fixed_char CHAR(10),",
-          "var_char VARCHAR(10),",
-          "str STRING,",
-          "day DATE,",
-          "ts TIMESTAMP,",
-          "bin BINARY,",
-          "fl FLOAT,",
-          "dbl DOUBLE,",
+          "tiny_int_val TINYINT COMMENT 'A description for a TINYINT',",
+          "small_int_val SMALLINT COMMENT 'A description for a SMALLINT',",
+          "int_val INT COMMENT 'A description for a INT',",
+          "big_int_val BIGINT COMMENT 'A description for a BIGINT',",
+          "bl BOOLEAN COMMENT 'A description for a BOOLEAN',",
+          "fixed_char CHAR(10) COMMENT 'A description for a CHAR',",
+          "var_char VARCHAR(10) COMMENT 'A description for a VARCHAR',",
+          "str STRING COMMENT 'A description for a STRING',",
+          "day DATE COMMENT 'A description for a DATE',",
+          "ts TIMESTAMP COMMENT 'A description for a TIMESTAMP',",
+          "bin BINARY COMMENT 'A description for a BINARY',",
+          "fl FLOAT COMMENT 'A description for a FLOAT',",
+          "dbl DOUBLE COMMENT 'A description for a DOUBLE',",
           "nums STRUCT<min: DECIMAL(38,9), max: DECIMAL(38,9), pi:"
-              + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
-          "int_arr ARRAY<BIGINT>,",
-          "int_struct_arr ARRAY<STRUCT<i: BIGINT>>,",
-          "float_struct STRUCT<float_field:FLOAT>,",
-          "mp MAP<STRING,MAP<STRING,INT>>");
-
-  public static String HIVE_MANAGED_TEST_TABLE_DDL =
-      String.join(
-          "\n",
-          "tiny_int_val TINYINT,",
-          "small_int_val SMALLINT,",
-          "int_val INT,",
-          "big_int_val BIGINT,",
-          "bl BOOLEAN,",
-          "fixed_char CHAR(10),",
-          "var_char VARCHAR(10),",
-          "str STRING,",
-          "day DATE,",
-          "ts TIMESTAMP,",
-          "bin BINARY,",
-          "fl FLOAT,",
-          "dbl DOUBLE,",
-          "nums STRUCT<min: DECIMAL(38,9), max: DECIMAL(38,9), pi:"
-              + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
-          "int_arr ARRAY<BIGINT>,",
-          "int_struct_arr ARRAY<STRUCT<i: BIGINT>>,",
-          "float_struct STRUCT<float_field:FLOAT>,",
-          "mp MAP<STRING,MAP<STRING,INT>>");
+              + " DECIMAL(38,9), big_pi: DECIMAL(38,9)> COMMENT 'A description for a STRUCT',",
+          "int_arr ARRAY<BIGINT> COMMENT 'A description for a ARRAY-BIGINT',",
+          "int_struct_arr ARRAY<STRUCT<i: BIGINT>> COMMENT 'A description for a ARRAY-STRUCT',",
+          "float_struct STRUCT<float_field:FLOAT> COMMENT 'A description for a STRUCT-FLOAT',",
+          "mp MAP<STRING,MAP<STRING,INT>> COMMENT 'A description for a MAP'");
 
   public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL =
       String.join("\n", "int_val BIGINT,", "ts TIMESTAMP");

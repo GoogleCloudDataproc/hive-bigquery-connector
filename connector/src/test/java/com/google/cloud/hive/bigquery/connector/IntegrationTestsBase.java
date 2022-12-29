@@ -110,24 +110,25 @@ public class IntegrationTestsBase {
   }
 
   public void createHiveTable(
-      String tableName, String hiveDDL, boolean isExternal, String hiveProps) {
+      String tableName, String hiveDDL, boolean isExternal, String properties, String comment) {
     runHiveScript(
         String.join(
             "\n",
             "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + tableName + " (",
             hiveDDL,
             ")",
+            comment != null ? "COMMENT \"" + comment + "\"" : "",
             "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
             "TBLPROPERTIES (",
             "  'bq.project'='${project}',",
             "  'bq.dataset'='${dataset}',",
             "  'bq.table'='" + tableName + "'",
-            (hiveProps != null ? "," + hiveProps : ""),
+            properties != null ? "," + properties : "",
             ");"));
   }
 
   public void createExternalTable(String tableName, String hiveDDL) {
-    createHiveTable(tableName, hiveDDL, true, null);
+    createHiveTable(tableName, hiveDDL, true, null, null);
   }
 
   public void createExternalTable(String tableName, String hiveDDL, String bqDDL) {
@@ -136,15 +137,27 @@ public class IntegrationTestsBase {
   }
 
   public void createManagedTable(String tableName, String hiveDDL) {
-    createHiveTable(tableName, hiveDDL, false, null);
+    createHiveTable(tableName, hiveDDL, false, null, null);
   }
 
-  public void createManagedTableWithProps(String tableName, String hiveDDL, String hiveProps) {
-    createHiveTable(tableName, hiveDDL, false, hiveProps);
+  public void createManagedTable(
+      String tableName, String hiveDDL, String properties, String comment) {
+    createHiveTable(tableName, hiveDDL, false, properties, comment);
   }
 
   public void createBqTable(String tableName, String bqDDL) {
-    runBqQuery("CREATE OR REPLACE TABLE ${dataset}." + tableName + " (" + bqDDL + ")");
+    createBqTable(tableName, bqDDL, null);
+  }
+
+  public void createBqTable(String tableName, String bqDDL, String description) {
+    runBqQuery(
+        String.join(
+            "\n",
+            "CREATE OR REPLACE TABLE ${dataset}." + tableName,
+            "(",
+            bqDDL,
+            ")",
+            description != null ? "OPTIONS ( description=\"" + description + "\" )" : ""));
   }
 
   public TableResult runBqQuery(String queryTemplate) {

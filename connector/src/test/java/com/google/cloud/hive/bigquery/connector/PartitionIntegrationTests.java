@@ -34,10 +34,11 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, FIELD_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
-    createManagedTableWithProps(
+    createManagedTable(
         FIELD_TIME_PARTITIONED_TABLE_NAME,
         HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL,
-        HIVE_FIELD_TIME_PARTITIONED_TABLE_PROPS);
+        HIVE_FIELD_TIME_PARTITIONED_TABLE_PROPS,
+        null);
     // Verify that the BQ table has the right partition & clustering options
     StandardTableDefinition tableDef =
         getTableInfo(dataset, FIELD_TIME_PARTITIONED_TABLE_NAME).getDefinition();
@@ -55,10 +56,11 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
-    createManagedTableWithProps(
+    createManagedTable(
         INGESTION_TIME_PARTITIONED_TABLE_NAME,
         HIVE_INGESTION_TIME_PARTITIONED_DDL,
-        HIVE_INGESTION_TIME_PARTITIONED_PROPS);
+        HIVE_INGESTION_TIME_PARTITIONED_PROPS,
+        null);
     // Retrieve the table metadata from BigQuery
     StandardTableDefinition tableDef =
         getTableInfo(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME).getDefinition();
@@ -86,10 +88,11 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
-    createManagedTableWithProps(
+    createManagedTable(
         INGESTION_TIME_PARTITIONED_TABLE_NAME,
         HIVE_INGESTION_TIME_PARTITIONED_DDL,
-        HIVE_INGESTION_TIME_PARTITIONED_PROPS);
+        HIVE_INGESTION_TIME_PARTITIONED_PROPS,
+        null);
     runHiveScript(
         String.format(
             "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMP'2018-09-05 00:10:04.19'",

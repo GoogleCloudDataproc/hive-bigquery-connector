@@ -235,7 +235,10 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       }
 
       StandardTableDefinition tableDefinition = tableDefBuilder.build();
-      createTableInfo = TableInfo.newBuilder(opts.getTableId(), tableDefinition).build();
+      createTableInfo =
+          TableInfo.newBuilder(opts.getTableId(), tableDefinition)
+              .setDescription(table.getParameters().get("comment"))
+              .build();
     }
 
     table

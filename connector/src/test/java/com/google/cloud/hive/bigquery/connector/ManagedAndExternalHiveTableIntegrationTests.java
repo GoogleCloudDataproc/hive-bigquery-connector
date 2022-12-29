@@ -32,13 +32,15 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     dropBqTableIfExists(dataset, MANAGED_TEST_TABLE_NAME);
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Create the managed table using Hive
-    createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_MANAGED_TEST_TABLE_DDL);
+    createManagedTable(
+        MANAGED_TEST_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, null, "A table with lots of types");
     // Create another BQ table with the same schema
-    createBqTable(ALL_TYPES_TABLE_NAME, BIGQUERY_ALL_TYPES_TABLE_DDL);
+    createBqTable(ALL_TYPES_TABLE_NAME, BIGQUERY_ALL_TYPES_TABLE_DDL, "A table with lots of types");
     // Make sure that the managed table was created in BQ
     // and that the two schemas are the same
     TableInfo managedTableInfo = getTableInfo(dataset, MANAGED_TEST_TABLE_NAME);
     TableInfo allTypesTableInfo = getTableInfo(dataset, ALL_TYPES_TABLE_NAME);
+    assertEquals(managedTableInfo.getDescription(), allTypesTableInfo.getDescription());
     assertEquals(
         managedTableInfo.getDefinition().getSchema(),
         allTypesTableInfo.getDefinition().getSchema());
@@ -51,12 +53,12 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
   public void testCreateManagedTableAlreadyExists() {
     initHive();
     // Create the table in BigQuery
-    createBqTable(MANAGED_TEST_TABLE_NAME, BIGQUERY_MANAGED_TEST_TABLE_DDL);
+    createBqTable(MANAGED_TEST_TABLE_NAME, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Try to create the managed table using Hive
     Throwable exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_MANAGED_TEST_TABLE_DDL));
+            () -> createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL));
     assertTrue(exception.getMessage().contains("BigQuery table already exists"));
   }
 
@@ -69,7 +71,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     dropBqTableIfExists(dataset, MANAGED_TEST_TABLE_NAME);
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Create the managed table using Hive
-    createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_MANAGED_TEST_TABLE_DDL);
+    createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL);
     // Check that the table was created in BigQuery
     assertTrue(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Drop the managed table using hive

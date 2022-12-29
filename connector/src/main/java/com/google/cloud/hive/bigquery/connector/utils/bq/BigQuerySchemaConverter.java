@@ -64,12 +64,12 @@ public class BigQuerySchemaConverter {
     List<Field> bigQueryFields = new ArrayList<>();
     for (FieldSchema hiveField : sd.getCols()) {
       TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      bigQueryFields.add(buildBigQueryField(hiveField.getName(), typeInfo));
+      bigQueryFields.add(buildBigQueryField(hiveField.getName(), typeInfo, hiveField.getComment()));
     }
     return Schema.of(bigQueryFields);
   }
 
-  private static Field buildBigQueryField(String fieldName, TypeInfo typeInfo) {
+  private static Field buildBigQueryField(String fieldName, TypeInfo typeInfo, String comment) {
     Field.Builder bigQueryFieldBuilder;
 
     Field.Mode mode = null;
@@ -101,7 +101,8 @@ public class BigQuerySchemaConverter {
       List<String> subFieldNames = ((StructTypeInfo) typeInfo).getAllStructFieldNames();
       List<Field> bigQuerySubFields = new ArrayList<>();
       for (int i = 0; i < subFieldNames.size(); i++) {
-        Field bigQuerySubField = buildBigQueryField(subFieldNames.get(i), subFieldTypeInfos.get(i));
+        Field bigQuerySubField =
+            buildBigQueryField(subFieldNames.get(i), subFieldTypeInfos.get(i), null);
         bigQuerySubFields.add(bigQuerySubField);
       }
       bigQueryFieldBuilder =
@@ -112,6 +113,7 @@ public class BigQuerySchemaConverter {
     }
 
     bigQueryFieldBuilder.setMode(mode);
+    bigQueryFieldBuilder.setDescription(comment);
     return bigQueryFieldBuilder.build();
   }
 
