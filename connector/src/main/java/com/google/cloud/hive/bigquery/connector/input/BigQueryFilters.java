@@ -24,6 +24,8 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.udf.generic.*;
+import org.apache.hadoop.hive.ql.udf.UDFToDouble;
+
 
 public class BigQueryFilters {
 
@@ -46,6 +48,11 @@ public class BigQueryFilters {
                 function.setGenericUDF(new BigQueryUDFMod());
             } else if (function.getGenericUDF() instanceof GenericUDFRegExp) {
                 function.setGenericUDF(new BigQueryUDFRegExpContains());
+            }else if (function.getGenericUDF() instanceof GenericUDFBridge) {
+                GenericUDFBridge bridge = (GenericUDFBridge) function.getGenericUDF();
+                 if (bridge.getUdfName().equals("UDFToDouble")) {
+                     function.setGenericUDF(new BigQueryUDFToDouble());
+                 }
             }
             // Translate the children parameters
             List<ExprNodeDesc> translatedChildren = new ArrayList<>();
