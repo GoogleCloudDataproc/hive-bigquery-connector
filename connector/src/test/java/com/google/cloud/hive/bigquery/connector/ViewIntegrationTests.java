@@ -33,13 +33,13 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
           String readDataFormat) {
     // Disable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "false");
+    initHive(engine, readDataFormat);
     // Create the table in BigQuery
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
     // Create the corresponding BigQuery view
     createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
     // Create the corresponding Hive table
-    initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_VIEW_CREATE_QUERY);
+    createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Query the view
     Throwable exception =
         assertThrows(
@@ -55,13 +55,13 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
           String readDataFormat) {
     // Enable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
+    initHive(engine, readDataFormat);
     // Create the table in BigQuery
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
     // Create the corresponding BigQuery view
     createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
     // Create the corresponding Hive table
-    initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_VIEW_CREATE_QUERY);
+    createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Query the view
     List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", TEST_VIEW_NAME));
     assertThat(rows).isEmpty();
@@ -75,13 +75,13 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
           String readDataFormat) {
     // Enable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
+    initHive(engine, readDataFormat);
     // Create the table in BigQuery
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
+    createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
     // Create the corresponding BigQuery view
     createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
     // Create the corresponding Hive table
-    initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_VIEW_CREATE_QUERY);
+    createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
         String.format(

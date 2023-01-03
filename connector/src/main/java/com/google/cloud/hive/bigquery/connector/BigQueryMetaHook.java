@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
@@ -145,28 +146,35 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     // Validate the "PARTITIONED BY" clause
     if (table.getPartitionKeysSize() > 1) {
-      throw new MetaException(
-          "BigQuery supports only up to 1 partition");
+      throw new MetaException("BigQuery supports only up to 1 partition");
     }
     // TODO: Validate partition type
-    FieldSchema partitionColumn = table.getPartitionKeysSize() == 1 ? table.getPartitionKeys().get(0) : null;
+    FieldSchema partitionColumn =
+        table.getPartitionKeysSize() == 1 ? table.getPartitionKeys().get(0) : null;
     Optional<String> tblPropPartitionField = opts.getPartitionField();
     Optional<TimePartitioning.Type> tblPropPartitionType = opts.getPartitionType();
     String partitionColumnName = null;
     if (partitionColumn != null && tblPropPartitionField.isPresent()) {
       throw new MetaException(
-        String.format("Please provide either `PARTITIONED BY` or `%s` but not both", HiveBigQueryConfig.TIME_PARTITION_FIELD_KEY)
-      );
+          String.format(
+              "Please provide either `PARTITIONED BY` or `%s` but not both",
+              HiveBigQueryConfig.TIME_PARTITION_FIELD_KEY));
     }
     if (partitionColumn != null) {
       partitionColumnName = partitionColumn.getName();
-      table.putToParameters("bq.partition.hive.type", String.format("%s:%s", partitionColumn.getName(), partitionColumn.getType()));
+      table.putToParameters(
+          hive_metastoreConstants.META_TABLE_PARTITION_COLUMNS, partitionColumn.getName());
+      table.putToParameters(
+          hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES, partitionColumn.getType());
     }
     if (tblPropPartitionField.isPresent()) {
       partitionColumnName = tblPropPartitionField.get();
       for (FieldSchema column : table.getSd().getCols()) {
         if (column.getName().equals(partitionColumnName)) {
-          table.putToParameters("bq.partition.hive.type", String.format("%s:%s", column.getName(), column.getType()));
+          table.putToParameters(
+              hive_metastoreConstants.META_TABLE_PARTITION_COLUMNS, column.getName());
+          table.putToParameters(
+              hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES, column.getType());
           break;
         }
       }
@@ -224,7 +232,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       // Time partitioning
 
       if (tblPropPartitionType.isPresent()) {
-        TimePartitioning.Builder tpBuilder = TimePartitioning.newBuilder(tblPropPartitionType.get());
+        TimePartitioning.Builder tpBuilder =
+            TimePartitioning.newBuilder(tblPropPartitionType.get());
         if (partitionColumnName != null) {
           tpBuilder.setField(partitionColumnName);
         } else {
@@ -257,7 +266,10 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       }
 
       StandardTableDefinition tableDefinition = tableDefBuilder.build();
-      createTableInfo = TableInfo.newBuilder(opts.getTableId(), tableDefinition).build();
+      createTableInfo =
+          TableInfo.newBuilder(opts.getTableId(), tableDefinition)
+              .setDescription(table.getParameters().get("comment"))
+              .build();
     }
 
     table
@@ -314,7 +326,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     Injector injector =
         Guice.createInjector(
-            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, table.getParameters()));
+            new BigQueryClientModule(),
+            new HiveBigQueryConnectorModule(conf, table.getParameters()));
     if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
       // Get an instance of the BigQuery client
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);

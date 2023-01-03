@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
@@ -52,12 +53,11 @@ public class BigQueryOutputFormat
   public static class Partition {
     private final String name;
     private final TypeInfo type;
-    private final String value;
+    private String value;
 
-    private Partition(String name, String type, String value) {
+    private Partition(String name, String type) {
       this.name = name;
       this.type = TypeInfoUtils.getTypeInfosFromTypeString(type).get(0);
-      this.value = value;
     }
 
     public String getName() {
@@ -68,10 +68,13 @@ public class BigQueryOutputFormat
       return type;
     }
 
-    public String getValue() {
+    public String getStaticValue() {
       return value;
     }
 
+    public void setStaticValue(String value) {
+      this.value = value;
+    }
   }
 
   @Override
@@ -84,35 +87,46 @@ public class BigQueryOutputFormat
       Progressable progressable)
       throws IOException {
 
-    // The path for an insert query partitioned by a column named "dt" is formatter like so:
-    // hdfs:/path/to/my/warehouse/mytable/dt=2020-09-01/.hive-staging/-ext-10000
-
     Partition partition = null;
     String tableLocation = jobConf.get("location");
     String pathString = path.toString();
-    assert(pathString.startsWith(tableLocation));
-    if (pathString.length() > tableLocation.length()) {
-      String substring = pathString.substring(tableLocation.length() + 1);
-      String stagingDir = jobConf.get("hive.exec.stagingdir");
-      int index = substring.indexOf(stagingDir);
-      substring = substring.substring(0, index - 1);
-      String[] partitionStrings = substring.split("/");
-      if (partitionStrings.length > 1) {
-        throw new RuntimeException("BigQuery supports only up to 1 partition");
-      }
-      if (partitionStrings.length == 1) {
-        String[] partitionValues = partitionStrings[0].split("=");
-        String partitionName = partitionValues[0];
-        String partitionValue = partitionValues[1];
-        // TODO: Add some error handling if property is missing or misformatted
-        String[] partitionType = tableProperties.getProperty("bq.partition.hive.type").split(":");
-        assert(partitionName.equals(partitionType[0]));
-        partition = new Partition(partitionName, partitionType[1], partitionValue);
+    assert (pathString.startsWith(tableLocation));
+
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+    String partitionName =
+        jobDetails
+            .getTableProperties()
+            .getProperty(hive_metastoreConstants.META_TABLE_PARTITION_COLUMNS);
+    if (partitionName != null) {
+      String partitionType =
+          jobDetails
+              .getTableProperties()
+              .getProperty(hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES);
+      partition = new Partition(partitionName, partitionType);
+      if (pathString.length() > tableLocation.length()) {
+        // This is the case of static partitioning, i.e. INSERT INTO ...
+        // PARTITION(myfield=somevalue)
+        // To retrieve the specified partition value, we extract the value from the file path,
+        // which should be of the form:
+        // ".../mywarehouse/mytable/myfield=myvalue/.hive-staging...etc..."
+        String substring = pathString.substring(tableLocation.length() + 1);
+        String stagingDir = jobConf.get("hive.exec.stagingdir");
+        int index = substring.indexOf(stagingDir);
+        substring = substring.substring(0, index - 1);
+        String[] partitionStrings = substring.split("/");
+        if (partitionStrings.length > 1) {
+          throw new RuntimeException("BigQuery supports only up to 1 partition");
+        }
+        if (partitionStrings.length == 1) {
+          String[] partitionValues = partitionStrings[0].split("=");
+          assert (partition.getName().equals(partitionValues[0]));
+          String partitionValue = partitionValues[1];
+          partition.setStaticValue(partitionValue);
+        }
       }
     }
 
     // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
     String writeMethod =
         jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {

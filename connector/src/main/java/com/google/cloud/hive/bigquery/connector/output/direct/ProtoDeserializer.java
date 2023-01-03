@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.utils.proto;
+package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -159,11 +158,11 @@ public class ProtoDeserializer {
       if (fieldValue instanceof Integer) {
         return fieldValue;
       }
-      if (fieldValue instanceof String) {
+      if (fieldValue instanceof String || fieldValue instanceof Text) {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         Date date;
         try {
-          date = formatter.parse((String) fieldValue);
+          date = formatter.parse(fieldValue.toString());
         } catch (ParseException e) {
           throw new RuntimeException(e);
         }

@@ -26,7 +26,6 @@ import com.google.cloud.storage.Blob;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
@@ -36,10 +35,9 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
 
   /** Insert data into a simple table. */
   public void insert(String engine, String writeMethod) {
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data using Hive
     runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
     // Read the data using the BQ SDK
@@ -90,8 +88,10 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 HiveBigQueryConfig.WRITE_METHOD_INDIRECT
               })
           String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Create some initial data in BQ
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     runBqQuery(
         String.format(
             "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
@@ -100,9 +100,6 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run INSERT OVERWRITE in Hive
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
-    initHive(engine, HiveBigQueryConfig.AVRO);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
     runHiveScript("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
     // Make sure the new data erased the old one
     result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
@@ -124,40 +121,40 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 HiveBigQueryConfig.WRITE_METHOD_INDIRECT
               })
           String writeMethod) {
-    // Create the BQ table
-    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
-    // Insert data into the BQ table using Hive
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
-    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    // Create the BQ table
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
+    // Insert data into the BQ table using Hive
     runHiveScript(
-        Stream.of(
-                "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
-                "11,",
-                "22,",
-                "33,",
-                "44,",
-                "true,",
-                "\"fixed char\",",
-                "\"var char\",",
-                "\"string\",",
-                "CAST(\"2019-03-18\" AS DATE),",
-                "CAST(\"2019-03-18T01:23:45.678901\" AS TIMESTAMP),",
-                "CAST(\"bytes\" AS BINARY),",
-                "2.0,",
-                "4.2,",
-                "NAMED_STRUCT(",
-                "  'min', CAST(-99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
-                "  'max', CAST(99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
-                "  'pi', CAST(3.14 AS DECIMAL(38,9)),",
-                "  'big_pi', CAST(31415926535897932384626433832.795028841 AS" + " DECIMAL(38,9))",
-                "),",
-                "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
-                "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
-                "NAMED_STRUCT('float_field', CAST(4.2 AS FLOAT)),",
-                "MAP('mykey', MAP('subkey', 999))",
-                "FROM (select '1') t")
-            .collect(Collectors.joining("\n")));
+        String.join(
+            "\n",
+            "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
+            "11,",
+            "22,",
+            "33,",
+            "44,",
+            "true,",
+            "\"fixed char\",",
+            "\"var char\",",
+            "\"string\",",
+            "CAST(\"2019-03-18\" AS DATE),",
+            "CAST(\"2019-03-18T01:23:45.678901\" AS TIMESTAMP),",
+            "CAST(\"bytes\" AS BINARY),",
+            "2.0,",
+            "4.2,",
+            "NAMED_STRUCT(",
+            "  'min', CAST(-99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
+            "  'max', CAST(99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
+            "  'pi', CAST(3.14 AS DECIMAL(38,9)),",
+            "  'big_pi', CAST(31415926535897932384626433832.795028841 AS" + " DECIMAL(38,9))",
+            "),",
+            "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
+            "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
+            "NAMED_STRUCT('float_field', CAST(4.2 AS FLOAT)),",
+            "MAP('mykey', MAP('subkey', 999))",
+            "FROM (select '1') t"));
     // Read the data using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", ALL_TYPES_TABLE_NAME));
@@ -212,7 +209,9 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1L, struct.get(0).getLongValue());
     // Struct of float
     struct = row.get(16).getRecordValue();
-    assertEquals(4.199999809265137, struct.get("float_field").getDoubleValue());  // TODO: Address discrepancy here
+    assertEquals(
+        4.199999809265137,
+        struct.get("float_field").getDoubleValue()); // TODO: Address discrepancy here
     // Check the Map type
     FieldValueList map = (FieldValueList) row.get(17).getRepeatedValue();
     assertEquals(1, map.size());
@@ -238,44 +237,41 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
                 HiveBigQueryConfig.WRITE_METHOD_INDIRECT
               })
           String writeMethod) {
-    // Create the BQ tables
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
-    runBqQuery(BIGQUERY_ANOTHER_TEST_TABLE_CREATE_QUERY);
-    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
-    // Insert data into the BQ tables using the BQ SDK
-    runBqQuery(
-        Stream.of(
-                String.format("INSERT `${dataset}.%s` (int_val) VALUES", ALL_TYPES_TABLE_NAME),
-                "(123), (42), (999)")
-            .collect(Collectors.joining("\n")));
-    runBqQuery(
-        Stream.of(
-                String.format("INSERT `${dataset}.%s` (str_val) VALUES", ANOTHER_TEST_TABLE_NAME),
-                "(\"hello1\"), (\"hello2\"), (\"hello3\")")
-            .collect(Collectors.joining("\n")));
-    // Create the Hive tables
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, readDataFormat);
-    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
-    runHiveScript(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    createExternalTable(
+        ANOTHER_TEST_TABLE_NAME, HIVE_ANOTHER_TEST_TABLE_DDL, BIGQUERY_ANOTHER_TEST_TABLE_DDL);
+    // Insert data into the BQ tables using the BQ SDK
+    runBqQuery(
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` (int_val) VALUES", ALL_TYPES_TABLE_NAME),
+            "(123), (42), (999)"));
+    runBqQuery(
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` (str_val) VALUES", ANOTHER_TEST_TABLE_NAME),
+            "(\"hello1\"), (\"hello2\"), (\"hello3\")"));
     // Read and write in the same query using Hive
     runHiveScript(
-        Stream.of(
-                "INSERT INTO " + TEST_TABLE_NAME + " SELECT",
-                "MAX(number), MAX(text)",
-                "FROM (",
-                "SELECT",
-                "0 as number,",
-                "t1.str_val as text",
-                "FROM " + ANOTHER_TEST_TABLE_NAME + " t1",
-                "UNION ALL",
-                "SELECT",
-                "t2.int_val as number,",
-                "'' as text",
-                "FROM " + ALL_TYPES_TABLE_NAME + " t2",
-                ") unioned;")
-            .collect(Collectors.joining("\n")));
+        String.join(
+            "\n",
+            "INSERT INTO " + TEST_TABLE_NAME + " SELECT",
+            "MAX(number), MAX(text)",
+            "FROM (",
+            "SELECT",
+            "0 as number,",
+            "t1.str_val as text",
+            "FROM " + ANOTHER_TEST_TABLE_NAME + " t1",
+            "UNION ALL",
+            "SELECT",
+            "t2.int_val as number,",
+            "'' as text",
+            "FROM " + ALL_TYPES_TABLE_NAME + " t2",
+            ") unioned;"));
     // Read the result using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));

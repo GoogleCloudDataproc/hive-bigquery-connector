@@ -21,15 +21,11 @@ import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
-import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoDeserializer;
-import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
-
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -59,11 +55,13 @@ public class DirectRecordWriter
   Descriptors.Descriptor descriptor;
   BigQueryOutputFormat.Partition partition;
 
-  public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails, BigQueryOutputFormat.Partition partition) {
+  public DirectRecordWriter(
+      JobConf jobConf, JobDetails jobDetails, BigQueryOutputFormat.Partition partition) {
     this.jobConf = jobConf;
     this.partition = partition;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties(), partition);
+    this.rowObjectInspector =
+        BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties(), partition);
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);
     } catch (Descriptors.DescriptorValidationException e) {
@@ -86,8 +84,8 @@ public class DirectRecordWriter
   public void write(Writable writable) throws IOException {
     Object[] objectArray = (Object[]) ((ObjectWritable) writable).get();
     List<Object> values = new ArrayList<>(Arrays.asList(objectArray));
-    if (partition != null) {
-      values.add(partition.getValue());
+    if (partition != null && partition.getStaticValue() != null) {
+      values.add(partition.getStaticValue());
     }
     DynamicMessage message =
         ProtoDeserializer.buildSingleRowMessage(rowObjectInspector, descriptor, values);

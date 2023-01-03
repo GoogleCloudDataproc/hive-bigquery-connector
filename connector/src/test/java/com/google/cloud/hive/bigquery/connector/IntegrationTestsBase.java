@@ -109,6 +109,57 @@ public class IntegrationTestsBase {
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
   }
 
+  public void createHiveTable(
+      String tableName, String hiveDDL, boolean isExternal, String properties, String comment) {
+    runHiveScript(
+        String.join(
+            "\n",
+            "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + tableName + " (",
+            hiveDDL,
+            ")",
+            comment != null ? "COMMENT \"" + comment + "\"" : "",
+            "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "TBLPROPERTIES (",
+            "  'bq.project'='${project}',",
+            "  'bq.dataset'='${dataset}',",
+            "  'bq.table'='" + tableName + "'",
+            properties != null ? "," + properties : "",
+            ");"));
+  }
+
+  public void createExternalTable(String tableName, String hiveDDL) {
+    createHiveTable(tableName, hiveDDL, true, null, null);
+  }
+
+  public void createExternalTable(String tableName, String hiveDDL, String bqDDL) {
+    createExternalTable(tableName, hiveDDL);
+    createBqTable(tableName, bqDDL);
+  }
+
+  public void createManagedTable(String tableName, String hiveDDL) {
+    createHiveTable(tableName, hiveDDL, false, null, null);
+  }
+
+  public void createManagedTable(
+      String tableName, String hiveDDL, String properties, String comment) {
+    createHiveTable(tableName, hiveDDL, false, properties, comment);
+  }
+
+  public void createBqTable(String tableName, String bqDDL) {
+    createBqTable(tableName, bqDDL, null);
+  }
+
+  public void createBqTable(String tableName, String bqDDL, String description) {
+    runBqQuery(
+        String.join(
+            "\n",
+            "CREATE OR REPLACE TABLE ${dataset}." + tableName,
+            "(",
+            bqDDL,
+            ")",
+            description != null ? "OPTIONS ( description=\"" + description + "\" )" : ""));
+  }
+
   public TableResult runBqQuery(String queryTemplate) {
     return getBigqueryClient().query(renderQueryTemplate(queryTemplate));
   }

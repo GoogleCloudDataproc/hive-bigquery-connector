@@ -18,27 +18,29 @@ package com.google.cloud.hive.bigquery.connector;
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.cloud.bigquery.Clustering;
-import com.google.cloud.bigquery.StandardTableDefinition;
-import com.google.cloud.bigquery.TimePartitioning;
+import com.google.cloud.bigquery.*;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import org.junit.jupiter.api.Test;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
 public class PartitionIntegrationTests extends IntegrationTestsBase {
 
   @Test
   public void testFieldTimePartition() {
+    initHive();
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, FIELD_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
-    initHive();
-    runHiveScript(HIVE_FIELD_TIME_PARTITIONED_TABLE_CREATE_QUERY);
+    createManagedTable(
+        FIELD_TIME_PARTITIONED_TABLE_NAME,
+        HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL,
+        HIVE_FIELD_TIME_PARTITIONED_TABLE_PROPS,
+        null);
+    // Verify that the BQ table has the right partition & clustering options
     StandardTableDefinition tableDef =
         getTableInfo(dataset, FIELD_TIME_PARTITIONED_TABLE_NAME).getDefinition();
     TimePartitioning timePartitioning = tableDef.getTimePartitioning();
@@ -66,66 +68,74 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     assertEquals(ImmutableList.of("int_val"), Objects.requireNonNull(clustering).getFields());
   }
 
-
   @Test
   public void testPartitionByClauseDate() {
-//    initHive("mr", HiveBigQueryConfig.ARROW);
-    initHive();
-    String tableName = "lala";
-    String query = String.join("\n",
-        "CREATE TABLE " + tableName + " (",
-        "int_val BIGINT, bobo TIMESTAMP WITH LOCAL TIME ZONE",
-        ")",
-        "PARTITIONED BY (dt DATE)",
-        "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-        "TBLPROPERTIES (",
-        "  'bq.project'='${project}',",
-        "  'bq.dataset'='${dataset}',",
-        "  'bq.table'='" + tableName + "'",
-        ");");
-    runHiveScript(query);
-    query = String.join("\n",
-        "INSERT INTO TABLE " + tableName + " PARTITION(dt='2022-12-01') VALUES(",
-        "999",
-        ");");
+    initHive("mr", HiveBigQueryConfig.ARROW);
+    // initHive();
+    // Make sure the BQ table doesn't exist
+    dropBqTableIfExists(dataset, PARTITION_CLAUSE_TABLE_NAME);
+    // Create the table using Hive
+    runHiveScript(HIVE_PARTITION_CLAUSE_TABLE_CREATE_QUERY);
+    // Insert using "INTO TABLE ... PARTITION()" statement
+    runHiveScript(
+        String.join(
+            "\n",
+            "INSERT INTO TABLE "
+                + PARTITION_CLAUSE_TABLE_NAME
+                + " PARTITION(dt='2022-12-01') VALUES(",
+            "888",
+            ");"));
+    // Insert using "INTO TABLE" statement (i.e. without "PARTITION")
+    runHiveScript(
+        String.join(
+            "\n",
+            "INSERT INTO TABLE " + PARTITION_CLAUSE_TABLE_NAME + " VALUES(",
+            "999, '2023-01-03'",
+            ");"));
 
-//    query = String.join("\n",
-//        "INSERT INTO TABLE " + tableName + " VALUES(",
-//        "999, '2022-12-01'",
-//        ");");
+    // TODO: Insert with dynamic partitioning
 
-//    query = Stream.of(
-//            "INSERT INTO TABLE " + tableName + " VALUES(",
-//              "999, '2022-12-01'",
-//            ");")
-//        .collect(Collectors.joining("\n"));
-    runHiveScript(query);
-    int a = 1;
+    // Read the data using the BQ SDK
+    TableResult result =
+        runBqQuery(
+            String.format(
+                "SELECT * FROM `${dataset}.%s` ORDER BY int_val", PARTITION_CLAUSE_TABLE_NAME));
+    // Verify we get the expected values
+    assertEquals(2, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    assertEquals(888L, rows.get(0).get(0).getLongValue());
+    assertEquals("2022-12-01", rows.get(0).get(1).getStringValue());
+    assertEquals(999L, rows.get(1).get(0).getLongValue());
+    assertEquals("2023-01-03", rows.get(1).get(1).getStringValue());
   }
 
-
+  // TODO: Finish writing this test
   @Test
   public void testInsertOverwriteWithPartition() {
     initHive();
     // Make sure the BQ table doesn't exist
-    dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
+    dropBqTableIfExists(dataset, PARTITION_CLAUSE_TABLE_NAME);
     // Create the table using Hive
-    runHiveScript(HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY);
+    runHiveScript(HIVE_PARTITION_CLAUSE_TABLE_CREATE_QUERY);
     runHiveScript(
         String.format(
-            "INSERT OVERWRITE TABLE %s\n" +
-                "PARTITION(order_date='2018-08-01') VALUES \n" +
-                "(999);\n",
-            INGESTION_TIME_PARTITIONED_TABLE_NAME));
+            "INSERT OVERWRITE TABLE %s\n"
+                + "PARTITION(order_date='2018-08-01') VALUES \n"
+                + "(999);\n",
+            PARTITION_CLAUSE_TABLE_NAME));
   }
 
   @Test
   public void testCreateIngestionTimePartition() {
+    initHive();
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
-    initHive();
-    runHiveScript(HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY);
+    createManagedTable(
+        INGESTION_TIME_PARTITIONED_TABLE_NAME,
+        HIVE_INGESTION_TIME_PARTITIONED_DDL,
+        HIVE_INGESTION_TIME_PARTITIONED_PROPS,
+        null);
     // Retrieve the table metadata from BigQuery
     StandardTableDefinition tableDef =
         getTableInfo(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME).getDefinition();
@@ -153,7 +163,11 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
-    runHiveScript(HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY);
+    createManagedTable(
+        INGESTION_TIME_PARTITIONED_TABLE_NAME,
+        HIVE_INGESTION_TIME_PARTITIONED_DDL,
+        HIVE_INGESTION_TIME_PARTITIONED_PROPS,
+        null);
     runHiveScript(
         String.format(
             "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMP'2018-09-05 00:10:04.19'",
@@ -163,5 +177,4 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
             "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
   }
-
 }
