@@ -22,7 +22,7 @@ public class BigQueryUDFToDouble extends BigQueryUDFBase {
 
     @Override
     public String getDisplayString(String[] children) {
-        return String.format("CAST(%s as Numeric)", children[0]);
+        return String.format("%s", children[0]);
     }
 
 
