@@ -52,6 +52,8 @@ public class BigQueryFilters {
                 GenericUDFBridge bridge = (GenericUDFBridge) function.getGenericUDF();
                  if (bridge.getUdfName().equals("UDFToDouble")) {
                      function.setGenericUDF(new BigQueryUDFToDouble());
+                 } else  if (bridge.getUdfName().equals("UDFToInteger")) {
+                     function.setGenericUDF(new BigQueryUDFToInteger());
                  }
             }
             // Translate the children parameters
