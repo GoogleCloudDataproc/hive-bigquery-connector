@@ -54,6 +54,8 @@ public class BigQueryFilters {
                      function.setGenericUDF(new BigQueryUDFToDouble());
                  } else  if (bridge.getUdfName().equals("UDFToInteger")) {
                      function.setGenericUDF(new BigQueryUDFToInteger());
+                 } else  if (bridge.getUdfName().equals("UDFToInteger")) {
+                     function.setGenericUDF(new BigQueryUDFToByte());
                  }
             }
             // Translate the children parameters
