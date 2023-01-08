@@ -19,7 +19,7 @@ public class BigQueryUDFToInteger extends BigQueryUDFBase {
 
         @Override
         public String getDisplayString(String[] children) {
-            return String.format("CAST(%s as BIGNUMERIC)", children[0]);
+            return String.format("CAST(%s as INT64)", children[0]);
         }
 
 
