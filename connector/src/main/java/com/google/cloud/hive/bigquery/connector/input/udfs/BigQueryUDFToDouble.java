@@ -15,12 +15,13 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-public class BigQueryUDFToDouble extends BigQueryUDFBase {
+
+public class BigQueryUDFToDouble  extends BigQueryUDFBase  {
     public BigQueryUDFToDouble() {}
 
     @Override
     public String getDisplayString(String[] children) {
-        return String.format("CAST(%s as BIGNUMERIC)", children[0]);
+        return String.format("CAST(%s as FLOAT64)", children[0]);
     }
 
 
