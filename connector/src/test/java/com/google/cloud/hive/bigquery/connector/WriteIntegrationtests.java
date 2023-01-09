@@ -89,7 +89,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
               })
           String writeMethod) {
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
-    initHive(engine, HiveBigQueryConfig.AVRO);
+    initHive(engine, HiveBigQueryConfig.ARROW);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Create some initial data in BQ
     runBqQuery(

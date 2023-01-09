@@ -15,17 +15,12 @@
  */
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
-import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.Schema;
-import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableInfo;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
-import com.google.cloud.bigquery.connector.common.BigQueryConnectorException;
-import com.google.cloud.bigquery.connector.common.BigQueryUtil;
+import com.google.cloud.bigquery.*;
+import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
+import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +31,13 @@ public class DirectWriterContext {
   final Logger LOG = LoggerFactory.getLogger(DirectWriterContext.class);
 
   private final BigQueryClient bigQueryClient;
+  private final BigQuery bq; // TODO: Remove
 
+  private final boolean isOverwrite;
   private final TableId tableIdToWrite;
   private final TableId destinationTableId;
   private final boolean enableModeCheckForSchemaFields;
+  private final OutputPartition outputPartition;
 
   private final String tablePathForBigQueryStorage;
   private boolean deleteTableOnAbort;
@@ -47,16 +45,22 @@ public class DirectWriterContext {
   private final BigQueryWriteClient writeClient;
 
   public DirectWriterContext(
+      BigQuery bq,
       BigQueryClient bigQueryClient,
       BigQueryClientFactory bigQueryWriteClientFactory,
+      boolean isOverwrite,
       TableId tableId,
       TableId destinationTableId,
+      OutputPartition outputPartition,
       Schema schema,
       boolean enableModeCheckForSchemaFields)
       throws IllegalArgumentException {
+    this.bq = bq;
     this.bigQueryClient = bigQueryClient;
+    this.isOverwrite = isOverwrite;
     this.tableIdToWrite = getOrCreateTable(tableId, schema);
     this.destinationTableId = destinationTableId;
+    this.outputPartition = outputPartition;
     this.tablePathForBigQueryStorage =
         bigQueryClient.createTablePathForBigQueryStorage(tableIdToWrite);
     this.writeClient = bigQueryWriteClientFactory.getBigQueryWriteClient();
@@ -113,14 +117,44 @@ public class DirectWriterContext {
 
     // Special case for "INSERT OVERWRITE" statements: Overwrite the final
     // destination table with the contents of the temporary table.
-    if (destinationTableId != null && !destinationTableId.equals(tableIdToWrite)) {
-      Job overwriteJob =
-          bigQueryClient.overwriteDestinationWithTemporary(tableIdToWrite, destinationTableId);
-      BigQueryClient.waitForJob(overwriteJob);
-      Preconditions.checkState(
-          bigQueryClient.deleteTable(tableIdToWrite),
-          new BigQueryConnectorException(
-              String.format("Could not delete temporary table %s from BigQuery", tableIdToWrite)));
+    if (isOverwrite) {
+      if (outputPartition == null) { // Overwrite entire table
+        Job overwriteJob =
+            bigQueryClient.overwriteDestinationWithTemporary(tableIdToWrite, destinationTableId);
+        BigQueryClient.waitForJob(overwriteJob);
+        Preconditions.checkState(
+            bigQueryClient.deleteTable(tableIdToWrite),
+            new BigQueryConnectorException(
+                String.format(
+                    "Could not delete temporary table %s from BigQuery", tableIdToWrite)));
+      } else { // Overwrite partition
+        String queryFormat =
+            String.join(
+                "\n",
+                "MERGE `%s`",
+                "USING `%s`",
+                "ON FALSE",
+                "WHEN NOT MATCHED THEN INSERT ROW",
+                "WHEN NOT MATCHED BY SOURCE AND (%s = '%s') THEN DELETE");
+        String destinationTableName = BigQueryClient.fullTableName(destinationTableId);
+        String temporaryTableName = BigQueryClient.fullTableName(tableIdToWrite);
+        String query =
+            String.format(
+                queryFormat,
+                destinationTableName,
+                temporaryTableName,
+                outputPartition.getName(),
+                outputPartition.getStaticValue());
+        QueryJobConfiguration queryConfig =
+            QueryJobConfiguration.newBuilder(query).setUseLegacySql(false).build();
+        Job overwriteJob = bq.create(JobInfo.newBuilder(queryConfig).build());
+        BigQueryClient.waitForJob(overwriteJob);
+        Preconditions.checkState(
+            bigQueryClient.deleteTable(tableIdToWrite),
+            new BigQueryConnectorException(
+                String.format(
+                    "Could not delete temporary table %s from BigQuery", tableIdToWrite)));
+      }
     }
   }
 

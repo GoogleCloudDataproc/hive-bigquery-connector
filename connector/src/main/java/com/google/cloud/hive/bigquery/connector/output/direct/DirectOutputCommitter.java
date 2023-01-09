@@ -15,15 +15,18 @@
  */
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
+import com.google.api.gax.rpc.HeaderProvider;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Schema;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
-import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
+import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.http.HttpTransportOptions;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
@@ -69,16 +72,47 @@ public class DirectOutputCommitter {
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
     HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
 
+    HeaderProvider headerProvider = injector.getInstance(HeaderProvider.class);
+    BigQueryCredentialsSupplier bigQueryCredentialsSupplier =
+        injector.getInstance(BigQueryCredentialsSupplier.class);
+
+    // ******* TODO: Remove *****************************************
+    com.google.cloud.http.HttpTransportOptions.Builder httpTransportOptionsBuilder =
+        HttpTransportOptions.newBuilder()
+            .setConnectTimeout(config.getBigQueryClientConnectTimeout())
+            .setReadTimeout(config.getBigQueryClientReadTimeout());
+    BigQueryProxyConfig proxyConfig = config.getBigQueryProxyConfig();
+    if (proxyConfig.getProxyUri().isPresent()) {
+      httpTransportOptionsBuilder.setHttpTransportFactory(
+          BigQueryProxyTransporterBuilder.createHttpTransportFactory(
+              proxyConfig.getProxyUri(),
+              proxyConfig.getProxyUsername(),
+              proxyConfig.getProxyPassword()));
+    }
+    BigQueryOptions bqOptions =
+        BigQueryOptions.newBuilder()
+            .setHeaderProvider(headerProvider)
+            .setProjectId(config.getParentProjectId())
+            .setCredentials(bigQueryCredentialsSupplier.getCredentials())
+            .setRetrySettings(config.getBigQueryClientRetrySettings())
+            .setTransportOptions(httpTransportOptionsBuilder.build())
+            .build();
+    BigQuery bq = bqOptions.getService();
+    // ****************************************************************
+
     // Retrieve the BigQuery schema
     Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
 
     // Finally, make the new data available in the destination table by committing the streams
     DirectWriterContext writerContext =
         new DirectWriterContext(
+            bq, // TODO: Remove
             bqClient,
             bqClientFactory,
+            jobDetails.isOverwrite(),
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
+            OutputPartition.getFromJobDetails(jobDetails),
             bigQuerySchema,
             config.getEnableModeCheckForSchemaFields());
     writerContext.commit(streamNames);
@@ -97,10 +131,13 @@ public class DirectOutputCommitter {
     Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
     DirectWriterContext writerContext =
         new DirectWriterContext(
+            null, // TODO: Remove
             bqClient,
             bqClientFactory,
+            jobDetails.isOverwrite(),
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
+            OutputPartition.getFromJobDetails(jobDetails),
             bigQuerySchema,
             config.getEnableModeCheckForSchemaFields());
     writerContext.abort();

@@ -17,8 +17,7 @@ package com.google.cloud.hive.bigquery.connector;
 
 import static com.google.cloud.hive.bigquery.connector.TestUtils.HIVE_TEST_TABLE_DDL;
 import static com.google.cloud.hive.bigquery.connector.TestUtils.TEST_TABLE_NAME;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import org.junit.jupiter.api.Test;
@@ -55,7 +54,7 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingGcsTempPath() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive("tez", HiveBigQueryConfig.AVRO, "");
+    initHive("mr", HiveBigQueryConfig.AVRO, "");
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(
@@ -77,21 +76,15 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingBucketPermissions() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive("tez", HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
+    initHive("mr", HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(
             RuntimeException.class,
             () -> runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
-    // TODO: Look into why we don't always get the same message back
-    String message1 =
-        "Cannot write to table 'test'. Does not have write access to the following GCS path, or"
-            + " bucket does not exist: gs://random-bucket-abcdef-12345)";
-    String message2 =
-        "Cannot write to table 'test'. The service account does not have IAM permissions to write"
-            + " to the following GCS path, or bucket does not exist:"
-            + " gs://random-bucket-abcdef-12345";
-    assertTrue(
-        exception.getMessage().contains(message1) || exception.getMessage().contains(message2));
+    String message =
+        "Cannot write to table 'default.test'. Does not have write access to the following GCS"
+            + " path, or bucket does not exist: gs://random-bucket-abcdef-12345";
+    assertTrue(exception.getMessage().contains(message));
   }
 }

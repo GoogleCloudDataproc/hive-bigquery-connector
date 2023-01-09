@@ -19,7 +19,6 @@ import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Schema;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
@@ -27,11 +26,9 @@ import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
-import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
@@ -42,7 +39,6 @@ import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
@@ -162,22 +158,9 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     }
     if (partitionColumn != null) {
       partitionColumnName = partitionColumn.getName();
-      table.putToParameters(
-          hive_metastoreConstants.META_TABLE_PARTITION_COLUMNS, partitionColumn.getName());
-      table.putToParameters(
-          hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES, partitionColumn.getType());
     }
     if (tblPropPartitionField.isPresent()) {
       partitionColumnName = tblPropPartitionField.get();
-      for (FieldSchema column : table.getSd().getCols()) {
-        if (column.getName().equals(partitionColumnName)) {
-          table.putToParameters(
-              hive_metastoreConstants.META_TABLE_PARTITION_COLUMNS, column.getName());
-          table.putToParameters(
-              hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES, column.getType());
-          break;
-        }
-      }
     }
 
     // Hive's clustering is not supported
@@ -303,86 +286,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     bigQueryService.create(createTableInfo);
   }
 
-  /** Called before data is written to a table. */
   public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-    // Load the job details file from HDFS
-    JobDetails jobDetails;
-    try {
-      jobDetails = JobDetails.readJobDetailsFile(conf);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    jobDetails.setOverwrite(overwrite);
-
-    // Note: Unfortunately the table properties do not contain constraints like
-    // "NOT NULL", so the inferred avro & proto schema assume that all columns are
-    // optional (e.g. UNION["null", "long"]). So if these constraints are necessary
-    // for the user, then the user should provide an explicit avro schema at table
-    // creation time.
-    // See: https://lists.apache.org/thread/mjm4yznf87xzbk7xywf2gvmnp3l1dm5d
-
-    String writeMethod =
-        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, table.getParameters()));
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      // Get an instance of the BigQuery client
-      BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-
-      // Retrieve the BigQuery schema of the final destination table
-      Schema bigQuerySchema =
-          bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
-
-      // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
-      // write method. In this case, we will stream-write to a temporary table
-      // and then finally overwrite the final destination table with the temporary
-      // table's contents. This special case doesn't apply to the 'indirect'
-      // write method, which doesn't need a temporary table -- instead that method
-      // uses the 'WRITE_TRUNCATE' option available in the BigQuery Load Job API when
-      // loading the Avro files into the BigQuery table (see more about that in the
-      // `IndirectOutputCommitter` class).
-      if (overwrite) {
-        // Set the final destination table as the job's original table
-        jobDetails.setFinalTable(jobDetails.getTableId().getTable());
-        // Create a temporary table with the same schema
-        // TODO: It'd be useful to add a description to the table explaining that it was
-        //  created as a temporary table for a Hive query.
-        TableInfo tableInfo =
-            bqClient.createTempTable(
-                TableId.of(
-                    jobDetails.getProject(),
-                    jobDetails.getDataset(),
-                    jobDetails.getTableId().getTable() + "-" + HiveUtils.getHiveId(conf) + "-"),
-                bigQuerySchema);
-        // Set the temp table as the job's output table
-        jobDetails.setTable(tableInfo.getTableId().getTable());
-      }
-    } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      String tempGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
-      jobDetails.setGcsTempPath(tempGcsPath);
-      if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
-        throw new MetaException(
-            String.format(
-                "The '%s' property must be set when using the '%s' write method.",
-                HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
-      } else if (!IndirectUtils.hasGcsWriteAccess(
-          injector.getInstance(BigQueryCredentialsSupplier.class), tempGcsPath)) {
-        throw new MetaException(
-            String.format(
-                "Cannot write to table '%s'. Does not have write access to the"
-                    + " following GCS path, or bucket does not exist: %s",
-                table.getTableName(), tempGcsPath));
-      }
-    } else {
-      throw new MetaException("Invalid write method: " + writeMethod);
-    }
-
-    // Save the info file so that we can retrieve all the information at later
-    // stages of the job's execution
-    JobDetails.writeJobDetailsFile(conf, jobDetails);
+    // Do nothing
   }
 
   /**

@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
 import java.util.*;
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
@@ -45,7 +45,7 @@ public class BigQuerySerDe extends AbstractSerDe {
   }
 
   public static StructObjectInspector getRowObjectInspector(
-      Map<Object, Object> tableProperties, BigQueryOutputFormat.Partition partition) {
+      Map<Object, Object> tableProperties, OutputPartition partition) {
     String columnNameProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMNS);
     String columnTypeProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMN_TYPES);
     String columnNameDelimiter =
@@ -59,7 +59,7 @@ public class BigQuerySerDe extends AbstractSerDe {
       String columnNameProperty,
       String columnTypeProperty,
       String columnNameDelimiter,
-      BigQueryOutputFormat.Partition partition) {
+      OutputPartition partition) {
     List<String> columnNames = new ArrayList<>();
     List<TypeInfo> columnTypes = new ArrayList<>();
     if (columnNameProperty.length() > 0) {

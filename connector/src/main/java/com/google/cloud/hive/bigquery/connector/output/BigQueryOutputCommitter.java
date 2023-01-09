@@ -33,7 +33,7 @@ import org.apache.hadoop.mapred.TaskAttemptContext;
 public class BigQueryOutputCommitter extends OutputCommitter {
 
   public static void commit(Configuration conf) throws IOException {
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
+    JobDetails jobDetails = JobDetails.getJobDetails(conf);
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     // Pick the appropriate OutputCommitter (direct or indirect) based on the
@@ -72,7 +72,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
     JobConf conf = jobContext.getJobConf();
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
+    JobDetails jobDetails = JobDetails.getJobDetails(conf);
     DirectOutputCommitter.abortJob(conf, jobDetails);
     FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf());
     super.abortJob(jobContext, status);

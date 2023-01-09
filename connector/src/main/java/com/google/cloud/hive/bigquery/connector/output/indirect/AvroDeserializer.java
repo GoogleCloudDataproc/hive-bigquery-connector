@@ -20,6 +20,9 @@ import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.*;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
@@ -152,6 +155,19 @@ public class AvroDeserializer {
     if (fieldObjectInspector instanceof DateObjectInspector) {
       if (fieldValue instanceof Integer) {
         return fieldValue;
+      }
+      if (fieldValue instanceof String || fieldValue instanceof Text) {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+        Date date;
+        try {
+          date = formatter.parse(fieldValue.toString());
+        } catch (ParseException e) {
+          throw new RuntimeException(e);
+        }
+        Instant instant = date.toInstant();
+        long epochMillis = instant.toEpochMilli();
+        long epochDays = epochMillis / (1000 * 60 * 60 * 24);
+        return (int) (epochDays);
       }
       return ((DateWritableV2) fieldValue).getDays();
     }

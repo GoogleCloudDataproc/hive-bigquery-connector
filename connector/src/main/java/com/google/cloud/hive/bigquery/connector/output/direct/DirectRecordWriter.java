@@ -19,7 +19,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -53,10 +53,9 @@ public class DirectRecordWriter
   BigQueryDirectDataWriterHelper streamWriter;
   StructObjectInspector rowObjectInspector;
   Descriptors.Descriptor descriptor;
-  BigQueryOutputFormat.Partition partition;
+  OutputPartition partition;
 
-  public DirectRecordWriter(
-      JobConf jobConf, JobDetails jobDetails, BigQueryOutputFormat.Partition partition) {
+  public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails, OutputPartition partition) {
     this.jobConf = jobConf;
     this.partition = partition;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
@@ -99,7 +98,7 @@ public class DirectRecordWriter
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.commit(); // TODO: Ideally that method should be renamed to "finalize()"
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+      JobDetails jobDetails = JobDetails.getJobDetails(jobConf);
       Path filePath =
           DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getTableId(), taskAttemptID);
       FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);

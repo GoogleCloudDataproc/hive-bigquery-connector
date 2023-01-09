@@ -17,11 +17,14 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils.AvroOutput;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -50,14 +53,16 @@ public class IndirectAvroRecordWriter
   TaskAttemptID taskAttemptID;
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
+  OutputPartition partition;
 
   public IndirectAvroRecordWriter(
-      JobConf jobConf, JobDetails jobDetails, BigQueryOutputFormat.Partition partition) {
+      JobConf jobConf, JobDetails jobDetails, OutputPartition partition) {
     this.jobConf = jobConf;
+    this.partition = partition;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
     this.avroSchema =
         AvroUtils.adaptSchemaForBigQuery(
-            AvroUtils.extractAvroSchema(jobConf, jobDetails.getTableProperties()));
+            AvroUtils.extractAvroSchema(jobConf, jobDetails.getTableProperties()), partition);
     this.avroOutput = AvroOutput.initialize(jobConf, this.avroSchema);
     this.rowObjectInspector =
         BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties(), partition);
@@ -70,16 +75,20 @@ public class IndirectAvroRecordWriter
 
   @Override
   public void write(Writable writable) throws IOException {
-    Object serializedRecord = ((ObjectWritable) writable).get();
+    Object[] objectArray = (Object[]) ((ObjectWritable) writable).get();
+    List<Object> values = new ArrayList<>(Arrays.asList(objectArray));
+    if (partition != null && partition.getStaticValue() != null) {
+      values.add(partition.getStaticValue());
+    }
     GenericRecord record =
-        AvroDeserializer.buildSingleRecord(rowObjectInspector, avroSchema, serializedRecord);
+        AvroDeserializer.buildSingleRecord(rowObjectInspector, avroSchema, values);
     this.avroOutput.getDataFileWriter().append(record);
   }
 
   @Override
   public void close(boolean abort) throws IOException {
     if (!abort) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+      JobDetails jobDetails = JobDetails.getJobDetails(jobConf);
       Path filePath =
           IndirectUtils.getTaskAvroTempFile(
               jobConf, jobDetails.getTableId(), jobDetails.getGcsTempPath(), taskAttemptID);

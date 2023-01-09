@@ -23,11 +23,8 @@ import java.io.IOException;
 import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
@@ -50,33 +47,6 @@ public class BigQueryOutputFormat
     throw new RuntimeException("Code path not expected");
   }
 
-  public static class Partition {
-    private final String name;
-    private final TypeInfo type;
-    private String value;
-
-    private Partition(String name, String type) {
-      this.name = name;
-      this.type = TypeInfoUtils.getTypeInfosFromTypeString(type).get(0);
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public TypeInfo getType() {
-      return type;
-    }
-
-    public String getStaticValue() {
-      return value;
-    }
-
-    public void setStaticValue(String value) {
-      this.value = value;
-    }
-  }
-
   @Override
   public RecordWriter getHiveRecordWriter(
       JobConf jobConf,
@@ -86,45 +56,8 @@ public class BigQueryOutputFormat
       Properties tableProperties,
       Progressable progressable)
       throws IOException {
-
-    Partition partition = null;
-    String tableLocation = jobConf.get("location");
-    String pathString = path.toString();
-    assert (pathString.startsWith(tableLocation));
-
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
-    String partitionName =
-        jobDetails
-            .getTableProperties()
-            .getProperty(hive_metastoreConstants.META_TABLE_PARTITION_COLUMNS);
-    if (partitionName != null) {
-      String partitionType =
-          jobDetails
-              .getTableProperties()
-              .getProperty(hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES);
-      partition = new Partition(partitionName, partitionType);
-      if (pathString.length() > tableLocation.length()) {
-        // This is the case of static partitioning, i.e. INSERT INTO ...
-        // PARTITION(myfield=somevalue)
-        // To retrieve the specified partition value, we extract the value from the file path,
-        // which should be of the form:
-        // ".../mywarehouse/mytable/myfield=myvalue/.hive-staging...etc..."
-        String substring = pathString.substring(tableLocation.length() + 1);
-        String stagingDir = jobConf.get("hive.exec.stagingdir");
-        int index = substring.indexOf(stagingDir);
-        substring = substring.substring(0, index - 1);
-        String[] partitionStrings = substring.split("/");
-        if (partitionStrings.length > 1) {
-          throw new RuntimeException("BigQuery supports only up to 1 partition");
-        }
-        if (partitionStrings.length == 1) {
-          String[] partitionValues = partitionStrings[0].split("=");
-          assert (partition.getName().equals(partitionValues[0]));
-          String partitionValue = partitionValues[1];
-          partition.setStaticValue(partitionValue);
-        }
-      }
-    }
+    JobDetails jobDetails = JobDetails.getJobDetails(jobConf);
+    OutputPartition partition = OutputPartition.getFromJobDetails(jobDetails);
 
     // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
     String writeMethod =

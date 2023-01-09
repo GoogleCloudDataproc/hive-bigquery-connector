@@ -23,7 +23,9 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.hadoop.hive.ql.parse.*;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
@@ -51,31 +53,38 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     assertEquals(ImmutableList.of("int_val"), Objects.requireNonNull(clustering).getFields());
   }
 
-  @Test
-  public void testPartitionClause() {
+  @CartesianTest
+  public void testInsertIntoPartition(
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(
+              strings = {
+                HiveBigQueryConfig.WRITE_METHOD_DIRECT,
+                HiveBigQueryConfig.WRITE_METHOD_INDIRECT
+              })
+          String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.ARROW);
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, PARTITION_CLAUSE_TABLE_NAME);
     // Create the table using Hive
-    initHive();
     runHiveScript(HIVE_PARTITION_CLAUSE_TABLE_CREATE_QUERY);
-    StandardTableDefinition tableDef =
-        getTableInfo(dataset, PARTITION_CLAUSE_TABLE_NAME).getDefinition();
-    TimePartitioning timePartitioning = tableDef.getTimePartitioning();
-    assertEquals(2592000000L, Objects.requireNonNull(timePartitioning).getExpirationMs());
-    assertEquals("ts", timePartitioning.getField());
-    assertEquals(TimePartitioning.Type.MONTH, timePartitioning.getType());
-    Clustering clustering = tableDef.getClustering();
-    assertEquals(ImmutableList.of("int_val"), Objects.requireNonNull(clustering).getFields());
-  }
+    if (engine.equals("tez")) {
+      // TODO: Add support for Tez
+      Throwable exception =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  runHiveScript(
+                      String.join(
+                          "\n",
+                          "INSERT INTO TABLE "
+                              + PARTITION_CLAUSE_TABLE_NAME
+                              + " PARTITION(dt='2022-12-01') VALUES(",
+                          "888",
+                          ");")));
+      return;
+    }
 
-  @Test
-  public void testPartitionByClauseDate() {
-    initHive("mr", HiveBigQueryConfig.ARROW);
-    // initHive();
-    // Make sure the BQ table doesn't exist
-    dropBqTableIfExists(dataset, PARTITION_CLAUSE_TABLE_NAME);
-    // Create the table using Hive
-    runHiveScript(HIVE_PARTITION_CLAUSE_TABLE_CREATE_QUERY);
     // Insert using "INTO TABLE ... PARTITION()" statement
     runHiveScript(
         String.join(
@@ -109,20 +118,63 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     assertEquals("2023-01-03", rows.get(1).get(1).getStringValue());
   }
 
-  // TODO: Finish writing this test
-  @Test
-  public void testInsertOverwriteWithPartition() {
-    initHive();
+  @CartesianTest
+  public void testInsertOverwritePartition(
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(
+              strings = {
+                HiveBigQueryConfig.WRITE_METHOD_DIRECT,
+                HiveBigQueryConfig.WRITE_METHOD_INDIRECT
+              })
+          String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.ARROW);
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, PARTITION_CLAUSE_TABLE_NAME);
     // Create the table using Hive
     runHiveScript(HIVE_PARTITION_CLAUSE_TABLE_CREATE_QUERY);
-    runHiveScript(
+    // Add some initial data
+    runBqQuery(
         String.format(
-            "INSERT OVERWRITE TABLE %s\n"
-                + "PARTITION(order_date='2018-08-01') VALUES \n"
-                + "(999);\n",
+            "INSERT `${dataset}.%s` VALUES (123, '2019-08-15'), (888, '2022-12-01'), (999,"
+                + " '2022-12-01')",
             PARTITION_CLAUSE_TABLE_NAME));
+    if (engine.equals("tez") || writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+      // TODO: Add support for Tez and indirect write method
+      Throwable exception =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  runHiveScript(
+                      String.join(
+                          "\n",
+                          "INSERT OVERWRITE TABLE "
+                              + PARTITION_CLAUSE_TABLE_NAME
+                              + " PARTITION(dt='2022-12-01') VALUES(",
+                          "777",
+                          ");")));
+      return;
+    }
+    // Overwrite the partition using Hive
+    runHiveScript(
+        String.join(
+            "\n",
+            "INSERT OVERWRITE TABLE "
+                + PARTITION_CLAUSE_TABLE_NAME
+                + " PARTITION(dt='2022-12-01') VALUES(",
+            "777",
+            ");"));
+    TableResult result =
+        runBqQuery(
+            String.format(
+                "SELECT * FROM `${dataset}.%s` ORDER BY int_val", PARTITION_CLAUSE_TABLE_NAME));
+    // Verify we get the expected values
+    assertEquals(2, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    assertEquals(123L, rows.get(0).get(0).getLongValue());
+    assertEquals("2019-08-15", rows.get(0).get(1).getStringValue());
+    assertEquals(777L, rows.get(1).get(0).getLongValue());
+    assertEquals("2022-12-01", rows.get(1).get(1).getStringValue());
   }
 
   @Test

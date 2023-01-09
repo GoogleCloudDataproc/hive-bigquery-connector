@@ -15,15 +15,11 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
+import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import java.util.TimeZone;
-import java.util.UUID;
+import java.util.*;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -37,6 +33,7 @@ import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeException;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.hadoop.hive.serde2.avro.TypeInfoToSchema;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapred.JobConf;
@@ -71,22 +68,23 @@ public class AvroUtils {
 
   /**
    * Makes some modifications to the provided Avro schema to be compatible with the way we store
-   * Hive data in BigQuery. Currently, the only modification that we make is convert the Map type
-   * (which BigQuery doesn't support natively) into a list of key/value records.
+   * Hive data in BigQuery. Modifications include: - Add the partition column to the Avro schema -
+   * Convert the MAP type to a list of key/value records (which corresponds to a BigQuery ARRAY of
+   * STRUCTs)
    */
-  public static Schema adaptSchemaForBigQuery(Schema originalSchema) {
+  public static Schema adaptSchemaForBigQuery(Schema originalSchema, OutputPartition partition) {
     AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(originalSchema);
     Schema schema = schemaInfo.getActualSchema();
 
     if (schema.getType() == Schema.Type.ARRAY) {
-      Schema modifiedElementType = adaptSchemaForBigQuery(schema.getElementType());
+      Schema modifiedElementType = adaptSchemaForBigQuery(schema.getElementType(), null);
       schema = Schema.createArray(modifiedElementType);
     } else if (schema.getType() == Schema.Type.RECORD) {
       List<Schema.Field> originalFields = schema.getFields();
       List<Schema.Field> modifiedFields = new ArrayList<>();
       originalFields.forEach(
           originalField -> {
-            Schema modifiedFieldSchema = adaptSchemaForBigQuery(originalField.schema());
+            Schema modifiedFieldSchema = adaptSchemaForBigQuery(originalField.schema(), null);
             modifiedFields.add(
                 new Schema.Field(
                     originalField.name(),
@@ -94,6 +92,23 @@ public class AvroUtils {
                     originalField.doc(),
                     originalField.defaultValue()));
           });
+      if (partition != null) {
+        // Add the partition column to the Avro schema
+        TypeInfoToSchema typeInfoToSchema = new TypeInfoToSchema();
+        Schema partitionSchema =
+            typeInfoToSchema
+                .convert(
+                    Collections.singletonList(partition.getName()),
+                    Collections.singletonList(partition.getType()),
+                    new ArrayList<>(),
+                    null,
+                    null,
+                    null)
+                .getFields()
+                .get(0)
+                .schema();
+        modifiedFields.add(new Schema.Field(partition.getName(), partitionSchema, null, null));
+      }
       schema =
           Schema.createRecord(
               "record_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
@@ -103,7 +118,7 @@ public class AvroUtils {
       Schema keySchema = Schema.create(Schema.Type.STRING);
       Schema.Field keyField =
           new Schema.Field(KeyValueObjectInspector.KEY_FIELD_NAME, keySchema, null, null);
-      Schema valueSchema = adaptSchemaForBigQuery(schema.getValueType());
+      Schema valueSchema = adaptSchemaForBigQuery(schema.getValueType(), null);
       Schema.Field valueField =
           new Schema.Field(KeyValueObjectInspector.VALUE_FIELD_NAME, valueSchema, null, null);
       Schema entrySchema =
