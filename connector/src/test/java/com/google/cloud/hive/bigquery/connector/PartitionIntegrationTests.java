@@ -23,7 +23,6 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.apache.hadoop.hive.ql.parse.*;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
@@ -228,5 +227,63 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
         String.format(
             "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
+  }
+
+  @Test
+  public void readPartitionedTabled() {
+    hive.setHiveConfValue(
+        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
+
+    hive.setHiveConfValue(
+        "hive.metastore.rawstore.impl",
+        "com.google.cloud.hive.bigquery.connector.BigQueryMetadataStore");
+
+    initHive("mr", HiveBigQueryConfig.ARROW);
+    String tableName = "lala";
+    runBqQuery(
+        String.join(
+            "\n",
+            "create or replace table `${dataset}." + tableName + "`",
+            "(",
+            "    int_col int64,",
+            "    str_col string,",
+            "    float_col float64,",
+            "    bool_col boolean,",
+            "    date_col date",
+            ")",
+            "partition by date_col"));
+    runBqQuery(
+        String.join(
+            "\n",
+            "insert into `${dataset}." + tableName + "` values",
+            "(101, 'banana', 2.2, False, date('2001-01-01')),",
+            "(102, 'apple', 2.3, True, date('2001-01-01')),",
+            "(103, 'berry', 2.4, False, date('2002-02-02')),",
+            "(104, 'watermelon', 2.5, True, date('2002-02-02')),",
+            "(105, 'sweetlime', 2.6, False, date('2003-03-03')),",
+            "(106, 'papaya', 2.7, True, date('2003-03-03'))"));
+    runHiveScript(
+        String.join(
+            "\n",
+            "CREATE EXTERNAL TABLE `" + tableName + "` (",
+            "int_col int,",
+            "str_col string,",
+            "float_col float,",
+            "bool_col boolean",
+            ")",
+            "PARTITIONED BY (date_col date)",
+            "STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "TBLPROPERTIES (",
+            "    'bq.project'='${project}',",
+            "    'bq.dataset'='${dataset}',",
+            "    'bq.table'='" + tableName + "'",
+            ")"));
+
+    List<Object[]> rows = runHiveStatement("show partitions " + tableName);
+//    List<Object[]> rows = runHiveStatement("select * from " + tableName);
+//    List<Object[]> rows = runHiveStatement(
+//        "select * from " + tableName +
+//            " WHERE date_col >= '2003-03-03' and date_col < '2005-05-05'");
+    assertTrue(rows.size() > 0);
   }
 }
