@@ -19,7 +19,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
+import com.google.cloud.hive.bigquery.connector.PartitionSpec;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -53,9 +53,9 @@ public class DirectRecordWriter
   BigQueryDirectDataWriterHelper streamWriter;
   StructObjectInspector rowObjectInspector;
   Descriptors.Descriptor descriptor;
-  OutputPartition partition;
+  PartitionSpec partition;
 
-  public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails, OutputPartition partition) {
+  public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails, PartitionSpec partition) {
     this.jobConf = jobConf;
     this.partition = partition;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);

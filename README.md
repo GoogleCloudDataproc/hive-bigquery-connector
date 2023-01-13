@@ -36,10 +36,19 @@ This connector has been tested with Hive 3.1.2, Hadoop 2.10.1, and Tez 0.9.1.
    hive> add jar gs://<JAR location>/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar;
    ```
 
-4. Verify that the JAR is correctly loaded:
+6. Verify that the JAR is correctly loaded:
 
    ```sh
    hive> list jars;
+   ```
+
+7. Set the following property in Hive's configuration:
+
+   ```xml
+   <property>
+     <name>hive.metastore.rawstore.impl</name>
+     <value>com.google.cloud.hive.bigquery.connector.metastore.BigQueryObjectStore</value>
+   </property>
    ```
 
 ## Managed vs external tables

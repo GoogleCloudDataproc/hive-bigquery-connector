@@ -22,9 +22,9 @@ import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.PartitionSpec;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
-import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.inject.Guice;
@@ -112,7 +112,7 @@ public class DirectOutputCommitter {
             jobDetails.isOverwrite(),
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
-            OutputPartition.getFromJobDetails(jobDetails),
+            PartitionSpec.getFromJobDetails(jobDetails),
             bigQuerySchema,
             config.getEnableModeCheckForSchemaFields());
     writerContext.commit(streamNames);
@@ -137,7 +137,7 @@ public class DirectOutputCommitter {
             jobDetails.isOverwrite(),
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
-            OutputPartition.getFromJobDetails(jobDetails),
+            PartitionSpec.getFromJobDetails(jobDetails),
             bigQuerySchema,
             config.getEnableModeCheckForSchemaFields());
     writerContext.abort();

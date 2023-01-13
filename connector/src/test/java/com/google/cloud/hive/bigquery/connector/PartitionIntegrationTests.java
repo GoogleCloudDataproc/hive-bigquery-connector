@@ -23,6 +23,8 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
@@ -230,13 +232,12 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
   }
 
   @Test
-  public void readPartitionedTabled() {
+  public void readPartitionedTable() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-
     hive.setHiveConfValue(
-        "hive.metastore.rawstore.impl",
-        "com.google.cloud.hive.bigquery.connector.BigQueryMetadataStore");
+        HiveConf.ConfVars.METASTORE_RAW_STORE_IMPL.varname,
+        "com.google.cloud.hive.bigquery.connector.metastore.BigQueryObjectStore");
 
     initHive("mr", HiveBigQueryConfig.ARROW);
     String tableName = "lala";
@@ -279,11 +280,11 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
             "    'bq.table'='" + tableName + "'",
             ")"));
 
-    List<Object[]> rows = runHiveStatement("show partitions " + tableName);
-//    List<Object[]> rows = runHiveStatement("select * from " + tableName);
-//    List<Object[]> rows = runHiveStatement(
-//        "select * from " + tableName +
-//            " WHERE date_col >= '2003-03-03' and date_col < '2005-05-05'");
+    //    List<Object[]> rows = runHiveStatement("show partitions " + tableName);
+    List<Object[]> rows = runHiveStatement("select * from " + tableName);
+    //        List<Object[]> rows = runHiveStatement(
+    //            "select * from " + tableName +
+    //                " WHERE date_col >= '2003-03-03' and date_col < '2005-05-05'");
     assertTrue(rows.size() > 0);
   }
 }

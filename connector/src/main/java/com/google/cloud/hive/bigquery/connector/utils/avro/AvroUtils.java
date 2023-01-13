@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
-import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
+import com.google.cloud.hive.bigquery.connector.PartitionSpec;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -72,7 +72,7 @@ public class AvroUtils {
    * Convert the MAP type to a list of key/value records (which corresponds to a BigQuery ARRAY of
    * STRUCTs)
    */
-  public static Schema adaptSchemaForBigQuery(Schema originalSchema, OutputPartition partition) {
+  public static Schema adaptSchemaForBigQuery(Schema originalSchema, PartitionSpec partition) {
     AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(originalSchema);
     Schema schema = schemaInfo.getActualSchema();
 

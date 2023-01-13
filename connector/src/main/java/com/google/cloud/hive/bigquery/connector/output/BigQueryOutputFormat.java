@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.output;
 
 import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.PartitionSpec;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectRecordWriter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectAvroRecordWriter;
@@ -57,7 +58,7 @@ public class BigQueryOutputFormat
       Progressable progressable)
       throws IOException {
     JobDetails jobDetails = JobDetails.getJobDetails(jobConf);
-    OutputPartition partition = OutputPartition.getFromJobDetails(jobDetails);
+    PartitionSpec partition = PartitionSpec.getFromJobDetails(jobDetails);
 
     // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
     String writeMethod =

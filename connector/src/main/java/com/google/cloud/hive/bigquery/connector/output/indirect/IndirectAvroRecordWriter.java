@@ -17,7 +17,7 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
+import com.google.cloud.hive.bigquery.connector.PartitionSpec;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils.AvroOutput;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
@@ -53,10 +53,9 @@ public class IndirectAvroRecordWriter
   TaskAttemptID taskAttemptID;
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
-  OutputPartition partition;
+  PartitionSpec partition;
 
-  public IndirectAvroRecordWriter(
-      JobConf jobConf, JobDetails jobDetails, OutputPartition partition) {
+  public IndirectAvroRecordWriter(JobConf jobConf, JobDetails jobDetails, PartitionSpec partition) {
     this.jobConf = jobConf;
     this.partition = partition;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);

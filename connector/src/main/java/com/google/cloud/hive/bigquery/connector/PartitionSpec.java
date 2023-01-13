@@ -13,23 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.output;
+package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.hive.bigquery.connector.JobDetails;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
-public class OutputPartition {
+public class PartitionSpec {
 
   private final String name;
   private final TypeInfo type;
   private String value;
   // TODO: Add comment/description?
 
-  private OutputPartition(String name, String type) {
+  public PartitionSpec(String name, String type) {
     this.name = name;
     this.type = TypeInfoUtils.getTypeInfosFromTypeString(type).get(0);
+  }
+
+  public PartitionSpec(String name, String type, String value) {
+    this.name = name;
+    this.type = TypeInfoUtils.getTypeInfosFromTypeString(type).get(0);
+    this.value = value;
   }
 
   public String getName() {
@@ -48,8 +53,8 @@ public class OutputPartition {
     this.value = value;
   }
 
-  public static OutputPartition getFromJobDetails(JobDetails jobDetails) {
-    OutputPartition partition = null;
+  public static PartitionSpec getFromJobDetails(JobDetails jobDetails) {
+    PartitionSpec partition = null;
     String partitionName =
         jobDetails
             .getTableProperties()
@@ -59,7 +64,7 @@ public class OutputPartition {
           jobDetails
               .getTableProperties()
               .getProperty(hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES);
-      partition = new OutputPartition(partitionName, partitionType);
+      partition = new PartitionSpec(partitionName, partitionType);
       if (jobDetails.getOutputPartitionValues() != null) {
         String partitionValue = jobDetails.getOutputPartitionValues().get(partitionName);
         partition.setStaticValue(partitionValue);

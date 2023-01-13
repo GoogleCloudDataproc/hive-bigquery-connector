@@ -20,7 +20,7 @@ import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
-import com.google.cloud.hive.bigquery.connector.output.OutputPartition;
+import com.google.cloud.hive.bigquery.connector.PartitionSpec;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ public class DirectWriterContext {
   private final TableId tableIdToWrite;
   private final TableId destinationTableId;
   private final boolean enableModeCheckForSchemaFields;
-  private final OutputPartition outputPartition;
+  private final PartitionSpec partitionSpec;
 
   private final String tablePathForBigQueryStorage;
   private boolean deleteTableOnAbort;
@@ -51,7 +51,7 @@ public class DirectWriterContext {
       boolean isOverwrite,
       TableId tableId,
       TableId destinationTableId,
-      OutputPartition outputPartition,
+      PartitionSpec partitionSpec,
       Schema schema,
       boolean enableModeCheckForSchemaFields)
       throws IllegalArgumentException {
@@ -60,7 +60,7 @@ public class DirectWriterContext {
     this.isOverwrite = isOverwrite;
     this.tableIdToWrite = getOrCreateTable(tableId, schema);
     this.destinationTableId = destinationTableId;
-    this.outputPartition = outputPartition;
+    this.partitionSpec = partitionSpec;
     this.tablePathForBigQueryStorage =
         bigQueryClient.createTablePathForBigQueryStorage(tableIdToWrite);
     this.writeClient = bigQueryWriteClientFactory.getBigQueryWriteClient();
@@ -118,7 +118,7 @@ public class DirectWriterContext {
     // Special case for "INSERT OVERWRITE" statements: Overwrite the final
     // destination table with the contents of the temporary table.
     if (isOverwrite) {
-      if (outputPartition == null) { // Overwrite entire table
+      if (partitionSpec == null) { // Overwrite entire table
         Job overwriteJob =
             bigQueryClient.overwriteDestinationWithTemporary(tableIdToWrite, destinationTableId);
         BigQueryClient.waitForJob(overwriteJob);
@@ -143,8 +143,8 @@ public class DirectWriterContext {
                 queryFormat,
                 destinationTableName,
                 temporaryTableName,
-                outputPartition.getName(),
-                outputPartition.getStaticValue());
+                partitionSpec.getName(),
+                partitionSpec.getStaticValue());
         QueryJobConfiguration queryConfig =
             QueryJobConfiguration.newBuilder(query).setUseLegacySql(false).build();
         Job overwriteJob = bq.create(JobInfo.newBuilder(queryConfig).build());

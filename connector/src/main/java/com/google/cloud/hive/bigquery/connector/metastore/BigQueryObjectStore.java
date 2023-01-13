@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector;
+package com.google.cloud.hive.bigquery.connector.metastore;
 
 import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
@@ -40,10 +40,13 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.thrift.TException;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
-public class BigQueryMetadataStore extends ObjectStore {
+/**
+ * Customizes the Hive Metastore's behavior when fetching metadata information about BigQuery
+ * tables.
+ */
+public class BigQueryObjectStore extends ObjectStore {
 
-  PartitionExpressionProxy partitionExpressionProxy;
-
+  /** Returns a Table object if the specified table is linked to a BigQuery table. */
   protected Table getBigQueryLinkedTable(String catName, String dbName, String tableName)
       throws MetaException {
     HiveMetaStoreClient client = new HiveMetaStoreClient(getConf());
@@ -62,14 +65,15 @@ public class BigQueryMetadataStore extends ObjectStore {
     return table;
   }
 
-  public static ExprNodeDesc convertFilter(ExprNodeDesc filterExpr) {
+  /** Converts the given Hive filter expression to be compatible with BigQuery. */
+  public static ExprNodeDesc convertFilterForBigQuery(ExprNodeDesc filterExpr) {
     // Check if it's a function
     if (filterExpr instanceof ExprNodeGenericFuncDesc) {
       ExprNodeGenericFuncDesc function = ((ExprNodeGenericFuncDesc) filterExpr);
       // Translate the children parameters
       List<ExprNodeDesc> translatedChildren = new ArrayList<>();
       for (ExprNodeDesc child : filterExpr.getChildren()) {
-        translatedChildren.add(convertFilter(child));
+        translatedChildren.add(convertFilterForBigQuery(child));
       }
       function.setChildren(translatedChildren);
       return filterExpr;
@@ -90,6 +94,7 @@ public class BigQueryMetadataStore extends ObjectStore {
     throw new RuntimeException("Unexpected filter type: " + filterExpr);
   }
 
+  /** Fetch partition ids from BigQuery for the given table. */
   protected List<String> fetchPartitionIds(Table table, ExprNodeGenericFuncDesc filter, short max) {
     // Fetch partition ids from BigQuery
     Injector injector =
@@ -101,7 +106,7 @@ public class BigQueryMetadataStore extends ObjectStore {
     TableId tableId = config.getTableId();
     String convertedFilter = null;
     if (filter != null) {
-      convertedFilter = convertFilter(filter).getExprString();
+      convertedFilter = convertFilterForBigQuery(filter).getExprString();
     }
     String query =
         String.format(
@@ -114,14 +119,15 @@ public class BigQueryMetadataStore extends ObjectStore {
             max > 0 ? "LIMIT " + max : "");
     TableResult bqPartitions = bqClient.query(query);
     // Convert the BigQuery partition ids to the format expected by Hive
-    List<String> partitionNames = new ArrayList<>();
+    List<String> partitionIds = new ArrayList<>();
     StandardTableDefinition tableDef = bqClient.getTable(config.getTableId()).getDefinition();
     TimePartitioning timePartitioning = tableDef.getTimePartitioning();
     if (timePartitioning != null && timePartitioning.getType().equals(TimePartitioning.Type.DAY)) {
       List<FieldValueList> rows =
           Streams.stream(bqPartitions.iterateAll()).collect(Collectors.toList());
       for (FieldValueList value : rows) {
-        // In BQ, DAY partition ids are formatted as YYYYMMDD.
+        // In BQ, DAY partition ids are formatted as YYYYMMDD. So we convert it to
+        // Hive's format, i.e. YYYY-MM-DD.
         SimpleDateFormat bqFormat = new SimpleDateFormat("yyyyMMdd");
         SimpleDateFormat hiveFormat = new SimpleDateFormat("yyyy-MM-dd");
         Date date;
@@ -130,12 +136,13 @@ public class BigQueryMetadataStore extends ObjectStore {
         } catch (ParseException e) {
           throw new RuntimeException(e);
         }
-        partitionNames.add(hiveFormat.format(date));
+        partitionIds.add(hiveFormat.format(date));
       }
     }
-    return partitionNames;
+    return partitionIds;
   }
 
+  /** Retrieves all BigQuery partitions for the given table that match the given filter. */
   protected List<Partition> fetchPartitionsFromBigQuery(
       Table table, String catName, String dbName, String tableName, ExprNodeGenericFuncDesc filter)
       throws MetaException {
@@ -161,7 +168,11 @@ public class BigQueryMetadataStore extends ObjectStore {
     return result;
   }
 
-  /** Returns: Whether the list has any partitions for which the expression may or may not match. */
+  /**
+   * Called when running a SELECT statement with a WHERE clause on a Hive table that has a
+   * "PARTITIONED BY" clause. Returns: Whether the list has any partitions for which the expression
+   * may or may not match.
+   */
   @Override
   public boolean getPartitionsByExpr(
       String catName,
@@ -186,6 +197,7 @@ public class BigQueryMetadataStore extends ObjectStore {
     return true; // TODO: Figure out what to return
   }
 
+  /** Called when running a SELECT statement on a Hive table that has a "PARTITIONED BY" clause. */
   @Override
   public List<Partition> getPartitions(
       String catName, String dbName, String tableName, int maxParts)
@@ -198,7 +210,10 @@ public class BigQueryMetadataStore extends ObjectStore {
     return fetchPartitionsFromBigQuery(table, catName, dbName, tableName, null);
   }
 
-  /** Called by "SHOW PARTITIONS". */
+  /**
+   * Returns the list of all partitions.
+   * Called when running a "SHOW PARTITIONS mytable" query.
+   */
   @Override
   public List<String> listPartitionNames(String catName, String dbName, String tableName, short max)
       throws MetaException {

@@ -22,6 +22,7 @@ import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.hive.bigquery.connector.Constants;
+import com.google.cloud.hive.bigquery.connector.PartitionSpec;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.inject.Guice;
@@ -34,10 +35,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.io.HiveInputFormat.HiveInputSplit;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.plan.*;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.io.Writable;
@@ -201,13 +205,62 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       selectedFields.add(Constants.PARTITION_DATE_PSEUDO_COLUMN);
     }
 
-    // If a WHERE clause with filters is present, translate the filter values to
-    // be compatible with BigQuery
-    String serializedFilterExpr = jobConf.get(TableScanDesc.FILTER_EXPR_CONF_STR);
-    ExprNodeGenericFuncDesc filterExpr;
+    // Figure out if we need to filter for a given partition.
+    // This is necessary when running a SELECT query on a table that
+    // has a "PARTITION BY" clause. The specific partition is
+    // retrieved from the file path specified in the conf.
+    String tableLocation = jobConf.get("location");
+    String pathString = jobConf.get("mapred.input.dir");
+    assert (pathString.startsWith(tableLocation));
+    ExprNodeGenericFuncDesc partitionFilterDesc = null;
+    if (pathString.length() > tableLocation.length()) {
+      String substring = pathString.substring(tableLocation.length() + 1);
+      String[] partitionStrings = substring.split("/");
+      if (partitionStrings.length > 1) {
+        throw new RuntimeException("BigQuery supports only up to 1 partition");
+      }
+      if (partitionStrings.length == 1) {
+        String[] nameValuePair = partitionStrings[0].split("=");
+        PartitionSpec partition =
+            new PartitionSpec(
+                nameValuePair[0],
+                jobConf.get(hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES),
+                nameValuePair[1]);
+        ExprNodeColumnDesc partitionColumnDesc =
+            new ExprNodeColumnDesc(
+                partition.getType(), partition.getName(), jobConf.get("name"), true);
+        ExprNodeConstantDesc partitionValueDesc =
+            new ExprNodeConstantDesc(partition.getType(), partition.getStaticValue());
+        partitionFilterDesc = new ExprNodeGenericFuncDesc();
+        partitionFilterDesc.setGenericUDF(new GenericUDFOPEqual());
+        partitionFilterDesc.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
+      }
+    }
+
+    // Combine the filter specified in the WHERE clause with a filter on
+    // the read partition, if any.
+    String serializedFilter = jobConf.get(TableScanDesc.FILTER_EXPR_CONF_STR);
+    ExprNodeGenericFuncDesc filterExpr = null;
     Optional<String> filter = Optional.empty();
-    if (serializedFilterExpr != null) {
-      filterExpr = SerializationUtilities.deserializeExpression(serializedFilterExpr);
+    if (serializedFilter == null) {
+      if (partitionFilterDesc != null) {
+        filterExpr = partitionFilterDesc;
+      }
+    } else {
+      if (partitionFilterDesc != null) {
+        filterExpr = new ExprNodeGenericFuncDesc();
+        filterExpr.setGenericUDF(new GenericUDFOPAnd());
+        filterExpr.setChildren(
+            Arrays.asList(
+                partitionFilterDesc,
+                SerializationUtilities.deserializeExpression(serializedFilter)));
+      } else {
+        filterExpr = SerializationUtilities.deserializeExpression(serializedFilter);
+      }
+    }
+
+    // Translate the filter values to be compatible with BigQuery
+    if (filterExpr != null) {
       ExprNodeGenericFuncDesc translatedFilterExpr =
           (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr);
       filter = Optional.of(translatedFilterExpr.getExprString());
