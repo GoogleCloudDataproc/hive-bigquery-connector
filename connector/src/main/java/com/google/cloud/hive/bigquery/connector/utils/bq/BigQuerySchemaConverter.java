@@ -60,7 +60,7 @@ public class BigQuerySchemaConverter {
               .put(PrimitiveObjectInspector.PrimitiveCategory.BINARY, StandardSQLTypeName.BYTES)
               .build();
 
-  public static Schema toBigQuerySchema(StorageDescriptor sd, FieldSchema partitionColumn) {
+  public static Schema toBigQuerySchema(StorageDescriptor sd, FieldSchema hivePartition) {
     List<Field> bigQueryFields = new ArrayList<>();
     // Add Hive regular (non-partitioned) columns
     for (FieldSchema hiveField : sd.getCols()) {
@@ -68,10 +68,10 @@ public class BigQuerySchemaConverter {
       bigQueryFields.add(buildBigQueryField(hiveField.getName(), typeInfo, hiveField.getComment()));
     }
     // Add the partitioned column
-    if (partitionColumn != null) {
-      TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(partitionColumn.getType());
+    if (hivePartition != null) {
+      TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hivePartition.getType());
       bigQueryFields.add(
-          buildBigQueryField(partitionColumn.getName(), typeInfo, partitionColumn.getComment()));
+          buildBigQueryField(hivePartition.getName(), typeInfo, hivePartition.getComment()));
     }
     return Schema.of(bigQueryFields);
   }

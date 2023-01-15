@@ -145,21 +145,21 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       throw new MetaException("BigQuery supports only up to 1 partition");
     }
     // TODO: Validate partition type
-    FieldSchema partitionColumn =
+    FieldSchema hivePartition =
         table.getPartitionKeysSize() == 1 ? table.getPartitionKeys().get(0) : null;
     Optional<String> tblPropPartitionField = opts.getPartitionField();
-    Optional<TimePartitioning.Type> tblPropPartitionType = opts.getPartitionType();
     String partitionColumnName = null;
-    if (partitionColumn != null && tblPropPartitionField.isPresent()) {
+    if (hivePartition != null && tblPropPartitionField.isPresent()) {
       throw new MetaException(
           String.format(
               "Please provide either `PARTITIONED BY` or `%s` but not both",
               HiveBigQueryConfig.TIME_PARTITION_FIELD_KEY));
     }
-    if (partitionColumn != null) {
-      partitionColumnName = partitionColumn.getName();
-    }
-    if (tblPropPartitionField.isPresent()) {
+    if (hivePartition != null) {
+      // Partition specified in Hive's "PARTITIONED BY" clause
+      partitionColumnName = hivePartition.getName();
+    } else if (tblPropPartitionField.isPresent()) {
+      // Partition specified in TBLPROPERTIES
       partitionColumnName = tblPropPartitionField.get();
     }
 
@@ -176,6 +176,12 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       throw new MetaException("Cannot create table in BigQuery with a `location` property.");
     }
 
+    table
+        .getParameters()
+        .put(
+            serdeConstants.SERIALIZATION_LIB,
+            "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
+
     // Some environments rely on the "serialization.lib" table property instead of the
     // storage handler's getSerDeClass() method to pick the SerDe, so we set it here.
     table
@@ -185,13 +191,9 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
 
     // Set the project property to the credentials project if not explicitly provided
-    table
-        .getParameters()
-        .put(
-            HiveBigQueryConfig.PROJECT_KEY,
-            table
-                .getParameters()
-                .getOrDefault(HiveBigQueryConfig.PROJECT_KEY, getDefaultProject()));
+    String project =
+        table.getParameters().getOrDefault(HiveBigQueryConfig.PROJECT_KEY, getDefaultProject());
+    table.getParameters().put(HiveBigQueryConfig.PROJECT_KEY, project);
 
     // If it's a managed table, generate the BigQuery schema
     if (!MetaStoreUtils.isExternalTable(table)) {
@@ -200,23 +202,27 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         throw new MetaException("BigQuery table already exists: " + opts.getTableId());
       }
 
-      Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd(), partitionColumn);
-
-      StandardTableDefinition.Builder tableDefBuilder =
-          StandardTableDefinition.newBuilder().setSchema(tableSchema);
+      Schema bqTableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd(), hivePartition);
+      StandardTableDefinition.Builder bqTableDefBuilder =
+          StandardTableDefinition.newBuilder().setSchema(bqTableSchema);
 
       // Clustering
       Optional<ImmutableList<String>> clusteredFields = opts.getClusteredFields();
       if (clusteredFields.isPresent()) {
         Clustering clustering = Clustering.newBuilder().setFields(clusteredFields.get()).build();
-        tableDefBuilder.setClustering(clustering);
+        bqTableDefBuilder.setClustering(clustering);
       }
 
-      // Time partitioning
+      // Partitioning. There are 3 possibilities:
+      // - A partition column is specified with "PARTITION BY" clause
+      // - A partition column is specified in TBLPROPERTIES
+      // - No partition column is specified but a partition type is specified in TBLPROPERTIES
+      //   (ie ingestion time partitioning)
+      if (partitionColumnName != null || opts.getPartitionType().isPresent()) {
+        TimePartitioning.Type tblPropPartitionType =
+            opts.getPartitionType().orElse(TimePartitioning.Type.DAY);
+        TimePartitioning.Builder tpBuilder = TimePartitioning.newBuilder(tblPropPartitionType);
 
-      if (tblPropPartitionType.isPresent()) {
-        TimePartitioning.Builder tpBuilder =
-            TimePartitioning.newBuilder(tblPropPartitionType.get());
         if (partitionColumnName != null) {
           tpBuilder.setField(partitionColumnName);
         } else {
@@ -239,16 +245,17 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                       "date",
                       "Ingestion time pseudo column"));
         }
+
         OptionalLong tblPropPartitionExpirationMs = opts.getPartitionExpirationMs();
         if (tblPropPartitionExpirationMs.isPresent()) {
           tpBuilder.setExpirationMs(tblPropPartitionExpirationMs.getAsLong());
         }
         Optional<Boolean> tblPropPartitionRequireFilter = opts.getPartitionRequireFilter();
         tblPropPartitionRequireFilter.ifPresent(tpBuilder::setRequirePartitionFilter);
-        tableDefBuilder.setTimePartitioning(tpBuilder.build());
+        bqTableDefBuilder.setTimePartitioning(tpBuilder.build());
       }
 
-      StandardTableDefinition tableDefinition = tableDefBuilder.build();
+      StandardTableDefinition tableDefinition = bqTableDefBuilder.build();
       createTableInfo =
           TableInfo.newBuilder(opts.getTableId(), tableDefinition)
               .setDescription(table.getParameters().get("comment"))

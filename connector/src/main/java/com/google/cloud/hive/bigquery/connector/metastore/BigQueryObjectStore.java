@@ -20,7 +20,6 @@ import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
-import com.google.cloud.hive.bigquery.connector.input.BigQueryFilters;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.text.ParseException;
@@ -37,6 +36,8 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.thrift.TException;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
@@ -95,7 +96,7 @@ public class BigQueryObjectStore extends ObjectStore {
   }
 
   /** Fetch partition ids from BigQuery for the given table. */
-  protected List<String> fetchPartitionIds(Table table, ExprNodeGenericFuncDesc filter, short max) {
+  protected List<String> fetchPartitionIds(Table table, ExprNodeDesc filter, short max) {
     // Fetch partition ids from BigQuery
     Injector injector =
         Guice.createInjector(
@@ -104,10 +105,6 @@ public class BigQueryObjectStore extends ObjectStore {
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
     TableId tableId = config.getTableId();
-    String convertedFilter = null;
-    if (filter != null) {
-      convertedFilter = convertFilterForBigQuery(filter).getExprString();
-    }
     String query =
         String.format(
             "SELECT partition_id FROM `%s.%s.INFORMATION_SCHEMA.PARTITIONS` WHERE table_name ="
@@ -115,7 +112,7 @@ public class BigQueryObjectStore extends ObjectStore {
             tableId.getProject(),
             tableId.getDataset(),
             tableId.getTable(),
-            convertedFilter != null ? "AND " + convertedFilter : "",
+            filter != null ? "AND " + filter.getExprString() : "",
             max > 0 ? "LIMIT " + max : "");
     TableResult bqPartitions = bqClient.query(query);
     // Convert the BigQuery partition ids to the format expected by Hive
@@ -144,7 +141,7 @@ public class BigQueryObjectStore extends ObjectStore {
 
   /** Retrieves all BigQuery partitions for the given table that match the given filter. */
   protected List<Partition> fetchPartitionsFromBigQuery(
-      Table table, String catName, String dbName, String tableName, ExprNodeGenericFuncDesc filter)
+      Table table, String catName, String dbName, String tableName, ExprNodeDesc filter)
       throws MetaException {
     String partitionColumnName = table.getPartitionKeys().get(0).getName();
     List<String> values = fetchPartitionIds(table, filter, (short) -1);
@@ -189,12 +186,10 @@ public class BigQueryObjectStore extends ObjectStore {
       return super.getPartitionsByExpr(
           catName, dbName, tableName, expr, defaultPartitionName, maxParts, result);
     }
-    ExprNodeGenericFuncDesc filterExpr = SerializationUtilities.deserializeExpressionFromKryo(expr);
-    ExprNodeGenericFuncDesc translatedFilterExpr =
-        (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr);
-    result.addAll(
-        fetchPartitionsFromBigQuery(table, catName, dbName, tableName, translatedFilterExpr));
-    return true; // TODO: Figure out what to return
+    ExprNodeDesc filterExpr = SerializationUtilities.deserializeExpressionFromKryo(expr);
+    filterExpr = convertFilterForBigQuery(filterExpr);
+    result.addAll(fetchPartitionsFromBigQuery(table, catName, dbName, tableName, filterExpr));
+    return true; // TODO: Figure out what value (true or false) to return
   }
 
   /** Called when running a SELECT statement on a Hive table that has a "PARTITIONED BY" clause. */
@@ -210,10 +205,7 @@ public class BigQueryObjectStore extends ObjectStore {
     return fetchPartitionsFromBigQuery(table, catName, dbName, tableName, null);
   }
 
-  /**
-   * Returns the list of all partitions.
-   * Called when running a "SHOW PARTITIONS mytable" query.
-   */
+  /** Returns the list of all partitions. Called when running a "SHOW PARTITIONS mytable" query. */
   @Override
   public List<String> listPartitionNames(String catName, String dbName, String tableName, short max)
       throws MetaException {
@@ -229,5 +221,60 @@ public class BigQueryObjectStore extends ObjectStore {
       result.add(String.format("%s=%s", partitionColumnName, value));
     }
     return result;
+  }
+
+  @Override
+  public List<String> listPartitionNamesPs(
+      String catName, String dbName, String tableName, List<String> partVals, short max)
+      throws MetaException, NoSuchObjectException {
+    Table table = getBigQueryLinkedTable(catName, dbName, tableName);
+    if (table == null) {
+      // This is not a Hive table linked to a BigQuery table
+      return super.listPartitionNamesPs(catName, dbName, tableName, partVals, max);
+    }
+    ExprNodeColumnDesc partitionColumnDesc =
+        new ExprNodeColumnDesc(
+            TypeInfoFactory.stringTypeInfo, "partition_id", table.getTableName(), true);
+    ExprNodeConstantDesc partitionValueDesc =
+        new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, partVals.get(0));
+    ExprNodeGenericFuncDesc filter = new ExprNodeGenericFuncDesc();
+    filter.setGenericUDF(new GenericUDFOPEqual());
+    filter.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
+    List<String> values = fetchPartitionIds(table, convertFilterForBigQuery(filter), max);
+    List<String> result = new ArrayList<>();
+    String partitionColumnName = table.getPartitionKeys().get(0).getName();
+    for (String value : values) {
+      result.add(String.format("%s=%s", partitionColumnName, value));
+    }
+    return result;
+  }
+
+  /** Called when running a "INSERT OVERWRITE PARTITION(...) SELECT(...)" query. */
+  @Override
+  public List<Partition> listPartitionsPsWithAuth(
+      String catName,
+      String dbName,
+      String tableName,
+      List<String> partVals,
+      short maxParts,
+      String userName,
+      List<String> groupNames)
+      throws MetaException, InvalidObjectException, NoSuchObjectException {
+    Table table = getBigQueryLinkedTable(catName, dbName, tableName);
+    if (table == null) {
+      // This is not a Hive table linked to a BigQuery table
+      return super.listPartitionsPsWithAuth(
+          catName, dbName, tableName, partVals, maxParts, userName, groupNames);
+    }
+    ExprNodeColumnDesc partitionColumnDesc =
+        new ExprNodeColumnDesc(
+            TypeInfoFactory.stringTypeInfo, "partition_id", table.getTableName(), true);
+    ExprNodeConstantDesc partitionValueDesc =
+        new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, partVals.get(0));
+    ExprNodeGenericFuncDesc filter = new ExprNodeGenericFuncDesc();
+    filter.setGenericUDF(new GenericUDFOPEqual());
+    filter.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
+    return fetchPartitionsFromBigQuery(
+        table, catName, dbName, tableName, convertFilterForBigQuery(filter));
   }
 }

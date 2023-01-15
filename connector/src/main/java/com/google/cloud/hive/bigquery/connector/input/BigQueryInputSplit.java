@@ -33,6 +33,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
@@ -45,7 +47,6 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import repackaged.by.hivebqconnector.com.google.common.annotations.VisibleForTesting;
@@ -54,7 +55,7 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   private ReadRowsHelper readRowsHelper;
-  private Path warehouseLocation;
+  private String location;
   private String streamName;
   private List<String> columnNames;
   private BigQueryClientFactory bqClientFactory;
@@ -66,13 +67,13 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   }
 
   public BigQueryInputSplit(
-      Path warehouseLocation,
+      String location,
       String streamName,
       List<String> columnNames,
       BigQueryClientFactory bqClientFactory,
       HiveBigQueryConfig config) {
     super();
-    this.warehouseLocation = warehouseLocation;
+    this.location = location;
     this.streamName = streamName;
     this.columnNames = columnNames;
     this.bqClientFactory = bqClientFactory;
@@ -108,7 +109,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   /** Serializes the instance's attributes to a sequence of bytes */
   public void write(DataOutput out) throws IOException {
-    out.writeUTF(warehouseLocation.toString());
+    out.writeUTF(location);
     out.writeUTF(streamName);
     byte[] columnNamesAsBytes = String.join(",", columnNames).getBytes(StandardCharsets.UTF_8);
     out.writeInt(columnNamesAsBytes.length);
@@ -119,7 +120,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   /** Hydrates the instance's attributes from the given sequence of bytes */
   public void readFields(DataInput in) throws IOException {
-    warehouseLocation = new Path(in.readUTF());
+    location = in.readUTF();
     streamName = in.readUTF();
     int length = in.readInt();
     byte[] columnNamesAsBytes = new byte[length];
@@ -145,7 +146,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   @Override
   public String toString() {
-    return String.format("warehouseLocation=%s, streamName=%s", warehouseLocation, streamName);
+    return String.format("location=%s, streamName=%s", location, streamName);
   }
 
   public String getStreamName() {
@@ -154,91 +155,46 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   @Override
   public Path getPath() {
-    return warehouseLocation;
+    return new Path(location);
   }
 
   public List<String> getColumnNames() {
     return columnNames;
   }
 
-  public static InputSplit[] createSplitsFromBigQueryReadStreams(JobConf jobConf) {
-    Injector injector =
-        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(jobConf));
-    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-    BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
-    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
-
-    // Retrieve the table's column names
-    String columnNameDelimiter = config.getColumnNameDelimiter();
-    List<String> columnNames =
-        new ArrayList<>(
-            Arrays.asList(
-                checkNotNull(jobConf.get(serdeConstants.LIST_COLUMNS)).split(columnNameDelimiter)));
-    // Remove the virtual columns
-    columnNames.removeAll(new HashSet<>(VirtualColumn.VIRTUAL_COLUMN_NAMES));
-
-    Set<String> selectedFields;
-    String engine = HiveConf.getVar(jobConf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
-    if (engine.equals("mr")) {
-      // Unfortunately the MR engine does not provide a reliable value for the
-      // "hive.io.file.readcolumn.names" when multiple tables are read in the
-      // same query. So we have to select all the columns (i.e. `SELECT *`).
-      // This is unfortunately quite inefficient. Tez, however, does not have that issue.
-      // See more info here: https://lists.apache.org/thread/g464zybq4g6c7p2h6nd9jmmznq472785
-      // TODO: Investigate to see if we can come up with a workaround. Maybe try
-      //  using the new MapRed API (org.apache.hadoop.mapreduce) instead of the old
-      //  one (org.apache.hadoop.mapred)?
-      selectedFields = new HashSet<>(columnNames);
-    } else {
-      selectedFields =
-          new HashSet<>(Arrays.asList(ColumnProjectionUtils.getReadColumnNames(jobConf)));
+  /**
+   * Figures out if we need to filter for a given partition. This is necessary when running a SELECT
+   * query on a table that has a "PARTITION BY" clause. The specific partitions are retrieved from
+   * the partition path(s) specified in the conf.
+   */
+  protected static ExprNodeGenericFuncDesc getPartitionFilter(JobConf jobConf, String inputDir) {
+    String[] pathFragments = inputDir.split("/");
+    String lastFragment = pathFragments[pathFragments.length - 1];
+    ExprNodeGenericFuncDesc filter = null;
+    if (lastFragment.contains("=")) {
+      String[] nameValuePair = lastFragment.split("=");
+      PartitionSpec partition =
+          new PartitionSpec(
+              nameValuePair[0],
+              jobConf.get(hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES),
+              nameValuePair[1]);
+      ExprNodeColumnDesc partitionColumnDesc =
+          new ExprNodeColumnDesc(
+              partition.getType(), partition.getName(), jobConf.get("name"), true);
+      ExprNodeConstantDesc partitionValueDesc =
+          new ExprNodeConstantDesc(partition.getType(), partition.getStaticValue());
+      filter = new ExprNodeGenericFuncDesc();
+      filter.setGenericUDF(new GenericUDFOPEqual());
+      filter.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
     }
+    return filter;
+  }
 
-    // Fix the BigQuery pseudo columns, if present, as Hive uses lowercase column names
-    // whereas BigQuery expects the uppercase names.
-    boolean found = selectedFields.remove(Constants.PARTITION_TIME_PSEUDO_COLUMN.toLowerCase());
-    if (found) {
-      selectedFields.add(Constants.PARTITION_TIME_PSEUDO_COLUMN);
-    }
-    found = selectedFields.remove(Constants.PARTITION_DATE_PSEUDO_COLUMN.toLowerCase());
-    if (found) {
-      selectedFields.add(Constants.PARTITION_DATE_PSEUDO_COLUMN);
-    }
-
-    // Figure out if we need to filter for a given partition.
-    // This is necessary when running a SELECT query on a table that
-    // has a "PARTITION BY" clause. The specific partition is
-    // retrieved from the file path specified in the conf.
-    String tableLocation = jobConf.get("location");
-    String pathString = jobConf.get("mapred.input.dir");
-    assert (pathString.startsWith(tableLocation));
-    ExprNodeGenericFuncDesc partitionFilterDesc = null;
-    if (pathString.length() > tableLocation.length()) {
-      String substring = pathString.substring(tableLocation.length() + 1);
-      String[] partitionStrings = substring.split("/");
-      if (partitionStrings.length > 1) {
-        throw new RuntimeException("BigQuery supports only up to 1 partition");
-      }
-      if (partitionStrings.length == 1) {
-        String[] nameValuePair = partitionStrings[0].split("=");
-        PartitionSpec partition =
-            new PartitionSpec(
-                nameValuePair[0],
-                jobConf.get(hive_metastoreConstants.META_TABLE_PARTITION_COLUMN_TYPES),
-                nameValuePair[1]);
-        ExprNodeColumnDesc partitionColumnDesc =
-            new ExprNodeColumnDesc(
-                partition.getType(), partition.getName(), jobConf.get("name"), true);
-        ExprNodeConstantDesc partitionValueDesc =
-            new ExprNodeConstantDesc(partition.getType(), partition.getStaticValue());
-        partitionFilterDesc = new ExprNodeGenericFuncDesc();
-        partitionFilterDesc.setGenericUDF(new GenericUDFOPEqual());
-        partitionFilterDesc.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
-      }
-    }
-
-    // Combine the filter specified in the WHERE clause with a filter on
-    // the read partition, if any.
+  /**
+   * Combines the filter specified in the WHERE clause with a filter on the read partition, if any.
+   */
+  protected static Optional<String> getQueryFilter(
+      JobConf jobConf, ExprNodeGenericFuncDesc partitionFilterDesc) {
     String serializedFilter = jobConf.get(TableScanDesc.FILTER_EXPR_CONF_STR);
     ExprNodeGenericFuncDesc filterExpr = null;
     Optional<String> filter = Optional.empty();
@@ -266,6 +222,69 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       filter = Optional.of(translatedFilterExpr.getExprString());
     }
 
+    return filter;
+  }
+
+  /**
+   * Returns all columns in the table.
+   */
+  protected static List<String> getAllColumnNames(JobConf jobConf, HiveBigQueryConfig config) {
+    // Retrieve the table's column names
+    String columnNameDelimiter = config.getColumnNameDelimiter();
+    List<String> columnNames =
+        new ArrayList<>(
+            Arrays.asList(
+                checkNotNull(jobConf.get(serdeConstants.LIST_COLUMNS)).split(columnNameDelimiter)));
+    // Remove the virtual columns
+    columnNames.removeAll(new HashSet<>(VirtualColumn.VIRTUAL_COLUMN_NAMES));
+    return columnNames;
+  }
+
+  /** Figures out the table columns that the user wants the BigQuery Read API to return. */
+  protected static ImmutableList<String> getSelectedColumns(
+      JobConf jobConf, List<String> allColumnNames) {
+    Set<String> selectedColumns;
+    String engine = HiveConf.getVar(jobConf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
+    if (engine.equals("mr")) {
+      // Unfortunately the MR engine does not provide a reliable value for the
+      // "hive.io.file.readcolumn.names" when multiple tables are read in the
+      // same query. So we have to select all the columns (i.e. `SELECT *`).
+      // This is unfortunately quite inefficient. Tez, however, does not have that issue.
+      // See more info here: https://lists.apache.org/thread/g464zybq4g6c7p2h6nd9jmmznq472785
+      // TODO: Investigate to see if we can come up with a workaround. Maybe try
+      //  using the new MapRed API (org.apache.hadoop.mapreduce) instead of the old
+      //  one (org.apache.hadoop.mapred)?
+      selectedColumns = new HashSet<>(allColumnNames);
+    } else {
+      selectedColumns =
+          new HashSet<>(Arrays.asList(ColumnProjectionUtils.getReadColumnNames(jobConf)));
+    }
+
+    // Fix the BigQuery pseudo columns, if present, as Hive uses lowercase column names
+    // whereas BigQuery expects the uppercase names.
+    boolean found = selectedColumns.remove(Constants.PARTITION_TIME_PSEUDO_COLUMN.toLowerCase());
+    if (found) {
+      selectedColumns.add(Constants.PARTITION_TIME_PSEUDO_COLUMN);
+    }
+    found = selectedColumns.remove(Constants.PARTITION_DATE_PSEUDO_COLUMN.toLowerCase());
+    if (found) {
+      selectedColumns.add(Constants.PARTITION_DATE_PSEUDO_COLUMN);
+    }
+
+    return ImmutableList.copyOf(selectedColumns);
+  }
+
+  public static InputSplit[] createSplitsFromBigQueryReadStreams(JobConf jobConf) {
+    Injector injector =
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(jobConf));
+    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+    BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
+    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
+
+    List<String> allColumnNames = getAllColumnNames(jobConf, config);
+    ImmutableList<String> selectedColumns = getSelectedColumns(jobConf, allColumnNames);
+    String[] inputDirs = jobConf.get("mapred.input.dir").split(",");
+
     // Check that the BQ table in fact exists
     // TODO: Small optimization: Do the existence check in ReadSessionResponse.create() so we can
     //  save making this extra getTable() call to BigQuery. See:
@@ -276,23 +295,32 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
           "Table '" + BigQueryUtil.friendlyTableName(config.getTableId()) + "' not found");
     }
 
-    // Create the BQ read session
-    ReadSessionCreatorConfig readSessionCreatorConfig = config.toReadSessionCreatorConfig();
-    ReadSessionCreator readSessionCreator =
-        new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
-    ReadSessionResponse readSessionResponse =
-        readSessionCreator.create(
-            config.getTableId(), ImmutableList.copyOf(selectedFields), filter);
-    ReadSession readSession = readSessionResponse.getReadSession();
+    List<BigQueryInputSplit> inputSplits = new ArrayList<>();
+    for (int i = 0; i < inputDirs.length; i++) {
+      String inputDir = inputDirs[i];
 
-    // Assign a new InputSplit instance for each stream in the read session
-    Path warehouseLocation = new Path(jobConf.get("location"));
-    return readSession.getStreamsList().stream()
-        .map(
-            readStream ->
-                new BigQueryInputSplit(
-                    warehouseLocation, readStream.getName(), columnNames, bqClientFactory, config))
-        .toArray(FileSplit[]::new);
+      ExprNodeGenericFuncDesc partitionFilter = getPartitionFilter(jobConf, inputDir);
+      Optional<String> queryFilter = getQueryFilter(jobConf, partitionFilter);
+
+      // Create the BQ read session
+      ReadSessionCreatorConfig readSessionCreatorConfig = config.toReadSessionCreatorConfig();
+      ReadSessionCreator readSessionCreator =
+          new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
+      ReadSessionResponse readSessionResponse =
+          readSessionCreator.create(config.getTableId(), selectedColumns, queryFilter);
+      ReadSession readSession = readSessionResponse.getReadSession();
+
+      // Assign a new InputSplit instance for each stream in the read session
+      Stream<BigQueryInputSplit> stream =
+          readSession.getStreamsList().stream()
+              .map(
+                  readStream ->
+                      new BigQueryInputSplit(
+                          inputDir, readStream.getName(), allColumnNames, bqClientFactory, config));
+      inputSplits.addAll(stream.collect(Collectors.toList()));
+    }
+
+    return inputSplits.toArray(new BigQueryInputSplit[inputSplits.size()]);
   }
 
   /**
