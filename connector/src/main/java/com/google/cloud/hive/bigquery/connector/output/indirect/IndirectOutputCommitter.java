@@ -28,6 +28,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +64,8 @@ public class IndirectOutputCommitter {
               : WriteDisposition.WRITE_APPEND;
       try {
         // Load the Avro files into BigQuery
-        bqClient.loadDataIntoTable(config, avroFiles, formatOptions, writeDisposition);
+        bqClient.loadDataIntoTable(
+            config, avroFiles, formatOptions, writeDisposition, Optional.empty());
       } finally {
         // Delete all the Avro files from GCS
         IndirectUtils.deleteGcsTempDir(conf, jobDetails.getGcsTempPath());

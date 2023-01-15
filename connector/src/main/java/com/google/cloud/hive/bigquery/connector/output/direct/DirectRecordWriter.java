@@ -86,7 +86,7 @@ public class DirectRecordWriter
     if (!abort) {
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
-      streamWriter.commit(); // TODO: Ideally that method should be renamed to "finalize()"
+      streamWriter.finalizeStream();
       JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
       Path filePath =
           DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getTableId(), taskAttemptID);

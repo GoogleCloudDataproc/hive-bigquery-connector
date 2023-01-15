@@ -78,7 +78,7 @@ public class DirectWriterContext {
       TableInfo destinationTable = bigQueryClient.getTable(tableId);
       com.google.cloud.bigquery.Schema tableSchema = destinationTable.getDefinition().getSchema();
       Preconditions.checkArgument(
-          BigQueryUtil.schemaEquals(
+          BigQueryUtil.schemaWritable(
               tableSchema,
               bigQuerySchema, /* regardFieldOrder */
               false,

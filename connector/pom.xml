@@ -103,7 +103,7 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
-      <version>${gcs.connector.version}</version>
+      <version>${gcs-connector.version}</version>
       <classifier>shaded</classifier>
       <scope>provided</scope>
       <exclusions>
@@ -134,7 +134,6 @@
           <excludes>
             <exclude>**/IntegrationTests.java</exclude>
           </excludes>
-          <forkMode>always</forkMode>
         </configuration>
       </plugin>
 
