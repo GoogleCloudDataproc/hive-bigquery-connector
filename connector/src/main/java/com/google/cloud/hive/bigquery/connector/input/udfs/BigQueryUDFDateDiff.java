@@ -15,27 +15,10 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-
 /** Converts Hive's datediff() function to BigQuery's date_diff() function. */
-public class BigQueryUDFDateDiff extends GenericUDF {
+public class BigQueryUDFDateDiff extends BigQueryUDFBase {
 
   public BigQueryUDFDateDiff() {}
-
-  @Override
-  public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
-    // Ignore
-    return null;
-  }
-
-  @Override
-  public Object evaluate(DeferredObject[] arguments) throws HiveException {
-    // Ignore
-    return null;
-  }
 
   @Override
   public String getDisplayString(String[] children) {

@@ -16,18 +16,14 @@
 package com.google.cloud.hive.bigquery.connector;
 
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
-import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
-import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import repackaged.by.hivebqconnector.com.google.gson.Gson;
-import repackaged.by.hivebqconnector.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Helper class that contains some information about the job. That information is persisted as a
@@ -41,8 +37,6 @@ public class JobDetails {
   private boolean overwrite;
   private String finalTable; // Only used by the 'direct' write method
   private String gcsTempPath; // Only used by the 'indirect' write method
-  private String avroSchema; // Only used by the 'indirect' write method
-  private byte[] protoSchema; // Only used by the 'direct' write method
   private Properties tableProperties;
 
   public JobDetails() {}
@@ -96,26 +90,6 @@ public class JobDetails {
 
   public void setGcsTempPath(String gcsTempPath) {
     this.gcsTempPath = gcsTempPath;
-  }
-
-  public Schema getAvroSchema() {
-    return (avroSchema == null ? null : AvroUtils.parseSchema(avroSchema));
-  }
-
-  public void setAvroSchema(String avroSchema) {
-    this.avroSchema = avroSchema;
-  }
-
-  public ProtoSchema getProtoSchema() {
-    try {
-      return (protoSchema == null ? null : ProtoSchema.parseFrom(protoSchema));
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public void setProtoSchema(byte[] protoSchema) {
-    this.protoSchema = protoSchema;
   }
 
   public Properties getTableProperties() {

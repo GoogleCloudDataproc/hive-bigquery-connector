@@ -29,9 +29,9 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
-import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
@@ -77,6 +77,11 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       for (TypeInfo subTypeInfo : subTypeInfos) {
         validateTypeInfo(subTypeInfo);
       }
+    } else if (typeInfo.getCategory() == Category.MAP) {
+      TypeInfo mapKeyTypeInfo = ((MapTypeInfo) typeInfo).getMapKeyTypeInfo();
+      validateTypeInfo(mapKeyTypeInfo);
+      TypeInfo mapValueTypeInfo = ((MapTypeInfo) typeInfo).getMapValueTypeInfo();
+      validateTypeInfo(mapValueTypeInfo);
     } else if (typeInfo.getCategory() == Category.PRIMITIVE) {
       PrimitiveCategory primitiveCategory = ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory();
       if (!Constants.SUPPORTED_HIVE_PRIMITIVES.contains(primitiveCategory)) {
@@ -230,8 +235,18 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       }
 
       StandardTableDefinition tableDefinition = tableDefBuilder.build();
-      createTableInfo = TableInfo.newBuilder(opts.getTableId(), tableDefinition).build();
+      createTableInfo =
+          TableInfo.newBuilder(opts.getTableId(), tableDefinition)
+              .setDescription(table.getParameters().get("comment"))
+              .build();
     }
+
+    table
+        .getSd()
+        .setInputFormat("com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat");
+    table
+        .getSd()
+        .setOutputFormat("com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat");
   }
 
   @Override

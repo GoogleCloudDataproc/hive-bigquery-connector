@@ -16,11 +16,10 @@
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper;
+import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
-import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoDeserializer;
-import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -54,18 +53,17 @@ public class DirectRecordWriter
   public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    this.streamWriter =
-        DirectUtils.createStreamWriter(
-            jobConf,
-            jobDetails.getTableId(),
-            jobDetails.getTableProperties(),
-            jobDetails.getProtoSchema());
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);
     } catch (Descriptors.DescriptorValidationException e) {
       throw new RuntimeException(e);
     }
+    ProtoSchema protoSchema =
+        com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter.convert(descriptor);
+    this.streamWriter =
+        DirectUtils.createStreamWriter(
+            jobConf, jobDetails.getTableId(), jobDetails.getTableProperties(), protoSchema);
   }
 
   @Override
@@ -88,7 +86,7 @@ public class DirectRecordWriter
     if (!abort) {
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
-      streamWriter.commit(); // TODO: Ideally that method should be renamed to "finalize()"
+      streamWriter.finalizeStream();
       JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
       Path filePath =
           DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getTableId(), taskAttemptID);

@@ -253,7 +253,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       readRowsHelper =
           new ReadRowsHelper(
               bqClientFactory,
-              request,
+              ImmutableList.of(request),
               config.toReadSessionCreatorConfig().toReadRowsHelperOptions());
     }
     return readRowsHelper;

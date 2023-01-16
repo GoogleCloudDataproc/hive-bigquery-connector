@@ -26,7 +26,7 @@ import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions.CompressionCodec;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
-import com.google.cloud.hive.bigquery.connector.utils.HiveUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.Serializable;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
@@ -54,6 +54,8 @@ public class HiveBigQueryConfig
   public static final String WORK_DIR_NAME_PREFIX_KEY = "bq.work.dir.name.prefix";
   public static final String READ_DATA_FORMAT_KEY = "bq.read.data.format";
   public static final String READ_CREATE_SESSION_TIMEOUT_KEY = "bq.read.create.session.timeout";
+  public static final String READ_MAX_PARALLELISM = "maxParallelism";
+  public static final String READ_PREFERRED_PARALLELISM = "preferredMinParallelism";
   public static final String CREDENTIALS_KEY_KEY = "bq.credentials.key";
   public static final String CREDENTIALS_FILE_KEY = "bq.credentials.file";
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
@@ -73,7 +75,6 @@ public class HiveBigQueryConfig
   private static final int DEFAULT_BIGQUERY_CLIENT_RETRIES = 10;
   static final String GCS_CONFIG_CREDENTIALS_FILE_PROPERTY =
       "google.cloud.auth.service.account.json.keyfile";
-  public static final int DEFAULT_MATERIALIZATION_EXPRIRATION_TIME_IN_MINUTES = 24 * 60;
   public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "bq-hive-";
 
   private TableId tableId;
@@ -87,11 +88,15 @@ public class HiveBigQueryConfig
   private Optional<String> accessTokenProviderFQCN;
 
   /*
-   * Used for "indirect" write jobs.
-   * Indicates whether to interpret Avro logical types as the corresponding BigQuery data
-   * type (for example, TIMESTAMP), instead of using the raw type (for example, LONG).
+   * Options used for "indirect" write jobs.
    */
+  // Indicates whether to interpret Avro logical types as the corresponding BigQuery data
+  // type (for example, TIMESTAMP), instead of using the raw type (for example, LONG).
   boolean useAvroLogicalTypes = true;
+  // Converts "decimal" Avro logical type to "bigdecimal/bignumeric" BigQuery type
+  // (instead of "numeric/decimal"), because Hive decimal/numeric type supports
+  // scales greater than 9.
+  ImmutableList<String> decimalTargetTypes = ImmutableList.of("BIGNUMERIC");
 
   // Reading parameters
   private DataFormat readDataFormat; // ARROW or AVRO
@@ -121,13 +126,15 @@ public class HiveBigQueryConfig
   boolean enableModeCheckForSchemaFields = true;
   Optional<JobInfo.CreateDisposition> createDisposition = empty();
   ImmutableList<JobInfo.SchemaUpdateOption> loadSchemaUpdateOptions = ImmutableList.of();
-  private Optional<String> storageReadEndpoint = empty();
   private ImmutableMap<String, String> bigQueryJobLabels = ImmutableMap.of();
   String parentProjectId;
   boolean useParentProjectForMetadataOperations;
   int maxReadRowsRetries = 3;
   Integer maxParallelism = null;
+  Integer preferredMinParallelism = null;
   private Optional<String> encodedCreateReadSessionRequest = empty();
+  private Optional<String> bigQueryStorageGrpcEndpoint = empty();
+  private Optional<String> bigQueryHttpEndpoint = empty();
   private int numBackgroundThreadsPerStream = 0;
   boolean pushAllFilters = true;
   private int numPrebufferReadRowsResponses = MIN_BUFFERED_RESPONSES_PER_STREAM;
@@ -193,6 +200,14 @@ public class HiveBigQueryConfig
     config.createReadSessionTimeoutInSeconds =
         getAnyOption(READ_CREATE_SESSION_TIMEOUT_KEY, conf, tableParameters)
             .transform(Long::parseLong);
+    config.maxParallelism =
+        getAnyOption(READ_MAX_PARALLELISM, conf, tableParameters)
+            .transform(Integer::parseInt)
+            .orNull();
+    config.preferredMinParallelism =
+        getAnyOption(READ_PREFERRED_PARALLELISM, conf, tableParameters)
+            .transform(Integer::parseInt)
+            .orNull();
 
     // Credentials management
     config.credentialsKey = getAnyOption(CREDENTIALS_KEY_KEY, conf, tableParameters);
@@ -220,7 +235,6 @@ public class HiveBigQueryConfig
             .transform(Boolean::valueOf);
     config.clusteredFields =
         getAnyOption(CLUSTERED_FIELDS_KEY, conf, tableParameters).transform(s -> s.split(","));
-
     return config;
   }
 
@@ -278,6 +292,11 @@ public class HiveBigQueryConfig
   @Override
   public boolean isUseAvroLogicalTypes() {
     return useAvroLogicalTypes;
+  }
+
+  @Override
+  public List<String> getDecimalTargetTypes() {
+    return decimalTargetTypes;
   }
 
   @Override
@@ -365,8 +384,13 @@ public class HiveBigQueryConfig
   }
 
   @Override
-  public java.util.Optional<String> getEndpoint() {
-    return storageReadEndpoint.toJavaUtil();
+  public java.util.Optional<String> getBigQueryStorageGrpcEndpoint() {
+    return bigQueryStorageGrpcEndpoint.toJavaUtil();
+  }
+
+  @Override
+  public java.util.Optional<String> getBigQueryHttpEndpoint() {
+    return bigQueryHttpEndpoint.toJavaUtil();
   }
 
   @Override
@@ -392,6 +416,12 @@ public class HiveBigQueryConfig
     return maxParallelism == null ? OptionalInt.empty() : OptionalInt.of(maxParallelism);
   }
 
+  public OptionalInt getPreferredMinParallelism() {
+    return preferredMinParallelism == null
+        ? OptionalInt.empty()
+        : OptionalInt.of(preferredMinParallelism);
+  }
+
   public Optional<String> getTraceId() {
     return traceId;
   }
@@ -407,8 +437,10 @@ public class HiveBigQueryConfig
         .setViewEnabledParamName(VIEWS_ENABLED_KEY)
         .setDefaultParallelism(1) // TODO: Make configurable?
         .setMaxParallelism(getMaxParallelism())
+        .setPreferredMinParallelism(getPreferredMinParallelism())
         .setRequestEncodedBase(encodedCreateReadSessionRequest.toJavaUtil())
-        .setEndpoint(storageReadEndpoint.toJavaUtil())
+        .setBigQueryStorageGrpcEndpoint(bigQueryStorageGrpcEndpoint.toJavaUtil())
+        .setBigQueryHttpEndpoint(bigQueryHttpEndpoint.toJavaUtil())
         .setBackgroundParsingThreads(numBackgroundThreadsPerStream)
         .setPushAllFilters(pushAllFilters)
         .setPrebufferReadRowsResponses(numPrebufferReadRowsResponses)

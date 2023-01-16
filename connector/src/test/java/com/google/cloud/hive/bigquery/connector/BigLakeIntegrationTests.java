@@ -33,7 +33,7 @@ public class BigLakeIntegrationTests extends IntegrationTestsBase {
     runBqQuery(BIGQUERY_BIGLAKE_TABLE_CREATE_QUERY);
     // Create Hive table
     initHive(engine, readDataFormat);
-    runHiveScript(HIVE_BIGLAKE_TABLE_CREATE_QUERY);
+    createExternalTable(BIGLAKE_TABLE_NAME, HIVE_BIGLAKE_TABLE_DDL);
     // Read data
     List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", BIGLAKE_TABLE_NAME));
     assertArrayEquals(

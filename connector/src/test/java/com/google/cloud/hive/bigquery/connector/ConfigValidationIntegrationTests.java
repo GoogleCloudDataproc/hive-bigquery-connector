@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import static com.google.cloud.hive.bigquery.connector.TestUtils.HIVE_TEST_TABLE_CREATE_QUERY;
+import static com.google.cloud.hive.bigquery.connector.TestUtils.HIVE_TEST_TABLE_DDL;
 import static com.google.cloud.hive.bigquery.connector.TestUtils.TEST_TABLE_NAME;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -55,8 +55,8 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingGcsTempPath() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive("mr", HiveBigQueryConfig.AVRO, "");
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    initHive("tez", HiveBigQueryConfig.AVRO, "");
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(
             RuntimeException.class,
@@ -77,8 +77,8 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingBucketPermissions() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive("mr", HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    initHive("tez", HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(
             RuntimeException.class,

@@ -21,9 +21,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 
@@ -38,12 +41,12 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
+    initHive(engine, readDataFormat);
     // Make sure the table doesn't exist in BigQuery
     dropBqTableIfExists(dataset, TEST_TABLE_NAME);
     assertFalse(bQTableExists(dataset, TEST_TABLE_NAME));
     // Create a Hive table without creating its corresponding table in BigQuery
-    initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
     // Attempt to read the table
     Throwable exception =
         assertThrows(
@@ -65,9 +68,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", TEST_TABLE_NAME));
     assertThat(rows).isEmpty();
   }
@@ -80,9 +82,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
         String.format(
@@ -111,9 +112,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
         String.format(
@@ -157,18 +157,18 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   /** Smoke test to make sure BigQuery accepts all different types of pushed predicates */
   @Test
   public void testWhereClauseAllTypes() {
-    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
     initHive();
-    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     runHiveScript(
-        Stream.of(
-                "SELECT * FROM " + ALL_TYPES_TABLE_NAME + " WHERE",
-                "((int_val > 10 AND bl = TRUE)",
-                "OR (str = 'hello' OR day >= to_date('2000-01-01')))",
-                "AND (ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND"
-                    + " TIMESTAMP'2019-06-11 03:55:10.00')",
-                "AND (fl <= 4.2)")
-            .collect(Collectors.joining("\n")));
+        String.join(
+            "\n",
+            "SELECT * FROM " + ALL_TYPES_TABLE_NAME + " WHERE",
+            "((int_val > 10 AND bl = TRUE)",
+            "OR (str = 'hello' OR day >= to_date('2000-01-01')))",
+            "AND (ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND"
+                + " TIMESTAMP'2019-06-11 03:55:10.00')",
+            "AND (fl <= 4.2)"));
     // TODO: Confirm that the predicates were in fact pushed down to BigQuery
   }
 
@@ -180,8 +180,9 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
+    initHive(engine, readDataFormat);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Create some initial data in BQ
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
     runBqQuery(
         String.format(
             "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
@@ -190,11 +191,157 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run COUNT query in Hive
-    initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
     List<Object[]> rows = runHiveStatement("SELECT COUNT(*) FROM " + TEST_TABLE_NAME);
     assertEquals(1, rows.size());
     assertEquals(2L, rows.get(0)[0]);
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we can read a Hive Map type from BigQuery. */
+  @CartesianTest
+  public void testMapOfInts(
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat)
+      throws IOException {
+    initHive("tez", readDataFormat);
+    createExternalTable(
+        "mapOfInts",
+        "id INT, map_col MAP<STRING, INT>",
+        "id INT64, map_col ARRAY<STRUCT<key STRING, value INT64>>");
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        String.join(
+            "\n",
+            "INSERT `${dataset}.mapOfInts` VALUES ",
+            "(1, [STRUCT('str11', 11)]),",
+            "(2, [STRUCT('txt1', 200), STRUCT('txt2', 400)]),",
+            "(3, [STRUCT('new12', 44), STRUCT('new14', 99), STRUCT('new16', 55)])"));
+    // Read data using Hive
+    List<Object[]> rows = runHiveStatement("SELECT * FROM mapOfInts ORDER BY id");
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, Integer>> mapOfIntsTypeRef =
+        new TypeReference<HashMap<String, Integer>>() {};
+    HashMap<String, Integer>[] expected =
+        new HashMap[] {
+          new HashMap<String, Integer>() {
+            {
+              put("str11", 11);
+            }
+          },
+          new HashMap<String, Integer>() {
+            {
+              put("txt1", 200);
+              put("txt2", 400);
+            }
+          },
+          new HashMap<String, Integer>() {
+            {
+              put("new12", 44);
+              put("new14", 99);
+              put("new16", 55);
+            }
+          }
+        };
+    assertEquals(expected.length, rows.size());
+    for (int i = 0; i < expected.length; i++) {
+      HashMap<String, Integer> map = mapper.readValue(rows.get(i)[1].toString(), mapOfIntsTypeRef);
+      assertEquals(expected[i], map);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we can read a Hive Map of structs from BigQuery. */
+  @CartesianTest
+  public void testMapOfStructs(
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat)
+      throws IOException {
+    initHive("tez", readDataFormat);
+    createExternalTable(
+        "mapOfStructs",
+        "id INT, map_col MAP<STRING, STRUCT<COLOR: STRING>>",
+        "id INT64, map_col ARRAY<STRUCT<key STRING, value STRUCT<color STRING>>>");
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        String.join(
+            "\n",
+            "INSERT `${dataset}.mapOfStructs` VALUES ",
+            "(1, [STRUCT('hi', STRUCT('green')), STRUCT('hello', STRUCT('pink'))])"));
+    // Read data using Hive
+    List<Object[]> rows = runHiveStatement("SELECT * FROM mapOfStructs ORDER BY id");
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, HashMap<String, String>>> mapOfStructsTypeRef =
+        new TypeReference<HashMap<String, HashMap<String, String>>>() {};
+    HashMap<String, Integer>[] expected =
+        new HashMap[] {
+          new HashMap<String, HashMap<String, String>>() {
+            {
+              put(
+                  "hi",
+                  new HashMap<String, String>() {
+                    {
+                      put("color", "green");
+                    }
+                  });
+              put(
+                  "hello",
+                  new HashMap<String, String>() {
+                    {
+                      put("color", "pink");
+                    }
+                  });
+            }
+          }
+        };
+    assertEquals(expected.length, rows.size());
+    for (int i = 0; i < expected.length; i++) {
+      HashMap<String, Integer> map =
+          mapper.readValue(rows.get(i)[1].toString(), mapOfStructsTypeRef);
+      assertEquals(expected[i], map);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we can read a Hive Map of arrays from BigQuery. */
+  @CartesianTest
+  public void testMapOfArrays(
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat)
+      throws IOException {
+    initHive("tez", readDataFormat);
+    createExternalTable(
+        "mapOfArrays",
+        "id INT, map_col MAP<STRING, ARRAY<INT>>",
+        "id INT64, map_col ARRAY<STRUCT<key STRING, value ARRAY<INT64>>>");
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        String.join(
+            "\n",
+            "INSERT `${dataset}.mapOfArrays` VALUES ",
+            "(1, [STRUCT('hi', [1, 2, 3]), STRUCT('hello', [98, 99])])"));
+    // Read data using Hive
+    List<Object[]> rows = runHiveStatement("SELECT * FROM mapOfArrays ORDER BY id");
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, List<Integer>>> mapOfArraysTypeRef =
+        new TypeReference<HashMap<String, List<Integer>>>() {};
+    HashMap<String, Integer>[] expected =
+        new HashMap[] {
+          new HashMap<String, List<Integer>>() {
+            {
+              put("hi", Arrays.asList(1, 2, 3));
+              put("hello", Arrays.asList(98, 99));
+            }
+          }
+        };
+    assertEquals(expected.length, rows.size());
+    for (int i = 0; i < expected.length; i++) {
+      HashMap<String, List<Integer>> map =
+          mapper.readValue(rows.get(i)[1].toString(), mapOfArraysTypeRef);
+      assertEquals(expected[i], map);
+    }
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -203,43 +350,46 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @CartesianTest
   public void testReadAllTypes(
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
-    // Create the BQ table
-    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
+          String readDataFormat)
+      throws IOException {
+    initHive("tez", readDataFormat);
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using the BQ SDK
     runBqQuery(
-        Stream.of(
-                String.format("INSERT `${dataset}.%s` VALUES (", ALL_TYPES_TABLE_NAME),
-                "11,",
-                "22,",
-                "33,",
-                "44,",
-                "true,",
-                "\"fixed char\",",
-                "\"var char\",",
-                "\"string\",",
-                "cast(\"2019-03-18\" as date),",
-                "cast(\"2019-03-18T01:23:45.678901\" as timestamp),",
-                "cast(\"bytes\" as bytes),",
-                "2.0,",
-                "4.2,",
-                "struct(",
-                "  cast(\"-9999999999999999999999999999.9999999999\" as bignumeric),",
-                "  cast(\"9999999999999999999999999999.9999999999\" as bignumeric),",
-                "  cast(3.14 as bignumeric),",
-                "  cast(\"3141592653589793238462643383.2795028841\" as bignumeric)",
-                "),",
-                "[1, 2, 3],",
-                "[(select as struct 1)]",
-                ")")
-            .collect(Collectors.joining("\n")));
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES (", ALL_TYPES_TABLE_NAME),
+            "11,",
+            "22,",
+            "33,",
+            "44,",
+            "true,",
+            "\"fixed char\",",
+            "\"var char\",",
+            "\"string\",",
+            "cast(\"2019-03-18\" as date),",
+            "cast(\"2019-03-18T01:23:45.678901\" as timestamp),",
+            "cast(\"bytes\" as bytes),",
+            "2.0,",
+            "4.2,",
+            "struct(",
+            "  cast(\"-9999999999999999999999999999.9999999999\" as bignumeric),",
+            "  cast(\"9999999999999999999999999999.9999999999\" as bignumeric),",
+            "  cast(3.14 as bignumeric),",
+            "  cast(\"3141592653589793238462643383.2795028841\" as bignumeric)",
+            "),",
+            "[1, 2, 3],",
+            "[(select as struct 111), (select as struct 222), (select as struct 333)],",
+            "struct(4.2),",
+            "[struct('a_key', [struct('a_subkey', 888)]), struct('b_key', [struct('b_subkey',"
+                + " 999)])]",
+            ")"));
     // Read the data using Hive
-    initHive("mr", readDataFormat);
-    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
-    assertEquals(16, row.length); // Number of columns
+    assertEquals(18, row.length); // Number of columns
     assertEquals((byte) 11, row[0]);
     assertEquals((short) 22, row[1]);
     assertEquals((int) 33, row[2]);
@@ -257,31 +407,85 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         "{\"min\":-9999999999999999999999999999.9999999999,\"max\":9999999999999999999999999999.9999999999,\"pi\":3.14,\"big_pi\":3141592653589793238462643383.2795028841}",
         row[13]);
     assertEquals("[1,2,3]", row[14]);
-    assertEquals("[{\"i\":1}]", row[15]);
+    assertEquals("[{\"i\":111},{\"i\":222},{\"i\":333}]", row[15]);
+    assertEquals("{\"float_field\":4.2}", row[16]);
+    // Map type
+    ObjectMapper mapper = new ObjectMapper();
+    TypeReference<HashMap<String, HashMap<String, Integer>>> typeRef =
+        new TypeReference<HashMap<String, HashMap<String, Integer>>>() {};
+    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[17].toString(), typeRef);
+    assertEquals(2, map.size());
+    assertEquals(
+        new HashMap() {
+          {
+            put("a_subkey", 888);
+          }
+        },
+        map.get("a_key"));
+    assertEquals(
+        new HashMap() {
+          {
+            put("b_subkey", 999);
+          }
+        },
+        map.get("b_key"));
   }
+
+  // ---------------------------------------------------------------------------------------------------
 
   /**
    * Runs a series of smoke tests to make sure that Hive UDFs used in WHERE clauses are properly
-   * translated to BigQuery's flavor of SQL.
+   * translated to BigQuery's flavor of SQL. To check the actual translations, see unit tests in the
+   * "input.udfs" package.
    */
   @Test
   public void testUDFWhereClauseSmoke() {
-    // Create the BQ table
-    runBqQuery(BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY);
-    // Read the data using Hive
-    initHive("mr", HiveBigQueryConfig.ARROW);
-    runHiveScript(HIVE_ALL_TYPES_TABLE_CREATE_QUERY);
+    initHive("tez", HiveBigQueryConfig.ARROW);
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     String[] queries = {
       "select * from "
           + ALL_TYPES_TABLE_NAME
-          + " where date(day + interval(5) DAY ) > date('2001-09-05')",
+          + " where date(day + interval(5) DAY) > date('2001-09-05')",
       "select * from " + ALL_TYPES_TABLE_NAME + " where datediff('2022-09-07', day) > 0",
       "select * from " + ALL_TYPES_TABLE_NAME + " where date_sub(day, 2) > date('2001-01-01')",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')"
+      "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where str RLIKE '^([0-9]|[a-z]|[A-Z])'",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where ((big_int_val / 2.0) = 1.0)",
+      "select * from " + ALL_TYPES_TABLE_NAME + " where ((big_int_val % 2) = 1)"
     };
     for (String query : queries) {
       runHiveStatement(query);
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Test the "RLIKE" expression */
+  @CartesianTest
+  public void testSelectWithWhereRlikeFilter(
+      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
+      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
+          String readDataFormat) {
+    initHive(engine, readDataFormat);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    // Create some initial data in BQ
+    runBqQuery(
+        String.format(
+            "INSERT `${dataset}.%s` VALUES (123, 'email@gmail.com'), (999, 'notanemail')",
+            TEST_TABLE_NAME));
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Run RLIKE query in Hive
+    List<Object[]> rows =
+        runHiveStatement(
+            "SELECT * FROM "
+                + TEST_TABLE_NAME
+                + " where text RLIKE  '^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$'");
+    assertEquals(1, rows.size());
+    assertEquals("email@gmail.com", rows.get(0)[1]);
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -292,37 +496,34 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
-    // Create the BQ tables
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
-    runBqQuery(BIGQUERY_ANOTHER_TEST_TABLE_CREATE_QUERY);
+    initHive(engine, readDataFormat);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    createExternalTable(
+        ANOTHER_TEST_TABLE_NAME, HIVE_ANOTHER_TEST_TABLE_DDL, BIGQUERY_ANOTHER_TEST_TABLE_DDL);
     // Insert data into the BQ tables using the BQ SDK
     runBqQuery(
-        Stream.of(
-                String.format("INSERT `${dataset}.%s` VALUES", TEST_TABLE_NAME),
-                "(1, 'hello'), (2, 'bonjour'), (1, 'hola')")
-            .collect(Collectors.joining("\n")));
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES", TEST_TABLE_NAME),
+            "(1, 'hello'), (2, 'bonjour'), (1, 'hola')"));
     runBqQuery(
-        Stream.of(
-                String.format("INSERT `${dataset}.%s` VALUES", ANOTHER_TEST_TABLE_NAME),
-                "(1, 'red'), (2, 'blue'), (3, 'green')")
-            .collect(Collectors.joining("\n")));
-    // Create the Hive tables
-    initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
-    runHiveScript(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES", ANOTHER_TEST_TABLE_NAME),
+            "(1, 'red'), (2, 'blue'), (3, 'green')"));
     // Do an inner join of the two tables using Hive
     List<Object[]> rows =
         runHiveStatement(
-            Stream.of(
-                    "SELECT",
-                    "t2.number,",
-                    "t1.str_val,",
-                    "t2.text",
-                    "FROM " + ANOTHER_TEST_TABLE_NAME + " t1",
-                    "JOIN " + TEST_TABLE_NAME + " t2",
-                    "ON (t1.num = t2.number)",
-                    "ORDER BY t2.number, t1.str_val, t2.text")
-                .collect(Collectors.joining("\n")));
+            String.join(
+                "\n",
+                "SELECT",
+                "t2.number,",
+                "t1.str_val,",
+                "t2.text",
+                "FROM " + ANOTHER_TEST_TABLE_NAME + " t1",
+                "JOIN " + TEST_TABLE_NAME + " t2",
+                "ON (t1.num = t2.number)",
+                "ORDER BY t2.number, t1.str_val, t2.text"));
     assertArrayEquals(
         new Object[] {
           new Object[] {1L, "red", "hello"},
@@ -340,40 +541,37 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
       @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
           String readDataFormat) {
-    // Create the BQ tables
-    runBqQuery(BIGQUERY_TEST_TABLE_CREATE_QUERY);
-    runBqQuery(BIGQUERY_ANOTHER_TEST_TABLE_CREATE_QUERY);
+    initHive(engine, readDataFormat);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    createExternalTable(
+        ANOTHER_TEST_TABLE_NAME, HIVE_ANOTHER_TEST_TABLE_DDL, BIGQUERY_ANOTHER_TEST_TABLE_DDL);
     // Insert data into the BQ tables using the BQ SDK
     runBqQuery(
-        Stream.of(
-                String.format("INSERT `${dataset}.%s` VALUES", TEST_TABLE_NAME),
-                "(1, 'hello1'), (2, 'hello2'), (3, 'hello3')")
-            .collect(Collectors.joining("\n")));
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES", TEST_TABLE_NAME),
+            "(1, 'hello1'), (2, 'hello2'), (3, 'hello3')"));
     runBqQuery(
-        Stream.of(
-                String.format("INSERT `${dataset}.%s` VALUES", ANOTHER_TEST_TABLE_NAME),
-                "(123, 'hi123'), (42, 'hi42'), (999, 'hi999')")
-            .collect(Collectors.joining("\n")));
-    // Create the Hive tables
-    initHive(engine, readDataFormat);
-    runHiveScript(HIVE_TEST_TABLE_CREATE_QUERY);
-    runHiveScript(HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY);
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES", ANOTHER_TEST_TABLE_NAME),
+            "(123, 'hi123'), (42, 'hi42'), (999, 'hi999')"));
     // Read from multiple table in same Hive query
     List<Object[]> rows =
         runHiveStatement(
-            Stream.of(
-                    "SELECT",
-                    "*",
-                    "FROM (",
-                    "SELECT",
-                    "t1.num as number,",
-                    "t1.str_val as text",
-                    "FROM " + ANOTHER_TEST_TABLE_NAME + " t1",
-                    "UNION ALL",
-                    "SELECT *",
-                    "FROM " + TEST_TABLE_NAME + " t2",
-                    ") unioned_table ORDER BY number")
-                .collect(Collectors.joining("\n")));
+            String.join(
+                "\n",
+                "SELECT",
+                "*",
+                "FROM (",
+                "SELECT",
+                "t1.num as number,",
+                "t1.str_val as text",
+                "FROM " + ANOTHER_TEST_TABLE_NAME + " t1",
+                "UNION ALL",
+                "SELECT *",
+                "FROM " + TEST_TABLE_NAME + " t2",
+                ") unioned_table ORDER BY number"));
     assertArrayEquals(
         new Object[] {
           new Object[] {1L, "hello1"},

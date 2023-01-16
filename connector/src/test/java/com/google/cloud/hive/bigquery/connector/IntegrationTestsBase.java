@@ -66,7 +66,10 @@ public class IntegrationTestsBase {
     uploadBlob(
         getBigLakeBucket(), "test.csv", "a,b,c\n1,2,3\n4,5,6".getBytes(StandardCharsets.UTF_8));
     // Create the test dataset in BigQuery
-    dataset = String.format("hive_bigquery_%d_%d", System.currentTimeMillis(), System.nanoTime());
+    dataset =
+        String.format(
+            "hive_bigquery_%d_%d",
+            Long.MAX_VALUE - System.currentTimeMillis(), Long.MAX_VALUE - System.nanoTime());
     createBqDataset(dataset);
   }
 
@@ -106,6 +109,57 @@ public class IntegrationTestsBase {
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
   }
 
+  public void createHiveTable(
+      String tableName, String hiveDDL, boolean isExternal, String properties, String comment) {
+    runHiveScript(
+        String.join(
+            "\n",
+            "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + tableName + " (",
+            hiveDDL,
+            ")",
+            comment != null ? "COMMENT \"" + comment + "\"" : "",
+            "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "TBLPROPERTIES (",
+            "  'bq.project'='${project}',",
+            "  'bq.dataset'='${dataset}',",
+            "  'bq.table'='" + tableName + "'",
+            properties != null ? "," + properties : "",
+            ");"));
+  }
+
+  public void createExternalTable(String tableName, String hiveDDL) {
+    createHiveTable(tableName, hiveDDL, true, null, null);
+  }
+
+  public void createExternalTable(String tableName, String hiveDDL, String bqDDL) {
+    createExternalTable(tableName, hiveDDL);
+    createBqTable(tableName, bqDDL);
+  }
+
+  public void createManagedTable(String tableName, String hiveDDL) {
+    createHiveTable(tableName, hiveDDL, false, null, null);
+  }
+
+  public void createManagedTable(
+      String tableName, String hiveDDL, String properties, String comment) {
+    createHiveTable(tableName, hiveDDL, false, properties, comment);
+  }
+
+  public void createBqTable(String tableName, String bqDDL) {
+    createBqTable(tableName, bqDDL, null);
+  }
+
+  public void createBqTable(String tableName, String bqDDL, String description) {
+    runBqQuery(
+        String.join(
+            "\n",
+            "CREATE OR REPLACE TABLE ${dataset}." + tableName,
+            "(",
+            bqDDL,
+            ")",
+            description != null ? "OPTIONS ( description=\"" + description + "\" )" : ""));
+  }
+
   public TableResult runBqQuery(String queryTemplate) {
     return getBigqueryClient().query(renderQueryTemplate(queryTemplate));
   }
@@ -119,7 +173,7 @@ public class IntegrationTestsBase {
   }
 
   public void initHive() {
-    initHive("mr", HiveBigQueryConfig.ARROW);
+    initHive("tez", HiveBigQueryConfig.ARROW);
   }
 
   public void initHive(String engine, String readDataFormat) {

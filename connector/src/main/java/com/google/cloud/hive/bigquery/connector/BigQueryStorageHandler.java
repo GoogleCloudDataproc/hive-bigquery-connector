@@ -15,18 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.bigquery.storage.v1.DataFormat;
-import com.google.cloud.bigquery.storage.v1.ProtoSchema;
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
-import com.google.cloud.hive.bigquery.connector.input.arrow.BigQueryArrowInputFormat;
-import com.google.cloud.hive.bigquery.connector.input.avro.BigQueryAvroInputFormat;
+import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
-import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
-import com.google.cloud.hive.bigquery.connector.utils.proto.ProtoSchemaConverter;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
@@ -42,11 +33,9 @@ import org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorization
 import org.apache.hadoop.hive.ql.security.authorization.HiveAuthorizationProvider;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
-import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
 @SuppressWarnings({"rawtypes", "deprecated"})
@@ -54,16 +43,20 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   Configuration conf;
 
+  /** Configure the GCS connector to use the Hive connector's credentials. */
+  public static void setGCSAccessTokenProvider(Configuration conf) {
+    conf.set("fs.gs.auth.type", "ACCESS_TOKEN_PROVIDER");
+    conf.set(
+        "fs.gs.auth.access.token.provider",
+        "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
+    conf.set(
+        "fs.gs.auth.access.token.provider.impl",
+        "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
+  }
+
   @Override
   public Class<? extends InputFormat> getInputFormatClass() {
-    Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(conf));
-    DataFormat readDataFormat = injector.getInstance(HiveBigQueryConfig.class).getReadDataFormat();
-    if (readDataFormat.equals(DataFormat.ARROW)) {
-      return BigQueryArrowInputFormat.class;
-    } else if (readDataFormat.equals(DataFormat.AVRO)) {
-      return BigQueryAvroInputFormat.class;
-    }
-    throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
+    return BigQueryInputFormat.class;
   }
 
   @Override
@@ -99,6 +92,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public void setConf(Configuration configuration) {
     this.conf = configuration;
+    setGCSAccessTokenProvider(this.conf);
   }
 
   @Override
@@ -119,18 +113,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
         jobConf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
       }
     }
-    String writeMethod =
-        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      // Configure the GCS connector to use the Hive connector's credentials
-      jobConf.set("fs.gs.auth.type", "ACCESS_TOKEN_PROVIDER");
-      jobConf.set(
-          "fs.gs.auth.access.token.provider",
-          "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
-      jobConf.set(
-          "fs.gs.auth.access.token.provider.impl",
-          "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
-    }
+    setGCSAccessTokenProvider(jobConf);
   }
 
   @Override
@@ -139,28 +122,6 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();
     jobDetails.setTableProperties(tableProperties);
-    String writeMethod =
-        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      // Figure out the table's proto schema
-      StructObjectInspector rowObjectInspector =
-          BigQuerySerDe.getRowObjectInspector(tableProperties);
-      Descriptors.Descriptor descriptor;
-      try {
-        descriptor = ProtoSchemaConverter.toDescriptor(rowObjectInspector);
-      } catch (Descriptors.DescriptorValidationException e) {
-        throw new RuntimeException(e);
-      }
-      ProtoSchema protoSchema =
-          com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter.convert(descriptor);
-      jobDetails.setProtoSchema(protoSchema.toByteArray());
-    } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      jobDetails.setAvroSchema(AvroUtils.extractAvroSchema(conf, tableProperties).toString());
-    } else {
-      throw new RuntimeException("Invalid write method: " + writeMethod);
-    }
-
-    // Save the job details file to HDFS
     JobDetails.writeJobDetailsFile(conf, jobDetails);
   }
 

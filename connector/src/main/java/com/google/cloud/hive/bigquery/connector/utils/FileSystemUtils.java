@@ -17,6 +17,7 @@ package com.google.cloud.hive.bigquery.connector.utils;
 
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

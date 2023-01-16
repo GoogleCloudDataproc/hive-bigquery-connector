@@ -195,10 +195,7 @@ You can use the following properties in the `TBLPROPERTIES` clause when you crea
 | `bq.time.partition.field`          | Name of a `DATE` or `TIMESTAMP` column to partition the table by                                                                                                                                                                                                  |
 | `bq.time.partition.expiration.ms`  | Partition [expiration time](https://cloud.google.com/bigquery/docs/managing-partitioned-tables#partition-expiration) in milliseconds                                                                                                                              |
 | `bq.time.partition.require.filter` | Set it to `true` to require that all queries on the table [must include a predicate filter]((https://cloud.google.com/bigquery/docs/managing-partitioned-tables#require-filter)) (a `WHERE` clause) that filters on the partitioning column. Defaults to `false`. |
-| `bq.clustered.fields`              | Comma-separated list of fields to cluster the table by                                                                                                                                                                                                            |
-| `viewsEnabled`                     | Set it to `true` to enable reading views. Defaults to `false`                                                                                                                                                                                                     |
-| `materializationProject`           | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                                                                                   |
-| `materializationDataset`           | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                                                                                   |
+| `bq.clustered.fields`              | Comma-separated list of fields to cluster the table by                                                                                                                                                                                                            |                                                                                                                                                                                                 |
 
 ## Job configuration properties
 
@@ -206,25 +203,39 @@ You can set the following Hive/Hadoop configuration properties in your environme
 
 | Property                  | Default value       | Description                                                                                                                                                                                        |
 |---------------------------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                        |
+| `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                               |
 | `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temprary Avro files to GCS before loading into BigQuery). |
-| `bq.temp.gcs.path`        | None                | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                               |
 | `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                            |
 | `bq.work.dir.name.prefix` | `bq-hive-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                            |
-| `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                        |
+| `materializationProject`  |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                    |
+| `materializationDataset`  |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                    |
+| `maxParallelism`          |                     | Maximum initial number of read streams                                                                                                                                                             |
+| `viewsEnabled`            | `false`             | Set it to `true` to enable reading views.                                                                                                                                                          |
 
 ## Data Type Mapping
 
-| BigQuery  | Hive      | DESCRIPTION                                                                                                                               |
-|-----------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| INTEGER   | BIGINT    | Signed 8-byte Integer                                                                                                                     |
-| FLOAT     | DOUBLE    | 8-byte double precision floating point number                                                                                             |
-| DATE      | DATE      | FORMAT IS YYYY-[M]M-[D]D. The range of values supported for the Date type is 0001-­01-­01 to 9999-­12-­31                                 |
-| TIMESTAMP | TIMESTAMP | Represents an absolute point in time since Unix epoch with millisecond precision (on Hive) compared to Microsecond precision on Bigquery. |
-| BOOLEAN   | BOOLEAN   | Boolean values are represented by the keywords TRUE and FALSE                                                                             |
-| STRING    | STRING    | Variable-length character data                                                                                                            |
-| BYTES     | BINARY    | Variable-length binary data                                                                                                               |
-| REPEATED  | ARRAY     | Represents repeated values                                                                                                                |
-| RECORD    | STRUCT    | Represents nested structures                                                                                                              |
+Add links to Hive & BQ types doc.
+
+| Hive        | Hive type description                                                                                                                                                                      | BigQuery        | BigQuery type description                                                                                                                        |
+|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TINYINT`   | 1-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `SMALLINT`  | 2-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `INT`       | 4-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `BIGINT`    | 8-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
+| `FLOAT`     | 4-byte single precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
+| `DOUBLE`    | 8-byte double precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
+| `DECIMAL`   | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                                                                                                               | `BIGDECIMAL`    | Alias of `BIGNUMERIC`                                                                                                                            |
+| `DATE`      | Format: `YYYY-MM-DD`                                                                                                                                                                       | `DATE`          | Format: `YYYY-[M]M-[D]D`. Supported range: 0001-01-01 to 9999-12-31                                                                              |
+| `TIMESTAMP` | Represents an absolute point in time since Unix epoch with millisecond precision (on Hive) compared to Microsecond precision on Bigquery. Considered timezoneless and based on local time. | `TIMESTAMP`     |                                                                                                                                                  |
+| `BOOLEAN`   | Boolean values are represented by the keywords TRUE and FALSE                                                                                                                              | `BOOLEAN`       |                                                                                                                                                  |
+| `CHAR`      | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
+| `VARCHAR`   | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
+| `STRING`    | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
+| `BINARY`    | Variable-length binary data                                                                                                                                                                | `BYTES`         |                                                                                                                                                  |
+| `ARRAY`     | Represents repeated values                                                                                                                                                                 | `ARRAY`         |                                                                                                                                                  |
+| `STRUCT`    | Represents nested structures                                                                                                                                                               | `STRUCT`        |                                                                                                                                                  |
+| `MAP`       | Dictionary of keys and values. Keys must be of primitive type, whereas values can be of any type.                                                                                          | `ARRAY<STRUCT>` | BigQuery doesn't support Maps natively. The connector implements it as a list of structs, where each struct has two columns: `name` and `value`. |
 
 ## Execution engines
 
@@ -238,12 +249,94 @@ it can efficiently stream data without reading all columns.
 
 Column pruning is currently supported only with the Tez engine.
 
-## Predicate Filtering
+## Predicate pushdowns
 
-The Storage API supports arbitrary pushdown of predicate filters. To enable predicate pushdown ensure
-`hive.optimize.ppd` is set to `true`.  Filters on all primitive type columns will be pushed to storage layer improving
-the performance of reads. Predicate pushdown is not supported on complex types such as arrays and structs.
-For example - filters like `address.city = "Sunnyvale"` will not get pushdown to Bigquery.
+The BigQuery Storage Read API supports arbitrary pushdown of predicate filters. This allows to execute the filters at
+the BigQuery storage layer, therefore reducing the amount of data flowing through the network and improving overall
+performance.
+
+The connector automatically translates Hive generic UDFs used in predicate filters to conform to BigQuery's syntax.
+
+The following Hive generic UDFs and operators are supported and mapped to equivalent BigQuery functions and operators:
+
+| Hive generic UDF | BigQuery function |
+|------------------|-------------------|
+| `%`              | `MOD`             |
+| `DATE_ADD`       | `DATE_ADD`        |
+| `DATE_SUB`       | `DATE_SUB`        |
+| `DATEDIFF`       | `DATE_DIFF`       |
+| `DATEDIFF`       | `DATE_DIFF`       |
+| `RLIKE`          | `REGEXP_CONTAINS` |
+
+## Parallelism
+
+### Parallel reads
+
+The connector allows parallel reads from BigQuery by using the
+[BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage).
+
+When you run a read query, the connector first retrieves the desired number of splits as specified by the
+Hadoop MapReduce `InputFormat.getSplits()` method. The connector then passes this number to
+[`CreateReadSessionRequest.setPreferredMinStreamCount()`](https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest.Builder#com_google_cloud_bigquery_storage_v1_CreateReadSessionRequest_Builder_setPreferredMinStreamCount_int_)
+when it creates the BigQuery read session.
+
+This parameter can be used to inform the BigQuery service that there is a desired lower bound on the number of streams.
+This is typically the target parallelism of the client (e.g. a Hive cluster with N-workers would set this to a low
+multiple of N to ensure good cluster utilization). The BigQuery backend makes a best effort to provide at least this
+number of streams, but in some cases might provide less.
+
+Additionally, you can set the `maxParallelism` configuration property, which the connector passes to
+[CreateReadSessionRequest.setMaxStreamCount()](https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest.Builder#com_google_cloud_bigquery_storage_v1_CreateReadSessionRequest_Builder_setMaxStreamCount_int_).
+If unset or zero, the BigQuery backend server will provide a value of streams to produce reasonable throughput. The
+number of streams may be lower than the requested number, depending on the amount parallelism that is reasonable for
+the table. There is a default system max limit of 1,000. This must be greater than or equal to the number of MapReduce
+splits. Typically, a client should either leave this unset to let the system determine an upper bound or set this as the
+maximum "units of work" that the client can gracefully handle.
+
+The connector supports both the [Arrow](https://cloud.google.com/bigquery/docs/reference/storage#arrow_schema_details)
+and [Avro](https://cloud.google.com/bigquery/docs/reference/storage#avro_schema_details) read formats. You can specify
+which format the connector should use by setting the `bq.read.data.format` configuration property to either `arrow` or
+`avro`. The connector uses Arrow by default as Arrow generally performs better than Avro.
+
+### Parallel writes
+
+The connector supports two methods for writing to BigQuery: direct writes and indirect writes.
+
+#### Direct write method
+
+The direct write method consists of writing directly to BigQuery by using the [BigQuery Write API in "pending" mode](https://cloud.google.com/bigquery/docs/write-api-batch).
+
+The indirect write method consists of the following steps:
+
+- During the execution of a write job, each mapper task creates its own BigQuery write stream and writes directly to
+  BigQuery in parallel.
+- At the end of the job, the connector commits all the streams together atomically. If the commit succeeds, then the
+  newly written data instantly becomes available for reading.
+
+If for some reason the job fails, all the writes that may have been done through the various open streams are
+automatically garbage-collected by the BigQuery backend and none of the data ends up persisting in the target table.
+
+The direct write method is generally faster than the indirect write method but incurs [costs](https://cloud.google.com/bigquery/pricing#data_ingestion_pricing)
+associated with usage of the BigQuery Storage Write API.
+
+The connector uses this method by default.
+
+#### Indirect write method
+
+The indirect write method consists of the following steps:
+
+- During the execution of a write job, each mapper task creates its own temporary output Avro file and stages it to GCS.
+- At the end of the job, the connector commits the writes by executing a [BigQuery load job](https://cloud.google.com/bigquery/docs/batch-loading-data)
+  with all the Avro files.
+- Once the job is complete, the connector deletes the temporary Avro files from GCS.
+
+This method is generally costs less than the direct write method as [BigQuery load jobs are free](https://cloud.google.com/bigquery/pricing#data_ingestion_pricing)
+and this method only incur [costs related to GCS write operations and storage](https://cloud.google.com/storage/pricing).
+However, this method is also generally much slower due to its multi-stage nature and data being routed through GCS.
+Learn more about other [limitations](https://cloud.google.com/bigquery/docs/batch-loading-data#limitations).
+
+The connector uses the direct write method by default. To let it use the indirect method instead, set the
+`bq.write.method` configuration property to `indirect`.
 
 ## Reading From BigQuery Views
 
@@ -263,20 +356,20 @@ Please note there are a few caveats:
 
 ## Known issues and limitations
 
-1. The `TINYINT`, `SMALLINT`, and `INT`/`INTEGER` Hive types are not supported. Instead, use the `BIGINT` type, which
-   corresponds to BigQuery's `INT64` type. Similarly, the `FLOAT` Hive type is not supported. Instead, use the `DOUBLE`
-   type, which corresponds to BigQuery's `FLOAT64` type.
-2. Ensure that the table exists in BigQuery and column names are always lowercase.
-3. A `TIMESTAMP` column in hive is interpreted to be timezone-less and stored as an offset from the UNIX epoch with
+1. Ensure that the table exists in BigQuery and column names are always lowercase.
+2. A `TIMESTAMP` column in hive is interpreted to be timezone-less and stored as an offset from the UNIX epoch with
    milliseconds precision. To display in human-readable format, use the `from_unix_time` UDF:
 
    ```sql
    from_unixtime(cast(cast(<timestampcolumn> as bigint)/1000 as bigint), 'yyyy-MM-dd hh:mm:ss')
    ```
-4. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
+3. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
    files might not be automatically cleaned up from the GCS bucket. The MR execution engine does not have that
    limitation. The temporary files are always cleaned up when the job is successful, regardless of the execution engine
    in use.
+4. If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro format for reading
+   or the indirect method for writing. This is because Avro requires keys to be strings. If you use the Arrow format for
+   reading (default) and the direct method for writing (also default), then there are no type limitations for the keys.
 
 ## Missing features
 

@@ -27,8 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,222 +53,94 @@ public class TestUtils {
   public static final String BIGLAKE_CONNECTION = "hive-integration-tests";
   public static final String BIGLAKE_BUCKET_NAME_ENV_VAR = "BIGLAKE_BUCKET";
 
-  public static String BIGQUERY_TEST_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE OR REPLACE TABLE ${dataset}." + TEST_TABLE_NAME + " (",
-              "number INT64,",
-              "text STRING",
-              ")")
-          .collect(Collectors.joining("\n"));
+  public static String BIGQUERY_TEST_TABLE_DDL = String.join("\n", "number INT64,", "text STRING");
 
-  public static String BIGQUERY_ANOTHER_TEST_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE OR REPLACE TABLE ${dataset}." + ANOTHER_TEST_TABLE_NAME + " (",
-              "num INT64,",
-              "str_val STRING",
-              ")")
-          .collect(Collectors.joining("\n"));
+  public static String BIGQUERY_ANOTHER_TEST_TABLE_DDL =
+      String.join("\n", "num INT64,", "str_val STRING");
 
-  public static String BIGQUERY_ALL_TYPES_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE OR REPLACE TABLE ${dataset}." + ALL_TYPES_TABLE_NAME + " (",
-              "tiny_int_val INT64,",
-              "small_int_val INT64,",
-              "int_val INT64,",
-              "big_int_val INT64,",
-              "bl BOOL,",
-              "fixed_char STRING,",
-              "var_char STRING,",
-              "str STRING,",
-              "day DATE,",
-              "ts TIMESTAMP,",
-              "bin BYTES,",
-              "fl FLOAT64,",
-              "dbl FLOAT64,",
-              "nums STRUCT<min BIGNUMERIC, max BIGNUMERIC, pi BIGNUMERIC, big_pi BIGNUMERIC>,",
-              "int_arr ARRAY<int64>,",
-              "int_struct_arr ARRAY<STRUCT<i INT64>>",
-              ")")
-          .collect(Collectors.joining("\n"));
+  public static String BIGQUERY_ALL_TYPES_TABLE_DDL =
+      String.join(
+          "\n",
+          "tiny_int_val INT64 OPTIONS (description = 'A description for a TINYINT'),",
+          "small_int_val INT64 OPTIONS (description = 'A description for a SMALLINT'),",
+          "int_val INT64 OPTIONS (description = 'A description for a INT'),",
+          "big_int_val INT64 OPTIONS (description = 'A description for a BIGINT'),",
+          "bl BOOL OPTIONS (description = 'A description for a BOOLEAN'),",
+          "fixed_char STRING OPTIONS (description = 'A description for a CHAR'),",
+          "var_char STRING OPTIONS (description = 'A description for a VARCHAR'),",
+          "str STRING OPTIONS (description = 'A description for a STRING'),",
+          "day DATE OPTIONS (description = 'A description for a DATE'),",
+          "ts TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMP'),",
+          "bin BYTES OPTIONS (description = 'A description for a BINARY'),",
+          "fl FLOAT64 OPTIONS (description = 'A description for a FLOAT'),",
+          "dbl FLOAT64 OPTIONS (description = 'A description for a DOUBLE'),",
+          "nums STRUCT<min BIGNUMERIC, max BIGNUMERIC, pi BIGNUMERIC, big_pi BIGNUMERIC> OPTIONS"
+              + " (description = 'A description for a STRUCT'),",
+          "int_arr ARRAY<int64> OPTIONS (description = 'A description for a ARRAY-BIGINT'),",
+          "int_struct_arr ARRAY<STRUCT<i INT64>> OPTIONS (description = 'A description for a"
+              + " ARRAY-STRUCT'),",
+          "float_struct STRUCT<float_field FLOAT64> OPTIONS (description = 'A description for a"
+              + " STRUCT-FLOAT'),",
+          "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>> OPTIONS"
+              + " (description = 'A description for a MAP')");
 
   public static String BIGQUERY_BIGLAKE_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE OR REPLACE EXTERNAL TABLE ${dataset}." + BIGLAKE_TABLE_NAME,
-              "WITH CONNECTION `${project}.${location}.${connection}`",
-              "OPTIONS (",
-              "format = 'CSV',",
-              "uris = ['gs://" + getBigLakeBucket() + "/test.csv']",
-              ")")
-          .collect(Collectors.joining("\n"));
+      String.join(
+          "\n",
+          "CREATE OR REPLACE EXTERNAL TABLE ${dataset}." + BIGLAKE_TABLE_NAME,
+          "WITH CONNECTION `${project}.${location}.${connection}`",
+          "OPTIONS (",
+          "format = 'CSV',",
+          "uris = ['gs://" + getBigLakeBucket() + "/test.csv']",
+          ")");
 
-  public static String BIGQUERY_MANAGED_TEST_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE OR REPLACE TABLE ${dataset}." + MANAGED_TEST_TABLE_NAME + " (",
-              "tiny_int_val INT64,",
-              "small_int_val INT64,",
-              "int_val INT64,",
-              "big_int_val INT64,",
-              "bl BOOL,",
-              "fixed_char STRING,",
-              "var_char STRING,",
-              "str STRING,",
-              "day DATE,",
-              "ts TIMESTAMP,",
-              "bin BYTES,",
-              "fl FLOAT64,",
-              "dbl FLOAT64,",
-              "nums STRUCT<min BIGNUMERIC, max BIGNUMERIC, pi BIGNUMERIC, big_pi BIGNUMERIC>,",
-              "int_arr ARRAY<int64>,",
-              "int_struct_arr ARRAY<STRUCT<i INT64>>",
-              ")")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_TEST_TABLE_DDL = String.join("\n", "number BIGINT,", "text STRING");
 
-  public static String HIVE_TEST_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE EXTERNAL TABLE " + TEST_TABLE_NAME + " (",
-              "number BIGINT,",
-              "text STRING",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + TEST_TABLE_NAME + "'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_TEST_VIEW_DDL = String.join("\n", "number BIGINT,", "text STRING");
 
-  public static String HIVE_TEST_VIEW_CREATE_QUERY =
-      Stream.of(
-              "CREATE EXTERNAL TABLE " + TEST_VIEW_NAME + " (",
-              "number BIGINT,",
-              "text STRING",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + TEST_VIEW_NAME + "'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_BIGLAKE_TABLE_DDL =
+      String.join("\n", "a BIGINT,", "b BIGINT,", "c BIGINT");
 
-  public static String HIVE_BIGLAKE_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE EXTERNAL TABLE " + BIGLAKE_TABLE_NAME + " (",
-              "a BIGINT,",
-              "b BIGINT,",
-              "c BIGINT",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + BIGLAKE_TABLE_NAME + "'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_ANOTHER_TEST_TABLE_DDL =
+      String.join("\n", "num BIGINT,", "str_val STRING");
 
-  public static String HIVE_ANOTHER_TEST_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE EXTERNAL TABLE " + ANOTHER_TEST_TABLE_NAME + " (",
-              "num BIGINT,",
-              "str_val STRING",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + ANOTHER_TEST_TABLE_NAME + "'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_ALL_TYPES_TABLE_DDL =
+      String.join(
+          "\n",
+          "tiny_int_val TINYINT COMMENT 'A description for a TINYINT',",
+          "small_int_val SMALLINT COMMENT 'A description for a SMALLINT',",
+          "int_val INT COMMENT 'A description for a INT',",
+          "big_int_val BIGINT COMMENT 'A description for a BIGINT',",
+          "bl BOOLEAN COMMENT 'A description for a BOOLEAN',",
+          "fixed_char CHAR(10) COMMENT 'A description for a CHAR',",
+          "var_char VARCHAR(10) COMMENT 'A description for a VARCHAR',",
+          "str STRING COMMENT 'A description for a STRING',",
+          "day DATE COMMENT 'A description for a DATE',",
+          "ts TIMESTAMP COMMENT 'A description for a TIMESTAMP',",
+          "bin BINARY COMMENT 'A description for a BINARY',",
+          "fl FLOAT COMMENT 'A description for a FLOAT',",
+          "dbl DOUBLE COMMENT 'A description for a DOUBLE',",
+          "nums STRUCT<min: DECIMAL(38,10), max: DECIMAL(38,10), pi:"
+              + " DECIMAL(38,10), big_pi: DECIMAL(38,10)> COMMENT 'A description for a STRUCT',",
+          "int_arr ARRAY<BIGINT> COMMENT 'A description for a ARRAY-BIGINT',",
+          "int_struct_arr ARRAY<STRUCT<i: BIGINT>> COMMENT 'A description for a ARRAY-STRUCT',",
+          "float_struct STRUCT<float_field:FLOAT> COMMENT 'A description for a STRUCT-FLOAT',",
+          "mp MAP<STRING,MAP<STRING,INT>> COMMENT 'A description for a MAP'");
 
-  public static String HIVE_ALL_TYPES_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE EXTERNAL TABLE " + ALL_TYPES_TABLE_NAME + " (",
-              "tiny_int_val TINYINT,",
-              "small_int_val SMALLINT,",
-              "int_val INT,",
-              "big_int_val BIGINT,",
-              "bl BOOLEAN,",
-              "fixed_char CHAR(10),",
-              "var_char VARCHAR(10),",
-              "str STRING,",
-              "day DATE,",
-              "ts TIMESTAMP,",
-              "bin BINARY,",
-              "fl FLOAT,",
-              "dbl DOUBLE,",
-              "nums STRUCT<min: DECIMAL(38,10), max: DECIMAL(38,10), pi:"
-                  + " DECIMAL(38,10), big_pi: DECIMAL(38,10)>,",
-              "int_arr ARRAY<BIGINT>,",
-              "int_struct_arr ARRAY<STRUCT<i: BIGINT>>",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + ALL_TYPES_TABLE_NAME + "'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL =
+      String.join("\n", "int_val BIGINT,", "ts TIMESTAMP");
 
-  public static String HIVE_MANAGED_TEST_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE TABLE " + MANAGED_TEST_TABLE_NAME + " (",
-              "tiny_int_val TINYINT,",
-              "small_int_val SMALLINT,",
-              "int_val INT,",
-              "big_int_val BIGINT,",
-              "bl BOOLEAN,",
-              "fixed_char CHAR(10),",
-              "var_char VARCHAR(10),",
-              "str STRING,",
-              "day DATE,",
-              "ts TIMESTAMP,",
-              "bin BINARY,",
-              "fl FLOAT,",
-              "dbl DOUBLE,",
-              "nums STRUCT<min: DECIMAL(38,9), max: DECIMAL(38,9), pi:"
-                  + " DECIMAL(38,9), big_pi: DECIMAL(38,9)>,",
-              "int_arr ARRAY<BIGINT>,",
-              "int_struct_arr ARRAY<STRUCT<i: BIGINT>>",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + MANAGED_TEST_TABLE_NAME + "'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_PROPS =
+      String.join(
+          "\n",
+          "'bq.time.partition.field'='ts',",
+          "'bq.time.partition.type'='MONTH',",
+          "'bq.time.partition.expiration.ms'='2592000000',",
+          "'bq.clustered.fields'='int_val'");
 
-  public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE TABLE " + FIELD_TIME_PARTITIONED_TABLE_NAME + " (",
-              "int_val BIGINT,",
-              "ts TIMESTAMP",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + FIELD_TIME_PARTITIONED_TABLE_NAME + "',",
-              "  'bq.time.partition.field'='ts',",
-              "  'bq.time.partition.type'='MONTH',",
-              "  'bq.time.partition.expiration.ms'='2592000000',",
-              "  'bq.clustered.fields'='int_val'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_INGESTION_TIME_PARTITIONED_DDL = String.join("\n", "int_val BIGINT");
 
-  public static String HIVE_INGESTION_TIME_PARTITIONED_TABLE_CREATE_QUERY =
-      Stream.of(
-              "CREATE TABLE " + INGESTION_TIME_PARTITIONED_TABLE_NAME + " (",
-              "int_val BIGINT",
-              ")",
-              "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
-              "TBLPROPERTIES (",
-              "  'bq.project'='${project}',",
-              "  'bq.dataset'='${dataset}',",
-              "  'bq.table'='" + INGESTION_TIME_PARTITIONED_TABLE_NAME + "',",
-              "  'bq.time.partition.type'='DAY'",
-              ");")
-          .collect(Collectors.joining("\n"));
+  public static String HIVE_INGESTION_TIME_PARTITIONED_PROPS = "'bq.time.partition.type'='DAY'";
 
   /** Return Hive config values passed from system properties */
   public static Map<String, String> getHiveConfSystemOverrides() {
