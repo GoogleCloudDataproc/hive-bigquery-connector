@@ -115,8 +115,10 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
     setGCSAccessTokenProvider(jobConf);
+
     WriteEntity writeEntity = HiveUtils.getWriteEntity(conf);
-    if (writeEntity == null
+    if ((conf.get(Constants.THIS_IS_AN_OUTPUT_JOB, "false").equals("false"))
+        || writeEntity == null
         || (writeEntity.getWriteType() != WriteEntity.WriteType.INSERT
             && writeEntity.getWriteType() != WriteEntity.WriteType.INSERT_OVERWRITE)) {
       // This is not a write job, so we don't need to anything more here
@@ -231,6 +233,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
+    conf.set(Constants.THIS_IS_AN_OUTPUT_JOB, "true");
     // Retrieve the table properties here instead of in `configureJobConf()` because somehow
     // in `configureJobConf()` some properties (for example, "partition_columns") are missing
     // from `tableDesc.getProperties()`.
