@@ -225,9 +225,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     return filter;
   }
 
-  /**
-   * Returns all columns in the table.
-   */
+  /** Returns all columns in the table. */
   protected static List<String> getAllColumnNames(JobConf jobConf, HiveBigQueryConfig config) {
     // Retrieve the table's column names
     String columnNameDelimiter = config.getColumnNameDelimiter();

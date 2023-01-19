@@ -346,4 +346,130 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
         },
         rows.toArray());
   }
+
+  @Test
+  public void testDropPartitionedTable() {
+    createDatePartitionedTable("mr");
+    runHiveScript("DROP TABLE partitioned_by_date");
+  }
+
+  @Test
+  public void blah() {
+    String engine = "mr";
+    hive.setHiveConfValue(
+        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
+
+    hive.setHiveConfValue(HiveConf.ConfVars.DYNAMICPARTITIONING.varname, "true");
+    hive.setHiveConfValue(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE.varname, "nonstrict");
+
+    hive.setHiveConfValue(
+        HiveConf.ConfVars.METASTORE_RAW_STORE_IMPL.varname,
+        "com.google.cloud.hive.bigquery.connector.metastore.BigQueryObjectStore");
+    initHive(engine, HiveBigQueryConfig.ARROW);
+
+    runBqQuery(
+        String.join(
+            "\n",
+            "create or replace table `${dataset}.bq_native_table_1`",
+            "(",
+            "    id int64,",
+            "    name string,",
+            "    sid int64",
+            ")"));
+    runBqQuery(
+        String.join(
+            "\n",
+            "create or replace table `${dataset}.bq_native_table_2`",
+            "(",
+            "    sid int64,",
+            "    subject string,",
+            "    marks int64,",
+            "    assigned_date date",
+            ")"));
+
+    runHiveScript(
+        String.join(
+            "\n",
+            "CREATE EXTERNAL TABLE hive_ext_table_1 (",
+            "id int,",
+            "name string,",
+            "sid int",
+            ")",
+            "STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "TBLPROPERTIES (",
+            "    'bq.project'='${project}',",
+            "    'bq.dataset'='${dataset}',",
+            "    'bq.table'='bq_native_table_1'",
+            ")"));
+
+    runHiveScript(
+        String.join(
+            "\n",
+            "CREATE EXTERNAL TABLE hive_ext_table_2 (",
+            "sid int,",
+            "subject string,",
+            "marks int,",
+            "assigned_date date",
+            ")",
+            "STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "TBLPROPERTIES (",
+            "    'bq.project'='${project}',",
+            "    'bq.dataset'='${dataset}',",
+            "    'bq.table'='bq_native_table_2'",
+            ")"));
+
+    runHiveScript(
+        String.join(
+            "\n",
+            "CREATE EXTERNAL TABLE `hive_partition_native_table_itas_case` (",
+            "id int,",
+            "name string,",
+            "sid int,",
+            "subject string,",
+            "marks int",
+            ")",
+            "PARTITIONED BY (assigned_date date)"));
+
+    runBqQuery(
+        String.join(
+            "\n",
+            "insert into `${dataset}.bq_native_table_1` values",
+            "(222,'name2', 908),",
+            "(444,'name4', 909)"));
+    runBqQuery(
+        String.join(
+            "\n",
+            "insert into `${dataset}.bq_native_table_2` values",
+            "(908,'networking', 190,date('2001-01-01')),",
+            "(909,'CNA', 198,date('2002-02-02')),",
+            "(601,'OOPS', 160,date('2001-01-01')),",
+            "(602,'SANSKRIT', 199, date('2002-02-02'))"));
+
+    runHiveScript(
+        String.join(
+            "\n",
+            "    Insert overwrite table `hive_partition_native_table_itas_case`"
+                + " PARTITION(assigned_date)",
+            "    select",
+            "        id ,",
+            "        name ,",
+            "        sid ,",
+            "        subject ,",
+            "        marks ,",
+            "        assigned_date",
+            "    from (",
+            "        select",
+            "            tbl1.id ,",
+            "        tbl1.name ,",
+            "        tbl1.sid ,",
+            "        tbl2.subject ,",
+            "        tbl2.marks ,",
+            "        tbl2.assigned_date",
+            "            from `hive_ext_table_1` tbl1",
+            "            join `hive_ext_table_2` tbl2",
+            "            on tbl1.sid = tbl2.sid",
+            "    ) a;"));
+  }
+
+
 }

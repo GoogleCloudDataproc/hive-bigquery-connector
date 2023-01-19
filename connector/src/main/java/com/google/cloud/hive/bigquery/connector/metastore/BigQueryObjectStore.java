@@ -27,18 +27,24 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Date;
 import java.util.stream.Collectors;
+import javax.jdo.JDOObjectNotFoundException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.*;
 import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNot;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPOr;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.thrift.TException;
+import repackaged.by.hivebqconnector.com.google.common.collect.Sets;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
 /**
@@ -68,6 +74,9 @@ public class BigQueryObjectStore extends ObjectStore {
 
   /** Converts the given Hive filter expression to be compatible with BigQuery. */
   public static ExprNodeDesc convertFilterForBigQuery(ExprNodeDesc filterExpr) {
+    if (filterExpr == null) {
+      return null;
+    }
     // Check if it's a function
     if (filterExpr instanceof ExprNodeGenericFuncDesc) {
       ExprNodeGenericFuncDesc function = ((ExprNodeGenericFuncDesc) filterExpr);
@@ -143,20 +152,41 @@ public class BigQueryObjectStore extends ObjectStore {
   protected List<Partition> fetchPartitionsFromBigQuery(
       Table table, String catName, String dbName, String tableName, ExprNodeDesc filter)
       throws MetaException {
+
+    // Filter out partitions potentially in the process of being dropped
+    String transactionDataValue = getTransactionDataValue(PARTITIONS_BEING_DROPPED);
+    if (transactionDataValue != null) {
+      Set<String> droppedPartitions = Sets.newHashSet(transactionDataValue.split(","));
+      ExprNodeDesc droppedPartitionsFilter = convertPartitionValuesToFilterExpr(table, droppedPartitions);
+      ExprNodeGenericFuncDesc not = new ExprNodeGenericFuncDesc();
+      not.setGenericUDF(new GenericUDFOPNot());
+      not.setChildren(Collections.singletonList(droppedPartitionsFilter));
+      if (filter == null) {
+        // Set the filter to (pseudo-code): filter <- not (dropped partitions)
+        filter = not;
+      } else {
+        // Adjust the given filter to (pseudo-code): filter <- filter AND not (dropped partitions)
+        ExprNodeGenericFuncDesc and = new ExprNodeGenericFuncDesc();
+        and.setGenericUDF(new GenericUDFOPAnd());
+        and.setChildren(Arrays.asList(filter, not));
+        filter = and;
+      }
+    }
+
     String partitionColumnName = table.getPartitionKeys().get(0).getName();
-    List<String> values = fetchPartitionIds(table, filter, (short) -1);
+    List<String> partitionIds = fetchPartitionIds(table, filter, (short) -1);
     List<Partition> result = new ArrayList<>();
-    for (String value : values) {
+    for (String partitionId : partitionIds) {
       Partition partition = new Partition();
       StorageDescriptor sd = new StorageDescriptor();
       sd.setSerdeInfo(table.getSd().getSerdeInfo());
       Map<String, String> map = new HashMap<>();
-      map.put(partitionColumnName, value);
+      map.put(partitionColumnName, partitionId);
       Path location = new Path(table.getSd().getLocation(), Warehouse.makePartPath(map));
       sd.setLocation(location.toString());
       partition.setSd(sd);
       partition.setParameters(new HashMap<>());
-      partition.setValues(Collections.singletonList(value));
+      partition.setValues(Collections.singletonList(partitionId));
       partition.setCatName(catName);
       partition.setDbName(dbName);
       partition.setTableName(tableName);
@@ -225,22 +255,15 @@ public class BigQueryObjectStore extends ObjectStore {
 
   @Override
   public List<String> listPartitionNamesPs(
-      String catName, String dbName, String tableName, List<String> partVals, short max)
+      String catName, String dbName, String tableName, List<String> partitionValues, short max)
       throws MetaException, NoSuchObjectException {
     Table table = getBigQueryLinkedTable(catName, dbName, tableName);
     if (table == null) {
       // This is not a Hive table linked to a BigQuery table
-      return super.listPartitionNamesPs(catName, dbName, tableName, partVals, max);
+      return super.listPartitionNamesPs(catName, dbName, tableName, partitionValues, max);
     }
-    ExprNodeColumnDesc partitionColumnDesc =
-        new ExprNodeColumnDesc(
-            TypeInfoFactory.stringTypeInfo, "partition_id", table.getTableName(), true);
-    ExprNodeConstantDesc partitionValueDesc =
-        new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, partVals.get(0));
-    ExprNodeGenericFuncDesc filter = new ExprNodeGenericFuncDesc();
-    filter.setGenericUDF(new GenericUDFOPEqual());
-    filter.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
-    List<String> values = fetchPartitionIds(table, convertFilterForBigQuery(filter), max);
+    ExprNodeDesc filter = convertPartitionValuesToFilterExpr(table, partitionValues);
+    List<String> values = fetchPartitionIds(table, filter, max);
     List<String> result = new ArrayList<>();
     String partitionColumnName = table.getPartitionKeys().get(0).getName();
     for (String value : values) {
@@ -249,14 +272,34 @@ public class BigQueryObjectStore extends ObjectStore {
     return result;
   }
 
+  protected ExprNodeDesc convertPartitionValuesToFilterExpr(
+      Table table, Iterable<String> partitionValues) {
+    List<ExprNodeDesc> partitionFilters = new ArrayList<>();
+    for (String partitionValue : partitionValues) {
+      ExprNodeColumnDesc partitionColumnDesc =
+          new ExprNodeColumnDesc(
+              TypeInfoFactory.stringTypeInfo, "partition_id", table.getTableName(), true);
+      ExprNodeConstantDesc partitionValueDesc =
+          new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, partitionValue.split("=")[1]);
+      ExprNodeGenericFuncDesc partitionFilter = new ExprNodeGenericFuncDesc();
+      partitionFilter.setGenericUDF(new GenericUDFOPEqual());
+      partitionFilter.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
+      partitionFilters.add(partitionFilter);
+    }
+    ExprNodeGenericFuncDesc orOperator = new ExprNodeGenericFuncDesc();
+    orOperator.setGenericUDF(new GenericUDFOPOr());
+    orOperator.setChildren(partitionFilters);
+    return convertFilterForBigQuery(orOperator);
+  }
+
   /** Called when running a "INSERT OVERWRITE PARTITION(...) SELECT(...)" query. */
   @Override
   public List<Partition> listPartitionsPsWithAuth(
       String catName,
       String dbName,
       String tableName,
-      List<String> partVals,
-      short maxParts,
+      List<String> partitionValues,
+      short maxPartitions,
       String userName,
       List<String> groupNames)
       throws MetaException, InvalidObjectException, NoSuchObjectException {
@@ -264,17 +307,107 @@ public class BigQueryObjectStore extends ObjectStore {
     if (table == null) {
       // This is not a Hive table linked to a BigQuery table
       return super.listPartitionsPsWithAuth(
-          catName, dbName, tableName, partVals, maxParts, userName, groupNames);
+          catName, dbName, tableName, partitionValues, maxPartitions, userName, groupNames);
     }
-    ExprNodeColumnDesc partitionColumnDesc =
-        new ExprNodeColumnDesc(
-            TypeInfoFactory.stringTypeInfo, "partition_id", table.getTableName(), true);
-    ExprNodeConstantDesc partitionValueDesc =
-        new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, partVals.get(0));
-    ExprNodeGenericFuncDesc filter = new ExprNodeGenericFuncDesc();
-    filter.setGenericUDF(new GenericUDFOPEqual());
-    filter.setChildren(Arrays.asList(partitionColumnDesc, partitionValueDesc));
-    return fetchPartitionsFromBigQuery(
-        table, catName, dbName, tableName, convertFilterForBigQuery(filter));
+    ExprNodeDesc filter = convertPartitionValuesToFilterExpr(table, partitionValues);
+    return fetchPartitionsFromBigQuery(table, catName, dbName, tableName, filter);
   }
+
+  protected String getTransactionDataValue(String key) {
+    try {
+      TransactionData transactionData =
+          getPersistenceManager().getObjectById(TransactionData.class, key);
+      return transactionData.value;
+    } catch (JDOObjectNotFoundException e) {
+      return null;
+    }
+  }
+
+  protected void setTransactionData(String key, String value) {
+    TransactionData transactionData = new TransactionData(key, value);
+    getPersistenceManager().makePersistent(transactionData);
+  }
+
+  protected final String PARTITIONS_BEING_DROPPED = "partitions.being.dropped";
+
+  @Override
+  public void dropPartitions(
+      String catName, String dbName, String tableName, List<String> partitionNames)
+      throws MetaException, NoSuchObjectException {
+    Table table = getBigQueryLinkedTable(catName, dbName, tableName);
+    if (table == null) {
+      // This is not a Hive table linked to a BigQuery table
+      super.dropPartitions(catName, dbName, tableName, partitionNames);
+    }
+
+    // Warning: This is a hack to get around the fact that, when dropping a table,
+    // the metastore loads all partitions in batches and then drops those partitions
+    // one batch at a time. If we don't keep track of the partitions that are being
+    // dropped then the metastore gets stuck in an infinite loop.
+    // Not sure that persisting that information is the best way to do it though. This
+    // is still very much a work in progress...
+    // See the calls to `ms.getPartitions()` and `ms.dropPartitions()` in this loop:
+    // https://github.com/apache/hive/blob/rel/release-3.1.2/standalone-metastore/src/main/java/org/apache/hadoop/hive/metastore/HiveMetaStore.java#L2642-L2679
+    String transactionDataValue = getTransactionDataValue(PARTITIONS_BEING_DROPPED);
+    if (transactionDataValue == null) {
+      setTransactionData(
+          PARTITIONS_BEING_DROPPED, String.join(",", partitionNames));
+    } else {
+      setTransactionData(
+          PARTITIONS_BEING_DROPPED,
+          String.join(
+              ",",
+              transactionDataValue,
+              String.join(",", partitionNames)));
+    }
+
+    if (!MetaStoreUtils.isExternalTable(table)) {
+      Injector injector =
+          Guice.createInjector(
+              new BigQueryClientModule(),
+              new HiveBigQueryConnectorModule(getConf(), table.getParameters()));
+      BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+      HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
+      TableId tableId = config.getTableId();
+      String query =
+          String.format(
+              "DELETE FROM `%s.%s.%s` WHERE %s",
+              tableId.getProject(),
+              tableId.getDataset(),
+              tableId.getTable(),
+              String.join(" OR ", partitionNames));
+      bqClient.query(query);
+    }
+  }
+
+//  @Override
+//  public boolean dropTable(String catName, String dbName, String tableName)
+//      throws MetaException, NoSuchObjectException, InvalidObjectException, InvalidInputException {
+//    Table table = getBigQueryLinkedTable(catName, dbName, tableName);
+//    if (table == null) {
+//      // This is not a Hive table linked to a BigQuery table
+//      return super.dropTable(catName, dbName, tableName);
+//    }
+//    boolean success = false;
+//    try {
+//      this.openTransaction();
+//      boolean hiveDropSuccess = super.dropTable(catName, dbName, tableName);
+//      if (hiveDropSuccess && !MetaStoreUtils.isExternalTable(table)) {
+//        // This is a managed table, so let's delete the table in BigQuery
+//        Injector injector =
+//            Guice.createInjector(
+//                new BigQueryClientModule(),
+//                new HiveBigQueryConnectorModule(getConf(), table.getParameters()));
+//        BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+//        HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+//        bqClient.deleteTable(opts.getTableId());
+//      }
+//      success = hiveDropSuccess && this.commitTransaction();
+//    } finally {
+//      if (!success) {
+//        this.rollbackTransaction();
+//      }
+//    }
+//    return success;
+//  }
 }
