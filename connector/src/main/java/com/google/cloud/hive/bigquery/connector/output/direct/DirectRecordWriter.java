@@ -87,7 +87,7 @@ public class DirectRecordWriter
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+      JobDetails jobDetails = JobDetails.getJobDetails(jobConf);
       Path filePath =
           DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getTableId(), taskAttemptID);
       FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);

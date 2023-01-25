@@ -76,7 +76,7 @@ public class IndirectAvroRecordWriter
   @Override
   public void close(boolean abort) throws IOException {
     if (!abort) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+      JobDetails jobDetails = JobDetails.getJobDetails(jobConf);
       Path filePath =
           IndirectUtils.getTaskAvroTempFile(
               jobConf, jobDetails.getTableId(), jobDetails.getGcsTempPath(), taskAttemptID);

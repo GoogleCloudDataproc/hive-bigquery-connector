@@ -45,7 +45,7 @@ public class BigQueryOutputFormat
       FileSystem fileSystem, JobConf jobConf, String name, Progressable progressable)
       throws IOException {
     // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+    JobDetails jobDetails = JobDetails.getJobDetails(jobConf);
     String writeMethod =
         jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {

@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import repackaged.by.hivebqconnector.com.google.gson.Gson;
 
@@ -101,27 +102,36 @@ public class JobDetails {
   }
 
   /** Writes the job's details file to the job's work directory on HDFS. */
-  public static void writeJobDetailsFile(Configuration conf, JobDetails jobDetails) {
+  public static void saveJobDetails(Configuration conf, JobDetails jobDetails) {
     Path path = FileSystemUtils.getJobDetailsFile(conf);
-    FSDataOutputStream infoFile;
+    FSDataOutputStream outputStream;
     try {
-      infoFile = path.getFileSystem(conf).create(path);
+      outputStream = path.getFileSystem(conf).create(path);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
     Gson gson = new Gson();
     try {
-      infoFile.write(gson.toJson(jobDetails).getBytes(StandardCharsets.UTF_8));
-      infoFile.close();
+      outputStream.write(gson.toJson(jobDetails).getBytes(StandardCharsets.UTF_8));
+      outputStream.close();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   /** Reads the job's details file from the job's work directory on HDFS. */
-  public static JobDetails readJobDetailsFile(Configuration conf) throws IOException {
-    String jsonString = FileSystemUtils.readFile(conf, FileSystemUtils.getJobDetailsFile(conf));
-    Gson gson = new Gson();
-    return gson.fromJson(jsonString, JobDetails.class);
+  public static JobDetails getJobDetails(Configuration conf) {
+    Path jobDetailsFile = FileSystemUtils.getJobDetailsFile(conf);
+    try {
+      if (FileSystem.get(conf).exists(jobDetailsFile)) {
+        String jsonString = FileSystemUtils.readFile(conf, jobDetailsFile);
+        Gson gson = new Gson();
+        return gson.fromJson(jsonString, JobDetails.class);
+      } else {
+        return new JobDetails();
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

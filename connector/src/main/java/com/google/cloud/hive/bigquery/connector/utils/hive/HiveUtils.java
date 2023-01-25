@@ -15,9 +15,16 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.hive;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.HashSet;
 import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.Context;
+import org.apache.hadoop.hive.ql.QueryState;
+import org.apache.hadoop.hive.ql.hooks.WriteEntity;
+import org.apache.hadoop.hive.ql.parse.*;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapreduce.JobID;
@@ -74,6 +81,41 @@ public class HiveUtils {
     @Override
     public int hashCode() {
       return Objects.hash(getId(), getTaskID().getId(), getJobID());
+    }
+  }
+
+  public static WriteEntity getWriteEntity(Configuration conf) {
+    String query;
+    try {
+      query =
+          java.net.URLDecoder.decode(conf.get(HiveConf.ConfVars.HIVEQUERYSTRING.varname), "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
+    }
+    return getWriteEntity(conf, query);
+  }
+
+  public static WriteEntity getWriteEntity(Configuration conf, String query) {
+    HiveConf hiveConf = new HiveConf(conf, HiveConf.class);
+    ASTNode tree;
+    try {
+      tree = ParseUtils.parse(query);
+    } catch (ParseException e) {
+      throw new RuntimeException(e);
+    }
+    BaseSemanticAnalyzer analyzer;
+    QueryState queryState = new QueryState.Builder().withHiveConf(hiveConf).build();
+    try {
+      analyzer = SemanticAnalyzerFactory.get(queryState, tree);
+      analyzer.analyze(tree, new Context(hiveConf));
+    } catch (SemanticException | IOException e) {
+      throw new RuntimeException(e);
+    }
+    HashSet<WriteEntity> allOutputs = analyzer.getAllOutputs();
+    if (allOutputs.size() > 0) {
+      return (WriteEntity) allOutputs.toArray()[0];
+    } else {
+      return null;
     }
   }
 }
