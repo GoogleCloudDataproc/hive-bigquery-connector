@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
-public class WriteIntegrationtests extends IntegrationTestsBase {
+public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
