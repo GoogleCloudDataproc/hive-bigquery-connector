@@ -139,6 +139,8 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     if (jobTableProps.get("name").equals(tableDesc.getProperties().get("name"))
         && analyzer.getQueryProperties().isCTAS()) {
       try {
+        jobDetails.setCTAS(true);
+        JobDetails.saveJobDetails(conf, jobDetails);
         TableInfo tableInfo =
             BigQueryMetaHook.preCreateTable(
                 conf, sanitizeColumns(analyzer.getResultSchema()), jobTableProps);

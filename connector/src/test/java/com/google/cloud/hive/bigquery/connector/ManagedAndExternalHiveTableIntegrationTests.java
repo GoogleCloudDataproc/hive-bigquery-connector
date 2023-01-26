@@ -15,14 +15,20 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
 
 public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTestsBase {
 
@@ -104,6 +110,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
           String readDataFormat) {
     initHive(engine, readDataFormat);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    String tableName = "ctas";
     // Insert data into the BQ tables using the BQ SDK
     runBqQuery(
         String.join(
@@ -114,13 +121,22 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     runHiveScript(
         String.join(
             "\n",
-            "CREATE TABLE ctas",
+            "CREATE TABLE " + tableName,
             "STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
             "TBLPROPERTIES (",
             "  'bq.project'='${project}',",
             "  'bq.dataset'='${dataset}',",
             "  'bq.table'='ctas'",
             ")",
-            "AS SELECT * FROM " + TEST_TABLE_NAME));
+            "AS SELECT * FROM " + TEST_TABLE_NAME,
+            "WHERE number >= 2 ORDER BY number"
+        ));
+    // Check that the table was correctly created in BQ
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", tableName));
+    // Verify we get the expected values
+    assertEquals(2, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    // TODO: Check contents of returned rows
   }
 }

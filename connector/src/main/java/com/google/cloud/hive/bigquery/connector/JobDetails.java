@@ -39,6 +39,7 @@ public class JobDetails {
   private String finalTable; // Only used by the 'direct' write method
   private String gcsTempPath; // Only used by the 'indirect' write method
   private Properties tableProperties;
+  private boolean isCTAS;
 
   public JobDetails() {}
 
@@ -99,6 +100,14 @@ public class JobDetails {
 
   public void setTableProperties(Properties tableProperties) {
     this.tableProperties = tableProperties;
+  }
+
+  public boolean isCTAS() {
+    return isCTAS;
+  }
+
+  public void setCTAS(boolean CTAS) {
+    isCTAS = CTAS;
   }
 
   /** Writes the job's details file to the job's work directory on HDFS. */

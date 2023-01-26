@@ -112,6 +112,13 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
    */
   @Override
   public void preCreateTable(Table table) throws MetaException {
+    JobDetails jobDetails =  JobDetails.getJobDetails(conf);
+
+    if (jobDetails.isCTAS()) {
+      // If it's a CTAS then we assume the BQ table has already been created
+      // at the start of the job
+      return;
+    }
     //    table
     //        .getSd()
     //        .setInputFormat("com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat");
@@ -232,6 +239,12 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   @Override
   public void commitCreateTable(Table table) throws MetaException {
+    JobDetails jobDetails =  JobDetails.getJobDetails(conf);
+    if (jobDetails.isCTAS()) {
+      // If it's a CTAS then we assume the BQ table has already been created
+      // at the start of the job
+      return;
+    }
     commitCreateTable(conf, table.getParameters(), createTableInfo);
   }
 
