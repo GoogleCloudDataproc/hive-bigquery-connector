@@ -28,17 +28,20 @@ import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import com.google.common.collect.Maps;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaHook;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveStoragePredicateHandler;
+import org.apache.hadoop.hive.ql.parse.SemanticAnalyzer;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
@@ -113,20 +116,51 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     return conf;
   }
 
+  private static List<FieldSchema> sanitizeColumns(List<FieldSchema> columns) {
+    List<FieldSchema> sanitized = new ArrayList<>();
+    for (FieldSchema column : columns) {
+      FieldSchema clone = column.deepCopy();
+      if (clone.getName().contains(".")) {
+        clone.setName(clone.getName().split("\\.")[1]);
+      }
+      sanitized.add(clone);
+    }
+    return sanitized;
+  }
+
   @Override
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
     setGCSAccessTokenProvider(jobConf);
     JobDetails jobDetails = JobDetails.getJobDetails(conf);
-    WriteEntity writeEntity = HiveUtils.getWriteEntity(conf);
-    jobDetails.setOverwrite(writeEntity.getWriteType() == WriteEntity.WriteType.INSERT_OVERWRITE);
 
+    SemanticAnalyzer analyzer = HiveUtils.getQueryAnalyzer(conf);
+    Map<String, String> jobTableProps =
+        new HashMap<>(Maps.fromProperties(jobDetails.getTableProperties()));
+    if (jobTableProps.get("name").equals(tableDesc.getProperties().get("name"))
+        && analyzer.getQueryProperties().isCTAS()) {
+      try {
+        TableInfo tableInfo =
+            BigQueryMetaHook.preCreateTable(
+                conf, sanitizeColumns(analyzer.getResultSchema()), jobTableProps);
+        BigQueryMetaHook.commitCreateTable(conf, jobTableProps, tableInfo);
+        Properties newProps = new Properties();
+        newProps.putAll(jobTableProps);
+        tableDesc.setProperties(newProps);
+      } catch (MetaException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    WriteEntity writeEntity = HiveUtils.getWriteEntity(analyzer);
     if ((conf.get(Constants.THIS_IS_AN_OUTPUT_JOB, "false").equals("false"))
+        || writeEntity == null
         || (writeEntity.getWriteType() != WriteEntity.WriteType.INSERT
             && writeEntity.getWriteType() != WriteEntity.WriteType.INSERT_OVERWRITE)) {
       // This is not a write job, so we don't need to anything more here
-      JobDetails.saveJobDetails(conf, jobDetails);
       return;
     }
+
+    jobDetails.setOverwrite(writeEntity.getWriteType() == WriteEntity.WriteType.INSERT_OVERWRITE);
 
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
     if (engine.equals("mr")) {

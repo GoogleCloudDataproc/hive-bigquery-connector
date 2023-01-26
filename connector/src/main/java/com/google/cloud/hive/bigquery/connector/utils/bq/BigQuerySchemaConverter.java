@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
 import repackaged.by.hivebqconnector.com.google.common.base.Preconditions;
@@ -60,11 +59,12 @@ public class BigQuerySchemaConverter {
               .put(PrimitiveObjectInspector.PrimitiveCategory.BINARY, StandardSQLTypeName.BYTES)
               .build();
 
-  public static Schema toBigQuerySchema(StorageDescriptor sd) {
+  public static Schema toBigQuerySchema(List<FieldSchema> columns) {
     List<Field> bigQueryFields = new ArrayList<>();
-    for (FieldSchema hiveField : sd.getCols()) {
-      TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      bigQueryFields.add(buildBigQueryField(hiveField.getName(), typeInfo, hiveField.getComment()));
+    for (FieldSchema hiveColumn : columns) {
+      TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveColumn.getType());
+      bigQueryFields.add(
+          buildBigQueryField(hiveColumn.getName(), typeInfo, hiveColumn.getComment()));
     }
     return Schema.of(bigQueryFields);
   }

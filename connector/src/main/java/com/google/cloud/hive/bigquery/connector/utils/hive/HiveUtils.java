@@ -84,7 +84,8 @@ public class HiveUtils {
     }
   }
 
-  public static WriteEntity getWriteEntity(Configuration conf) {
+  public static SemanticAnalyzer getQueryAnalyzer(Configuration conf) {
+    HiveConf hiveConf = new HiveConf(conf, HiveConf.class);
     String query;
     try {
       query =
@@ -92,25 +93,24 @@ public class HiveUtils {
     } catch (UnsupportedEncodingException e) {
       throw new RuntimeException(e);
     }
-    return getWriteEntity(conf, query);
-  }
-
-  public static WriteEntity getWriteEntity(Configuration conf, String query) {
-    HiveConf hiveConf = new HiveConf(conf, HiveConf.class);
     ASTNode tree;
     try {
       tree = ParseUtils.parse(query);
     } catch (ParseException e) {
       throw new RuntimeException(e);
     }
-    BaseSemanticAnalyzer analyzer;
+    SemanticAnalyzer analyzer;
     QueryState queryState = new QueryState.Builder().withHiveConf(hiveConf).build();
     try {
-      analyzer = SemanticAnalyzerFactory.get(queryState, tree);
+      analyzer = (SemanticAnalyzer) SemanticAnalyzerFactory.get(queryState, tree);
       analyzer.analyze(tree, new Context(hiveConf));
     } catch (SemanticException | IOException e) {
       throw new RuntimeException(e);
     }
+    return analyzer;
+  }
+
+  public static WriteEntity getWriteEntity(BaseSemanticAnalyzer analyzer) {
     HashSet<WriteEntity> allOutputs = analyzer.getAllOutputs();
     if (allOutputs.size() > 0) {
       return (WriteEntity) allOutputs.toArray()[0];

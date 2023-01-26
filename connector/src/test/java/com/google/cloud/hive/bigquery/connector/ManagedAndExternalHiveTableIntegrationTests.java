@@ -115,7 +115,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
         String.join(
             "\n",
             "CREATE TABLE ctas",
-            "" + "STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
             "TBLPROPERTIES (",
             "  'bq.project'='${project}',",
             "  'bq.dataset'='${dataset}',",

@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector;
 
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.*;
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
@@ -61,12 +60,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     this.conf = conf;
   }
 
-  private static String getDefaultProject() {
-    return BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
-  }
-
   /** Validates that the given TypeInfo is supported. */
-  private void validateTypeInfo(TypeInfo typeInfo) throws MetaException {
+  private static void validateTypeInfo(TypeInfo typeInfo) throws MetaException {
     if (typeInfo.getCategory() == Category.LIST) {
       validateTypeInfo(((ListTypeInfo) typeInfo).getListElementTypeInfo());
     } else if (typeInfo.getCategory() == Category.STRUCT) {
@@ -90,20 +85,21 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   }
 
   /** Validates that the given FieldSchemas are supported. */
-  private void validateHiveTypes(List<FieldSchema> fieldSchemas) throws MetaException {
-    for (FieldSchema schema : fieldSchemas) {
-      TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(schema.getType());
+  private static void validateHiveTypes(List<FieldSchema> columns) throws MetaException {
+    for (FieldSchema column : columns) {
+      TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(column.getType());
       validateTypeInfo(typeInfo);
     }
   }
 
   /** Throws an exception if the table contains a column with the given name. */
-  private void assertDoesNotContainColumn(Table table, String columnName) throws MetaException {
-    List<FieldSchema> columns = table.getSd().getCols();
+  private static void assertDoesNotContainColumn(
+      String tableName, List<FieldSchema> columns, String columnName) throws MetaException {
     for (FieldSchema column : columns) {
       if (column.getName().equalsIgnoreCase(columnName)) {
         throw new MetaException(
-            String.format("%s already contains a column named `%s`", table, columnName));
+            String.format(
+                "Table `%s` already contains a column named `%s`", tableName, columnName));
       }
     }
   }
@@ -116,15 +112,42 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
    */
   @Override
   public void preCreateTable(Table table) throws MetaException {
+    //    table
+    //        .getSd()
+    //        .setInputFormat("com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat");
+    //    table
+    //        .getSd()
+    //
+    // .setOutputFormat("com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat");
+    if (table.getPartitionKeysSize() > 0) {
+      throw new MetaException(
+          String.format(
+              "Creating a partitioned table with the `PARTITIONED BY` clause is not supported. Use"
+                  + " the `%s` table property instead.",
+              HiveBigQueryConfig.TIME_PARTITION_FIELD_KEY));
+    }
+    if (table.getSd().getBucketColsSize() > 0) {
+      throw new MetaException(
+          String.format(
+              "Creating a bucketed table with the `CLUSTERED BY` clause is not supported. Use the"
+                  + " `%s` table property instead.",
+              HiveBigQueryConfig.CLUSTERED_FIELDS_KEY));
+    }
+    createTableInfo = preCreateTable(conf, table.getSd().getCols(), table.getParameters());
+  }
+
+  public static TableInfo preCreateTable(
+      Configuration conf, List<FieldSchema> columns, Map<String, String> tableProperties)
+      throws MetaException {
     // Make sure the specified types are supported
-    validateHiveTypes(table.getSd().getCols());
+    validateHiveTypes(columns);
 
     // Check all mandatory table properties
     ImmutableList<String> mandatory =
         ImmutableList.of(HiveBigQueryConfig.DATASET_KEY, HiveBigQueryConfig.TABLE_KEY);
     List<String> missingProperties = new ArrayList<>();
     for (String property : mandatory) {
-      if (Strings.isNullOrEmpty(table.getParameters().get(property))) {
+      if (Strings.isNullOrEmpty(tableProperties.get(property))) {
         missingProperties.add(property);
       }
     }
@@ -134,56 +157,29 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
               + String.join(", ", missingProperties));
     }
 
-    if (table.getPartitionKeysSize() > 0) {
-      throw new MetaException(
-          String.format(
-              "Creating a partitioned table with the `PARTITIONED BY` clause is not supported. Use"
-                  + " the `%s` table property instead.",
-              HiveBigQueryConfig.TIME_PARTITION_FIELD_KEY));
-    }
-
-    if (table.getSd().getBucketColsSize() > 0) {
-      throw new MetaException(
-          String.format(
-              "Creating a bucketed table with the `CLUSTERED BY` clause is not supported. Use the"
-                  + " `%s` table property instead.",
-              HiveBigQueryConfig.CLUSTERED_FIELDS_KEY));
-    }
-
-    if (!Strings.isNullOrEmpty(table.getSd().getLocation())) {
-      throw new MetaException("Cannot create table in BigQuery with a `location` property.");
-    }
-
     // Some environments rely on the "serialization.lib" table property instead of the
     // storage handler's getSerDeClass() method to pick the SerDe, so we set it here.
-    table
-        .getParameters()
-        .put(
-            serdeConstants.SERIALIZATION_LIB,
-            "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
-
+    tableProperties.put(
+        serdeConstants.SERIALIZATION_LIB, "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
     // Set the project property to the credentials project if not explicitly provided
-    table
-        .getParameters()
-        .put(
-            HiveBigQueryConfig.PROJECT_KEY,
-            table
-                .getParameters()
-                .getOrDefault(HiveBigQueryConfig.PROJECT_KEY, getDefaultProject()));
+    tableProperties.put(
+        HiveBigQueryConfig.PROJECT_KEY,
+        tableProperties.getOrDefault(
+            HiveBigQueryConfig.PROJECT_KEY, BigQueryUtils.getDefaultProject()));
 
-    // If it's a managed table, generate the BigQuery schema
-    if (!MetaStoreUtils.isExternalTable(table)) {
+    if (MetaStoreUtils.isExternal(tableProperties)) {
+      return null;
+    } else { // If it's a managed table, generate the BigQuery schema
       Injector injector =
           Guice.createInjector(
-              new BigQueryClientModule(),
-              new HiveBigQueryConnectorModule(conf, table.getParameters()));
+              new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableProperties));
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
       HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
       if (bqClient.tableExists(opts.getTableId())) {
         throw new MetaException("BigQuery table already exists: " + opts.getTableId());
       }
 
-      Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd());
+      Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(columns);
 
       StandardTableDefinition.Builder tableDefBuilder =
           StandardTableDefinition.newBuilder().setSchema(tableSchema);
@@ -205,22 +201,18 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         } else {
           // This is an ingestion-time partition table, so we add the BigQuery
           // pseudo columns to the Hive MetaStore schema.
-          assertDoesNotContainColumn(table, Constants.PARTITION_TIME_PSEUDO_COLUMN);
-          table
-              .getSd()
-              .addToCols(
-                  new FieldSchema(
-                      Constants.PARTITION_TIME_PSEUDO_COLUMN,
-                      "timestamp",
-                      "Ingestion time pseudo column"));
-          assertDoesNotContainColumn(table, Constants.PARTITION_DATE_PSEUDO_COLUMN);
-          table
-              .getSd()
-              .addToCols(
-                  new FieldSchema(
-                      Constants.PARTITION_DATE_PSEUDO_COLUMN,
-                      "date",
-                      "Ingestion time pseudo column"));
+          assertDoesNotContainColumn(
+              tableProperties.get("name"), columns, Constants.PARTITION_TIME_PSEUDO_COLUMN);
+          columns.add(
+              new FieldSchema(
+                  Constants.PARTITION_TIME_PSEUDO_COLUMN,
+                  "timestamp",
+                  "Ingestion time pseudo column"));
+          assertDoesNotContainColumn(
+              tableProperties.get("name"), columns, Constants.PARTITION_DATE_PSEUDO_COLUMN);
+          columns.add(
+              new FieldSchema(
+                  Constants.PARTITION_DATE_PSEUDO_COLUMN, "date", "Ingestion time pseudo column"));
         }
         OptionalLong partitionExpirationMs = opts.getPartitionExpirationMs();
         if (partitionExpirationMs.isPresent()) {
@@ -232,31 +224,27 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       }
 
       StandardTableDefinition tableDefinition = tableDefBuilder.build();
-      createTableInfo =
-          TableInfo.newBuilder(opts.getTableId(), tableDefinition)
-              .setDescription(table.getParameters().get("comment"))
-              .build();
+      return TableInfo.newBuilder(opts.getTableId(), tableDefinition)
+          .setDescription(tableProperties.get("comment"))
+          .build();
     }
-
-    table
-        .getSd()
-        .setInputFormat("com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat");
-    table
-        .getSd()
-        .setOutputFormat("com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat");
   }
 
   @Override
   public void commitCreateTable(Table table) throws MetaException {
-    if (MetaStoreUtils.isExternalTable(table)) {
+    commitCreateTable(conf, table.getParameters(), createTableInfo);
+  }
+
+  public static void commitCreateTable(
+      Configuration conf, Map<String, String> tableProperties, TableInfo tableInfo) {
+    if (tableInfo == null) {
       // Nothing to do for external tables
       return;
     }
     // Create the managed table in BigQuery
     Injector injector =
         Guice.createInjector(
-            new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, table.getParameters()));
+            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableProperties));
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
     BigQueryCredentialsSupplier credentialsSupplier =
         injector.getInstance(BigQueryCredentialsSupplier.class);
@@ -266,7 +254,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     //  `create(TableInfo)` method. We could add it to that class eventually.
     BigQuery bigQueryService =
         BigQueryUtils.getBigQueryService(opts, headerProvider, credentialsSupplier);
-    bigQueryService.create(createTableInfo);
+    bigQueryService.create(tableInfo);
   }
 
   /**

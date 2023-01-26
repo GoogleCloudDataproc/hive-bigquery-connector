@@ -60,4 +60,8 @@ public class BigQueryUtils {
     options.setTransportOptions(httpTransportOptionsBuilder.build());
     return options.build().getService();
   }
+
+  public static String getDefaultProject() {
+    return BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
+  }
 }
