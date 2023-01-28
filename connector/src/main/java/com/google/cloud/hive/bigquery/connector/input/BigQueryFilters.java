@@ -17,14 +17,14 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.input.udfs.*;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.udf.generic.*;
-import org.apache.hadoop.hive.ql.udf.UDFToDouble;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class BigQueryFilters {
@@ -48,16 +48,20 @@ public class BigQueryFilters {
                 function.setGenericUDF(new BigQueryUDFMod());
             } else if (function.getGenericUDF() instanceof GenericUDFRegExp) {
                 function.setGenericUDF(new BigQueryUDFRegExpContains());
-            }else if (function.getGenericUDF() instanceof GenericUDFBridge) {
+            } else if (function.getGenericUDF() instanceof GenericUDFBridge) {
                 GenericUDFBridge bridge = (GenericUDFBridge) function.getGenericUDF();
-                 if (bridge.getUdfName().equals("UDFToDouble")) {
-                     function.setGenericUDF(new BigQueryUDFToDouble());
-                 } else  if (bridge.getUdfName().equals("UDFToInteger")) {
-                     function.setGenericUDF(new BigQueryUDFToInteger());
-                 } else  if (bridge.getUdfName().equals("UDFToByte")) {
-                     function.setGenericUDF(new BigQueryUDFToByte());
-                 }else if (bridge.getUdfName().equals("UDFToFloat")) {
+                if (bridge.getUdfName().equals("UDFToDouble")) {
+                    function.setGenericUDF(new BigQueryUDFToDouble());
+                } else if (bridge.getUdfName().equals("UDFToInteger")) {
+                    function.setGenericUDF(new BigQueryUDFToInteger());
+                } else if (bridge.getUdfName().equals("UDFToByte")) {
                     function.setGenericUDF(new BigQueryUDFToByte());
+                } else if (bridge.getUdfName().equals("UDFToFloat")) {
+                    function.setGenericUDF(new BigQueryUDFToByte());
+                } else if (bridge.getUdfName().equals("UDFToBoolean")) {
+                    function.setGenericUDF(new BigQueryUDFToBoolean());
+                } else if (bridge.getUdfName().equals("UDFToLong")) {
+                    function.setGenericUDF(new BigQueryUDFToLong());
                 }
             }
             // Translate the children parameters
