@@ -24,13 +24,13 @@ import com.klarna.hiverunner.HiveRunnerExtension;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.provider.Arguments;
 
 // TODO: When running the tests, some noisy exceptions are displayed in the output:
 //  "javax.jdo.JDOFatalUserException: Persistence Manager has been closed".
@@ -194,5 +194,61 @@ public class IntegrationTestsBase {
     hive.setHiveConfValue("datanucleus.autoStartMechanismMode", "ignored");
     hive.start();
     runHiveScript("CREATE DATABASE source_db");
+  }
+
+  protected static final String EXECUTION_ENGINE = "executionEngineParameter";
+
+  protected static Stream<Arguments> executionEngineParameter() {
+    List<String> engines = Arrays.asList("mr", "tez");
+    return Stream.of(Arguments.of(engines.get(0)), Arguments.of(engines.get(1)));
+  }
+
+  protected static final String READ_FORMAT = "readFormatParameter";
+
+  protected static Stream<Arguments> readFormatParameter() {
+    List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
+    return Stream.of(Arguments.of(readFormats.get(0)), Arguments.of(readFormats.get(1)));
+  }
+
+  protected static final String EXECUTION_ENGINE_READ_FORMAT =
+      "executionEngineReadFormatParameters";
+
+  protected static Stream<Arguments> executionEngineReadFormatParameters() {
+    List<String> engines = Arrays.asList("mr", "tez");
+    List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
+    Collections.shuffle(readFormats);
+    return Stream.of(
+        Arguments.of(engines.get(0), readFormats.get(0)),
+        Arguments.of(engines.get(1), readFormats.get(1)));
+  }
+
+  protected static final String EXECUTION_ENGINE_WRITE_METHOD =
+      "executionEngineWriteMethodParameters";
+
+  protected static Stream<Arguments> executionEngineWriteMethodParameters() {
+    List<String> engines = Arrays.asList("mr", "tez");
+    List<String> writeMethods =
+        Arrays.asList(
+            HiveBigQueryConfig.WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    Collections.shuffle(writeMethods);
+    return Stream.of(
+        Arguments.of(engines.get(0), writeMethods.get(0)),
+        Arguments.of(engines.get(1), writeMethods.get(1)));
+  }
+
+  protected static final String EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD =
+      "executionEngineReadFormatWriteMethodParameters";
+
+  protected static Stream<Arguments> executionEngineReadFormatWriteMethodParameters() {
+    List<String> engines = Arrays.asList("mr", "tez");
+    List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
+    List<String> writeMethods =
+        Arrays.asList(
+            HiveBigQueryConfig.WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    Collections.shuffle(readFormats);
+    Collections.shuffle(writeMethods);
+    return Stream.of(
+        Arguments.of(engines.get(0), readFormats.get(0), writeMethods.get(0)),
+        Arguments.of(engines.get(1), readFormats.get(1), writeMethods.get(1)));
   }
 }

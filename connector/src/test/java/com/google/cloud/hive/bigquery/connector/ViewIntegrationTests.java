@@ -22,15 +22,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.List;
-import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class ViewIntegrationTests extends IntegrationTestsBase {
 
-  @CartesianTest
-  public void testViewsDisabled(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testViewsDisabled(String engine, String readDataFormat) {
     // Disable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "false");
     initHive(engine, readDataFormat);
@@ -48,11 +47,9 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     assertTrue(exception.getMessage().contains("Views are not enabled"));
   }
 
-  @CartesianTest
-  public void testReadEmptyView(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testReadEmptyView(String engine, String readDataFormat) {
     // Enable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
     initHive(engine, readDataFormat);
@@ -68,11 +65,9 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
   }
 
   /** Test the WHERE clause */
-  @CartesianTest
-  public void testWhereClause(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testWhereClause(String engine, String readDataFormat) {
     // Enable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
     initHive(engine, readDataFormat);
