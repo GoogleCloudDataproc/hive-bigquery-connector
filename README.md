@@ -275,15 +275,12 @@ The following Hive generic UDFs and operators are supported and mapped to equiva
 The connector allows parallel reads from BigQuery by using the
 [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage).
 
-When you run a read query, the connector first retrieves the desired number of splits as specified by the
-Hadoop MapReduce `InputFormat.getSplits()` method. The connector then passes this number to
+You can set the `preferredMinParallelism` configuration property, which the connector passes to
 [`CreateReadSessionRequest.setPreferredMinStreamCount()`](https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest.Builder#com_google_cloud_bigquery_storage_v1_CreateReadSessionRequest_Builder_setPreferredMinStreamCount_int_)
-when it creates the BigQuery read session.
-
-This parameter can be used to inform the BigQuery service that there is a desired lower bound on the number of streams.
-This is typically the target parallelism of the client (e.g. a Hive cluster with N-workers would set this to a low
-multiple of N to ensure good cluster utilization). The BigQuery backend makes a best effort to provide at least this
-number of streams, but in some cases might provide less.
+when it creates the BigQuery read session. This parameter can be used to inform the BigQuery service that there is a
+desired lower bound on the number of streams. This is typically the target parallelism of the client (e.g. a Hive
+cluster with N-workers would set this to a low multiple of N to ensure good cluster utilization). The BigQuery backend
+makes a best effort to provide at least this number of streams, but in some cases might provide less.
 
 Additionally, you can set the `maxParallelism` configuration property, which the connector passes to
 [CreateReadSessionRequest.setMaxStreamCount()](https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest.Builder#com_google_cloud_bigquery_storage_v1_CreateReadSessionRequest_Builder_setMaxStreamCount_int_).
