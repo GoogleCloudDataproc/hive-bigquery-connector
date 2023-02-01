@@ -22,9 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.jupiter.api.Test;
@@ -559,5 +557,107 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
           new Object[] {999L, "hi999"},
         },
         rows.toArray());
+  }
+
+  /** Check that we can explicitly cast selected columns */
+  @ParameterizedTest
+  @MethodSource(READ_FORMAT)
+  public void testExplicitCasts(String readDataFormat) throws IOException {
+    initHive("tez", readDataFormat);
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES (", ALL_TYPES_TABLE_NAME),
+            "2,",
+            "2,",
+            "2,",
+            "2,",
+            "true,",
+            "\"2\",",
+            "\"2\",",
+            "\"2\",",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "2.0,",
+            "4.2,",
+            "struct(",
+            "  cast(\"-99999999999999999999999999999.999999999\" as numeric),",
+            "  NULL,",
+            "  NULL,",
+            "  NULL",
+            "),",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL",
+            ")"));
+    // Read the data using Hive
+    Map<String, String[]> castings = new HashMap<>();
+    castings.put(
+        "tiny_int_val",
+        new String[] {
+          "SMALLINT", "INT", "BIGINT", "FLOAT", "DOUBLE", "DECIMAL", "STRING", "VARCHAR(20)"
+        });
+    castings.put(
+        "small_int_val",
+        new String[] {"INT", "BIGINT", "FLOAT", "DOUBLE", "DECIMAL", "STRING", "VARCHAR(20)"});
+    castings.put(
+        "int_val", new String[] {"BIGINT", "FLOAT", "DOUBLE", "DECIMAL", "STRING", "VARCHAR(20)"});
+    castings.put(
+        "big_int_val", new String[] {"FLOAT", "DOUBLE", "DECIMAL", "STRING", "VARCHAR(20)"});
+    castings.put("fl", new String[] {"DOUBLE", "DECIMAL", "STRING", "VARCHAR(20)"});
+    castings.put("dbl", new String[] {"DECIMAL", "STRING", "VARCHAR(20)"});
+    castings.put("nums.min", new String[] {"FLOAT", "DOUBLE", "STRING", "VARCHAR(20)"});
+    castings.put(
+        "fixed_char",
+        new String[] {
+          "TINYINT",
+          "SMALLINT",
+          "INT",
+          "BIGINT",
+          "FLOAT",
+          "DOUBLE",
+          "DECIMAL",
+          "STRING",
+          "VARCHAR(20)"
+        });
+    castings.put(
+        "var_char",
+        new String[] {
+          "TINYINT",
+          "SMALLINT",
+          "INT",
+          "BIGINT",
+          "FLOAT",
+          "DOUBLE",
+          "DECIMAL",
+          "STRING",
+          "VARCHAR(20)"
+        });
+    castings.put(
+        "str",
+        new String[] {
+          "TINYINT",
+          "SMALLINT",
+          "INT",
+          "BIGINT",
+          "FLOAT",
+          "DOUBLE",
+          "DECIMAL",
+          "STRING",
+          "VARCHAR(20)"
+        });
+    List<String> casts = new ArrayList<>();
+    for (Map.Entry<String, String[]> entry : castings.entrySet()) {
+      for (String type : entry.getValue()) {
+        casts.add(String.format("CAST(%s AS %s)", entry.getKey(), type));
+      }
+    }
+    runHiveScript(
+        String.format("SELECT %s FROM %s", String.join(", ", casts), ALL_TYPES_TABLE_NAME));
   }
 }
