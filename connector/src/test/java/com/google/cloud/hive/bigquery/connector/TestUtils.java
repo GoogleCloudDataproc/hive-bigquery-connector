@@ -45,8 +45,8 @@ public class TestUtils {
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
-  public static final String INDIRECT_WRITE_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
-  public static final String TEMP_GCS_PATH = "gs://" + getIndirectWriteBucket() + "/temp";
+  public static final String HIVE_TEST_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
+  public static final String TEMP_GCS_PATH = "gs://" + getTestBucket() + "/temp";
 
   // The BigLake bucket and connection must be created before running the tests.
   // Also, the connection's service account must be given permission to access the bucket.
@@ -196,9 +196,9 @@ public class TestUtils {
    * Returns the name of the bucket used to store temporary Avro files when testing the indirect
    * write method. This bucket is created automatically when running the tests.
    */
-  public static String getIndirectWriteBucket() {
+  public static String getTestBucket() {
     return System.getenv()
-        .getOrDefault(INDIRECT_WRITE_BUCKET_NAME_ENV_VAR, getProject() + "-indirect-write-tests");
+        .getOrDefault(HIVE_TEST_BUCKET_NAME_ENV_VAR, getProject() + "-hive-tests");
   }
 
   public static void createBqDataset(String dataset) {

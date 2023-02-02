@@ -65,14 +65,14 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE)
   public void testInsertIndirect(String engine) {
     // Check that the bucket is empty
-    List<Blob> blobs = getBlobs(getIndirectWriteBucket());
+    List<Blob> blobs = getBlobs(getTestBucket());
     assertEquals(0, blobs.size());
 
     // Insert data using Hive
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
 
     // Check that the blob was created by the job.
-    blobs = getBlobs(getIndirectWriteBucket());
+    blobs = getBlobs(getTestBucket());
     assertEquals(1, blobs.size());
     assertTrue(
         blobs.get(0).getName().startsWith("temp/bq-hive-")

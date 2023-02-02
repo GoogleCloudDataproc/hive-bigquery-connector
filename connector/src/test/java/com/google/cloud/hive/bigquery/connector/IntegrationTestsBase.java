@@ -53,13 +53,13 @@ public class IntegrationTestsBase {
   public static void setUpAll() {
     // Create the bucket for 'indirect' jobs.
     try {
-      createBucket(getIndirectWriteBucket());
+      createBucket(getTestBucket());
     } catch (StorageException e) {
       if (e.getCode() == 409) {
         // The bucket already exists, maybe left over after a previous test failure.
         // Delete and recreate it to start fresh with an empty bucket.
-        deleteBucket(getIndirectWriteBucket());
-        createBucket(getIndirectWriteBucket());
+        deleteBucket(getTestBucket());
+        createBucket(getTestBucket());
       }
     }
     // Upload datasets to the BigLake bucket.
@@ -89,13 +89,13 @@ public class IntegrationTestsBase {
         parameters);
 
     // Empty the indirect write bucket
-    emptyBucket(getIndirectWriteBucket());
+    emptyBucket(getTestBucket());
   }
 
   @AfterAll
   static void tearDownAll() {
     // Cleanup the GCS bucket
-    deleteBucket(getIndirectWriteBucket());
+    deleteBucket(getTestBucket());
     // Cleanup the test BQ dataset
     deleteBqDatasetAndTables(dataset);
   }
@@ -106,6 +106,7 @@ public class IntegrationTestsBase {
     params.put("dataset", dataset);
     params.put("location", LOCATION);
     params.put("connection", BIGLAKE_CONNECTION);
+    params.put("test_bucket", "gs://" + getTestBucket());
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
   }
 
