@@ -200,48 +200,41 @@ public class IntegrationTestsBase {
   protected static final String EXECUTION_ENGINE = "executionEngineParameter";
 
   protected static Stream<Arguments> executionEngineParameter() {
-    List<String> engines = Arrays.asList("mr", "tez");
-    return Stream.of(Arguments.of(engines.get(0)), Arguments.of(engines.get(1)));
+    return Stream.of(Arguments.of("mr"), Arguments.of("tez"));
   }
 
   protected static final String READ_FORMAT = "readFormatParameter";
 
   protected static Stream<Arguments> readFormatParameter() {
-    List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
-    return Stream.of(Arguments.of(readFormats.get(0)), Arguments.of(readFormats.get(1)));
+    return Stream.of(Arguments.of(HiveBigQueryConfig.ARROW), Arguments.of(HiveBigQueryConfig.AVRO));
   }
 
   protected static final String EXECUTION_ENGINE_READ_FORMAT =
       "executionEngineReadFormatParameters";
 
   protected static Stream<Arguments> executionEngineReadFormatParameters() {
-    List<String> engines = Arrays.asList("mr", "tez");
     List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
     Collections.shuffle(readFormats);
     return Stream.of(
-        Arguments.of(engines.get(0), readFormats.get(0)),
-        Arguments.of(engines.get(1), readFormats.get(1)));
+        Arguments.of("mr", readFormats.get(0)), Arguments.of("tez", readFormats.get(1)));
   }
 
   protected static final String EXECUTION_ENGINE_WRITE_METHOD =
       "executionEngineWriteMethodParameters";
 
   protected static Stream<Arguments> executionEngineWriteMethodParameters() {
-    List<String> engines = Arrays.asList("mr", "tez");
     List<String> writeMethods =
         Arrays.asList(
             HiveBigQueryConfig.WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
     Collections.shuffle(writeMethods);
     return Stream.of(
-        Arguments.of(engines.get(0), writeMethods.get(0)),
-        Arguments.of(engines.get(1), writeMethods.get(1)));
+        Arguments.of("mr", writeMethods.get(0)), Arguments.of("tez", writeMethods.get(1)));
   }
 
   protected static final String EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD =
       "executionEngineReadFormatWriteMethodParameters";
 
   protected static Stream<Arguments> executionEngineReadFormatWriteMethodParameters() {
-    List<String> engines = Arrays.asList("mr", "tez");
     List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
     List<String> writeMethods =
         Arrays.asList(
@@ -249,7 +242,7 @@ public class IntegrationTestsBase {
     Collections.shuffle(readFormats);
     Collections.shuffle(writeMethods);
     return Stream.of(
-        Arguments.of(engines.get(0), readFormats.get(0), writeMethods.get(0)),
-        Arguments.of(engines.get(1), readFormats.get(1), writeMethods.get(1)));
+        Arguments.of("mr", readFormats.get(0), writeMethods.get(0)),
+        Arguments.of("tez", readFormats.get(1), writeMethods.get(1)));
   }
 }
