@@ -126,37 +126,22 @@ public class ProtoDeserializer {
     }
 
     if (fieldObjectInspector instanceof ByteObjectInspector) { // Tiny Int
-      if (fieldValue instanceof Byte) {
-        return fieldValue;
-      }
       return (long) ((ByteWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof ShortObjectInspector) { // Small Int
-      if (fieldValue instanceof Short) {
-        return fieldValue;
-      }
       return (long) ((ShortWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof IntObjectInspector) { // Regular Int
-      if (fieldValue instanceof Integer) {
-        return fieldValue;
-      }
       return (long) ((IntWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof LongObjectInspector) { // Big Int
-      if (fieldValue instanceof Long) {
-        return fieldValue;
-      }
       return ((LongWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof TimestampObjectInspector) {
-      if (fieldValue instanceof Long) {
-        return fieldValue;
-      }
       Timestamp timestamp = ((TimestampWritableV2) fieldValue).getTimestamp();
       return DateTimeUtils.getEncodedProtoLongFromHiveTimestamp(timestamp);
     }
@@ -167,37 +152,22 @@ public class ProtoDeserializer {
     }
 
     if (fieldObjectInspector instanceof DateObjectInspector) {
-      if (fieldValue instanceof Integer) {
-        return fieldValue;
-      }
       return ((DateWritableV2) fieldValue).getDays();
     }
 
     if (fieldObjectInspector instanceof FloatObjectInspector) {
-      if (fieldValue instanceof Float) {
-        return fieldValue;
-      }
       return (double) ((FloatWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof DoubleObjectInspector) {
-      if (fieldValue instanceof Double) {
-        return fieldValue;
-      }
       return ((DoubleWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof BooleanObjectInspector) {
-      if (fieldValue instanceof Boolean) {
-        return fieldValue;
-      }
       return ((BooleanWritable) fieldValue).get();
     }
 
     if (fieldObjectInspector instanceof BinaryObjectInspector) {
-      if (fieldValue instanceof byte[]) {
-        return fieldValue;
-      }
       BytesWritable bytes = (BytesWritable) fieldValue;
       // Resize the bytes' array to remove any unnecessary extra capacity it might have
       bytes.setCapacity(bytes.getLength());
@@ -217,9 +187,6 @@ public class ProtoDeserializer {
     }
 
     if (fieldObjectInspector instanceof HiveDecimalObjectInspector) {
-      if (fieldValue instanceof String) {
-        return fieldValue;
-      }
       HiveDecimalWritable decimal = (HiveDecimalWritable) fieldValue;
       return decimal.getHiveDecimal().bigDecimalValue().toPlainString();
     }
