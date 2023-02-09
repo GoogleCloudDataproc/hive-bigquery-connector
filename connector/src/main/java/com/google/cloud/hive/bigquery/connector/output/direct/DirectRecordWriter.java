@@ -49,10 +49,12 @@ public class DirectRecordWriter
   BigQueryDirectDataWriterHelper streamWriter;
   StructObjectInspector rowObjectInspector;
   Descriptors.Descriptor descriptor;
+  JobDetails jobDetails;
 
   public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
+    this.jobDetails = jobDetails;
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);
@@ -76,7 +78,8 @@ public class DirectRecordWriter
   public void write(Writable writable) throws IOException {
     Object object = ((ObjectWritable) writable).get();
     DynamicMessage message =
-        ProtoDeserializer.buildSingleRowMessage(rowObjectInspector, descriptor, object);
+        ProtoDeserializer.buildSingleRowMessage(
+            rowObjectInspector, descriptor, jobDetails.getBigquerySchema().getFields(), object);
     streamWriter.addRow(message.toByteString());
   }
 
@@ -87,7 +90,6 @@ public class DirectRecordWriter
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
       Path filePath =
           DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getTableId(), taskAttemptID);
       FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);

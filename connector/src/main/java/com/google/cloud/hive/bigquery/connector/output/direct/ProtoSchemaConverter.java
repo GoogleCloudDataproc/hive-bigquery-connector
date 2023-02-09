@@ -55,6 +55,9 @@ public class ProtoSchemaConverter {
               .put(
                   PrimitiveCategory.TIMESTAMP,
                   DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
+              .put(
+                  PrimitiveCategory.TIMESTAMPLOCALTZ,
+                  DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
               .put(PrimitiveCategory.BINARY, DescriptorProtos.FieldDescriptorProto.Type.TYPE_BYTES)
               .build();
 

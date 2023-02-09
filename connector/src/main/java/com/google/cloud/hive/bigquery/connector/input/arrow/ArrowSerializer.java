@@ -15,17 +15,20 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.arrow;
 
+import com.google.cloud.hive.bigquery.connector.utils.DateTimeUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.*;
 import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
+import org.apache.hadoop.hive.common.type.Timestamp;
+import org.apache.hadoop.hive.common.type.TimestampTZ;
 import org.apache.hadoop.hive.serde2.io.*;
 import org.apache.hadoop.hive.serde2.io.ByteWritable;
+import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
+import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
@@ -106,21 +109,15 @@ public class ArrowSerializer {
     }
 
     if (objectInspector instanceof TimestampObjectInspector) {
-      if (value instanceof TimeStampMicroTZVector) {
-        long longValue = ((TimeStampMicroTZVector) value).get(rowId);
-        TimestampWritableV2 timestamp = new TimestampWritableV2();
-        long secondsAsMillis = (longValue / 1_000_000) * 1_000;
-        int nanos = (int) (longValue % 1_000_000) * 1_000;
-        timestamp.setInternal(secondsAsMillis, nanos);
-        return timestamp;
-      }
-      if (value instanceof TimeStampMicroVector) {
-        LocalDateTime localDateTime = ((TimeStampMicroVector) value).getObject(rowId);
-        TimestampWritableV2 timestamp = new TimestampWritableV2();
-        timestamp.setInternal(localDateTime.toEpochSecond(ZoneOffset.UTC), localDateTime.getNano());
-        return timestamp;
-      }
-      throw new RuntimeException("Unexpected timestamp type:" + value.getClass().getName());
+      LocalDateTime localDateTime = ((TimeStampMicroVector) value).getObject(rowId);
+      Timestamp timestamp = DateTimeUtils.getHiveTimestampFromLocalDatetime(localDateTime);
+      return new TimestampWritableV2(timestamp);
+    }
+
+    if (objectInspector instanceof TimestampLocalTZObjectInspector) {
+      long longValue = ((TimeStampMicroTZVector) value).get(rowId);
+      TimestampTZ timestampTZ = DateTimeUtils.getHiveTimestampTZFromUTC(longValue);
+      return new TimestampLocalTZWritable(timestampTZ);
     }
 
     if (objectInspector instanceof ListObjectInspector) { // Array/List type

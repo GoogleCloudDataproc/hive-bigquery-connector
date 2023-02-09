@@ -15,12 +15,15 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
+import static org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory.*;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
+import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.typeinfo.BaseCharTypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.*;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 
 /**
@@ -49,20 +52,34 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
 
   /** Format the value of the predicate (.e. WHERE clause item) to be compatible with BigQuery. */
   private static String formatPredicateValue(TypeInfo typeInfo, Object value) {
-    String typeName = typeInfo.getTypeName();
     if (value == null) {
       return "NULL";
     }
-    if (typeName.equals("string") || (typeInfo instanceof BaseCharTypeInfo)) {
+    if (typeInfo.equals(stringTypeInfo)
+        || typeInfo instanceof CharTypeInfo
+        || typeInfo instanceof VarcharTypeInfo) {
       return "'" + value + "'";
     }
-    if (typeName.equals("date")) {
-      return "DATE('" + value + "')";
+    if (typeInfo.equals(dateTypeInfo)) {
+      return "DATE'" + value + "'";
     }
-    if (typeInfo.getTypeName().equals("timestamp")) {
-      return "TIMESTAMP('" + value + "')";
+    if (typeInfo.equals(timestampTypeInfo)) {
+      Timestamp timestamp = (Timestamp) value;
+      LocalDateTime localDateTime =
+          LocalDateTime.of(
+              timestamp.getYear(),
+              timestamp.getMonth(),
+              timestamp.getDay(),
+              timestamp.getHours(),
+              timestamp.getMinutes(),
+              timestamp.getSeconds(),
+              timestamp.getNanos());
+      return "DATETIME'" + localDateTime + "'";
     }
-    if (typeInfo.getTypeName().equals("interval_day_time")) {
+    if (typeInfo instanceof TimestampLocalTZTypeInfo) {
+      return "TIMESTAMP'" + value + "'";
+    }
+    if (typeInfo.equals(intervalDayTimeTypeInfo)) {
       HiveIntervalDayTime intervalDayTime = (HiveIntervalDayTime) value;
       return "INTERVAL '"
           + intervalDayTime.getTotalSeconds()
@@ -70,10 +87,10 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
           + (intervalDayTime.getNanos() / 1000)
           + "' SECOND";
     }
-    if (SIMPLE_TYPES.contains(typeName) || typeName.startsWith("decimal(")) {
+    if (SIMPLE_TYPES.contains(typeInfo.getTypeName()) || typeInfo instanceof DecimalTypeInfo) {
       return value.toString();
     }
-    throw new RuntimeException("Unsupported predicate type: " + typeName);
+    throw new RuntimeException("Unsupported predicate type: " + typeInfo.getTypeName());
   }
 
   @Override

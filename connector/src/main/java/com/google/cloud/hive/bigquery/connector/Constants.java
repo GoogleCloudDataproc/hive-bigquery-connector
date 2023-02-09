@@ -45,6 +45,7 @@ public class Constants {
           PrimitiveObjectInspector.PrimitiveCategory.DOUBLE,
           PrimitiveObjectInspector.PrimitiveCategory.DATE,
           PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,
+          PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMPLOCALTZ,
           PrimitiveObjectInspector.PrimitiveCategory.BINARY,
           PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN,
           PrimitiveObjectInspector.PrimitiveCategory.CHAR,

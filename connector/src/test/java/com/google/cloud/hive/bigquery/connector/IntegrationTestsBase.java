@@ -209,6 +209,14 @@ public class IntegrationTestsBase {
     return Stream.of(Arguments.of(HiveBigQueryConfig.ARROW), Arguments.of(HiveBigQueryConfig.AVRO));
   }
 
+  protected static final String WRITE_METHOD = "writeMethodParameters";
+
+  protected static Stream<Arguments> writeMethodParameters() {
+    return Stream.of(
+        Arguments.of(HiveBigQueryConfig.WRITE_METHOD_DIRECT),
+        Arguments.of(HiveBigQueryConfig.AVRO));
+  }
+
   protected static final String EXECUTION_ENGINE_READ_FORMAT =
       "executionEngineReadFormatParameters";
 

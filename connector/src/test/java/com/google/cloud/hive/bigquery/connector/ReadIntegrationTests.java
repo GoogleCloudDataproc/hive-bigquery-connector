@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
@@ -350,7 +352,10 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "\"var char\",",
             "\"string\",",
             "cast(\"2019-03-18\" as date),",
-            "cast(\"2019-03-18T01:23:45.678901\" as timestamp),",
+            // Wall clock (no timezone)
+            "cast(\"2000-01-01T00:23:45.123456\" as datetime),",
+            // (Pacific/Honolulu, -10:00)
+            "cast(\"2000-01-01T00:23:45.123456-10\" as timestamp),",
             "cast(\"bytes\" as bytes),",
             "2.0,",
             "4.2,",
@@ -362,7 +367,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "),",
             "[1, 2, 3],",
             "[(select as struct 111), (select as struct 222), (select as struct 333)],",
-            "struct(4.2),",
+            "struct(4.2, cast(\"2019-03-18 11:23:45.678901\" as datetime)),",
             "[struct('a_key', [struct('a_subkey', 888)]), struct('b_key', [struct('b_subkey',"
                 + " 999)])]",
             ")"));
@@ -370,7 +375,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
-    assertEquals(18, row.length); // Number of columns
+    assertEquals(19, row.length); // Number of columns
     assertEquals((byte) 11, row[0]);
     assertEquals((short) 22, row[1]);
     assertEquals((int) 33, row[2]);
@@ -380,21 +385,27 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals("var char", row[6]);
     assertEquals("string", row[7]);
     assertEquals("2019-03-18", row[8]);
-    assertEquals("2019-03-18 01:23:45.678901", row[9]);
-    assertArrayEquals("bytes".getBytes(), (byte[]) row[10]);
-    assertEquals(2.0, row[11]);
-    assertEquals(4.2, row[12]);
+    assertEquals("2000-01-01 00:23:45.123456", row[9]);
+    assertEquals(
+        "2000-01-01T10:23:45.123456Z", // 'Z' == UTC
+        Instant.from(
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS VV")
+                    .parse(row[10].toString()))
+            .toString());
+    assertArrayEquals("bytes".getBytes(), (byte[]) row[11]);
+    assertEquals(2.0, row[12]);
+    assertEquals(4.2, row[13]);
     assertEquals(
         "{\"min\":-99999999999999999999999999999.999999999,\"max\":99999999999999999999999999999.999999999,\"pi\":3.14,\"big_pi\":31415926535897932384626433832.795028841}",
-        row[13]);
-    assertEquals("[1,2,3]", row[14]);
-    assertEquals("[{\"i\":111},{\"i\":222},{\"i\":333}]", row[15]);
-    assertEquals("{\"float_field\":4.2}", row[16]);
+        row[14]);
+    assertEquals("[1,2,3]", row[15]);
+    assertEquals("[{\"i\":111},{\"i\":222},{\"i\":333}]", row[16]);
+    assertEquals("{\"float_field\":4.2,\"ts_field\":\"2019-03-18 11:23:45.678901\"}", row[17]);
     // Map type
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, HashMap<String, Integer>>> typeRef =
         new TypeReference<HashMap<String, HashMap<String, Integer>>>() {};
-    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[17].toString(), typeRef);
+    HashMap<String, HashMap<String, Integer>> map = mapper.readValue(row[18].toString(), typeRef);
     assertEquals(2, map.size());
     assertEquals(
         new HashMap() {
@@ -579,6 +590,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "\"2\",",
             "\"2\",",
             "\"2\",",
+            "NULL,",
             "NULL,",
             "NULL,",
             "NULL,",

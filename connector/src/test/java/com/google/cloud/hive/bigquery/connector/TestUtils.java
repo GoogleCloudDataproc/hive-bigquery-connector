@@ -70,7 +70,8 @@ public class TestUtils {
           "var_char STRING OPTIONS (description = 'A description for a VARCHAR'),",
           "str STRING OPTIONS (description = 'A description for a STRING'),",
           "day DATE OPTIONS (description = 'A description for a DATE'),",
-          "ts TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMP'),",
+          "ts DATETIME OPTIONS (description = 'A description for a TIMESTAMP'),",
+          "tstz TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMPLOCALTZ'),",
           "bin BYTES OPTIONS (description = 'A description for a BINARY'),",
           "fl FLOAT64 OPTIONS (description = 'A description for a FLOAT'),",
           "dbl FLOAT64 OPTIONS (description = 'A description for a DOUBLE'),",
@@ -79,8 +80,8 @@ public class TestUtils {
           "int_arr ARRAY<int64> OPTIONS (description = 'A description for a ARRAY-BIGINT'),",
           "int_struct_arr ARRAY<STRUCT<i INT64>> OPTIONS (description = 'A description for a"
               + " ARRAY-STRUCT'),",
-          "float_struct STRUCT<float_field FLOAT64> OPTIONS (description = 'A description for a"
-              + " STRUCT-FLOAT'),",
+          "mixed_struct STRUCT<float_field FLOAT64, ts_field DATETIME> OPTIONS (description = 'A"
+              + " description for a STRUCT-MIXED'),",
           "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>> OPTIONS"
               + " (description = 'A description for a MAP')");
 
@@ -117,6 +118,7 @@ public class TestUtils {
           "str STRING COMMENT 'A description for a STRING',",
           "day DATE COMMENT 'A description for a DATE',",
           "ts TIMESTAMP COMMENT 'A description for a TIMESTAMP',",
+          "tstz TIMESTAMPLOCALTZ COMMENT 'A description for a TIMESTAMPLOCALTZ',",
           "bin BINARY COMMENT 'A description for a BINARY',",
           "fl FLOAT COMMENT 'A description for a FLOAT',",
           "dbl DOUBLE COMMENT 'A description for a DOUBLE',",
@@ -124,7 +126,8 @@ public class TestUtils {
               + " DECIMAL(38,9), big_pi: DECIMAL(38,9)> COMMENT 'A description for a STRUCT',",
           "int_arr ARRAY<BIGINT> COMMENT 'A description for a ARRAY-BIGINT',",
           "int_struct_arr ARRAY<STRUCT<i: BIGINT>> COMMENT 'A description for a ARRAY-STRUCT',",
-          "float_struct STRUCT<float_field:FLOAT> COMMENT 'A description for a STRUCT-FLOAT',",
+          "mixed_struct STRUCT<float_field:FLOAT,ts_field:TIMESTAMP> COMMENT 'A description for a"
+              + " STRUCT-MIXED',",
           "mp MAP<STRING,MAP<STRING,INT>> COMMENT 'A description for a MAP'");
 
   public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL =

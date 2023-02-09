@@ -95,11 +95,12 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
         null);
     runHiveScript(
         String.format(
-            "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMP'2018-09-05 00:10:04.19'",
+            "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
     runHiveScript(
         String.format(
-            "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
+            "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMPLOCALTZ'2000-01-01 00:23:45.123456"
+                + " Pacific/Honolulu'",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
   }
 }

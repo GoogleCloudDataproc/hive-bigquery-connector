@@ -42,9 +42,9 @@ public class ArrowRecordReader
   private final StructObjectInspector rowObjectInspector;
 
   public ArrowRecordReader(BigQueryInputSplit inputSplit, JobConf jobConf) {
-    arrowBatchReader = new ArrowBatchReader(inputSplit, jobConf);
-    columnNames = inputSplit.getColumnNames();
-    rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobConf);
+    this.arrowBatchReader = new ArrowBatchReader(inputSplit, jobConf);
+    this.columnNames = inputSplit.getColumnNames();
+    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobConf);
   }
 
   /**

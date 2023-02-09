@@ -41,6 +41,6 @@ public class BigQueryUDFDateDiffTest {
                 new ExprNodeConstantDesc(TypeInfoFactory.dateTypeInfo, "2008-12-25")));
     func.setChildren(children);
     String expression = BigQueryFilters.translateFilters(func).getExprString();
-    assertEquals("DATE_DIFF(DATE('2010-07-07'), DATE('2008-12-25'), DAY)", expression);
+    assertEquals("DATE_DIFF(DATE'2010-07-07', DATE'2008-12-25', DAY)", expression);
   }
 }

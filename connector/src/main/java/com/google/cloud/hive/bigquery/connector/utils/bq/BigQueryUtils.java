@@ -16,16 +16,55 @@
 package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.api.gax.rpc.HeaderProvider;
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
 import com.google.cloud.bigquery.connector.common.BigQueryProxyTransporterBuilder;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.http.HttpTransportOptions;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.hadoop.hive.metastore.api.Table;
+import repackaged.by.hivebqconnector.com.google.gson.Gson;
+import repackaged.by.hivebqconnector.com.google.gson.JsonArray;
+import repackaged.by.hivebqconnector.com.google.gson.JsonElement;
+import repackaged.by.hivebqconnector.com.google.gson.JsonObject;
 
 public class BigQueryUtils {
+
+  public static String exportSchemaToJSON(Schema schema) {
+    Gson gson = new Gson();
+    return gson.toJson(schema);
+  }
+
+  public static FieldList loadFieldsFromJSON(JsonArray jsonFields) {
+    List<Field> fields = new ArrayList<>();
+    for (int i = 0; i < jsonFields.size(); i++) {
+      JsonObject fieldJson = jsonFields.get(i).getAsJsonObject();
+      String name = fieldJson.get("name").getAsString();
+      String type = fieldJson.get("type").getAsJsonObject().get("constant").getAsString();
+      Field.Builder fieldBuilder;
+      if (type.equals("RECORD")) {
+        FieldList subFields = loadFieldsFromJSON(fieldJson.get("subFields").getAsJsonArray());
+        fieldBuilder = Field.newBuilder(name, LegacySQLTypeName.valueOf(type), subFields);
+      } else {
+        fieldBuilder = Field.newBuilder(name, LegacySQLTypeName.valueOf(type));
+      }
+      JsonElement mode = fieldJson.get("mode");
+      if (mode != null) {
+        fieldBuilder.setMode(Field.Mode.valueOf(mode.getAsString()));
+      }
+      fields.add(fieldBuilder.build());
+    }
+    return FieldList.of(fields);
+  }
+
+  public static Schema loadSchemaFromJSON(String json) {
+    Gson gson = new Gson();
+    JsonArray jsonArray = gson.fromJson(json, JsonObject.class).getAsJsonArray("fields");
+    FieldList fields = loadFieldsFromJSON(jsonArray);
+    return Schema.of(fields);
+  }
 
   /**
    * Returns a BigQuery service object. We need this instead of the BigQueryClient class from the

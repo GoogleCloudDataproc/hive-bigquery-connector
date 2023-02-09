@@ -101,12 +101,14 @@ partitioning and ingestion time partitioning.
 
 ### Time-unit column partitioning
 
-You can partition a table on a `DATE` or `TIMESTAMP` column. When you write data to the table,
-BigQuery automatically puts the data into the correct partition based on the values in the column.
+You can partition a table on a column of Hive type `DATE`, `TIMESTAMP`, or `TIMESTAMPLOCALTZ`, which
+respectively correspond to the BigQuery `DATE`, `DATETIME`, and `TIMESTAMP` types. When you write
+data to the table, BigQuery automatically puts the data into the correct partition based on the
+values in the column.
 
-For `TIMESTAMP` columns, the partitions can have either hourly, daily, monthly, or yearly
-granularity. For `DATE` columns, the partitions can have daily, monthly, or yearly granularity.
-Partitions boundaries are based on UTC time.
+For `TIMESTAMP` and `TIMESTAMPLOCALTZ` columns, the partitions can have either hourly, daily,
+monthly, or yearly granularity. For `DATE` columns, the partitions can have daily, monthly, or
+yearly granularity. Partitions boundaries are based on UTC time.
 
 To create a table partitioned by a time-unit column, you must set the `bq.time.partition.field`
 table property to the column's name.
@@ -137,8 +139,9 @@ or yearly boundaries for the partitions. Partitions boundaries are based on UTC 
 An ingestion-time partitioned table also has two pseudo columns:
 
 - `_PARTITIONTIME`: ingestion time for each row, truncated to the partition boundary (such as hourly
-  or daily).
-- `_PARTITIONDATE`: UTC date corresponding to the value in the `_PARTITIONTIME` pseudo column.
+  or daily). This column has the `DATE` Hive type, which corresponds to the BigQuery `DATE` type.
+- `_PARTITIONDATE`: UTC date corresponding to the value in the `_PARTITIONTIME` pseudo column. This
+  column has the `TIMESTAMPLOCALTZ` Hive type, which corresponds to the BigQuery `TIMESTAMP` type.
 
 To create a table partitioned by ingestion time, you must set the `bq.time.partition.type` table
 property to the partition boundary of your choice (`HOUR`, `DAY`, `MONTH`, or `YEAR`).
@@ -217,25 +220,26 @@ You can set the following Hive/Hadoop configuration properties in your environme
 
 Add links to Hive & BQ types doc.
 
-| Hive        | Hive type description                                                                                                                                                                      | BigQuery        | BigQuery type description                                                                                                                        |
-|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `TINYINT`   | 1-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `SMALLINT`  | 2-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `INT`       | 4-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `BIGINT`    | 8-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `FLOAT`     | 4-byte single precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
-| `DOUBLE`    | 8-byte double precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
-| `DECIMAL`   | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                                                                                                               | `DECIMAL`       | Alias of `NUMERIC`                                                                                                                               |
-| `DATE`      | Format: `YYYY-MM-DD`                                                                                                                                                                       | `DATE`          | Format: `YYYY-[M]M-[D]D`. Supported range: 0001-01-01 to 9999-12-31                                                                              |
-| `TIMESTAMP` | Represents an absolute point in time since Unix epoch with millisecond precision (on Hive) compared to Microsecond precision on Bigquery. Considered timezoneless and based on local time. | `TIMESTAMP`     |                                                                                                                                                  |
-| `BOOLEAN`   | Boolean values are represented by the keywords TRUE and FALSE                                                                                                                              | `BOOLEAN`       |                                                                                                                                                  |
-| `CHAR`      | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
-| `VARCHAR`   | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
-| `STRING`    | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
-| `BINARY`    | Variable-length binary data                                                                                                                                                                | `BYTES`         |                                                                                                                                                  |
-| `ARRAY`     | Represents repeated values                                                                                                                                                                 | `ARRAY`         |                                                                                                                                                  |
-| `STRUCT`    | Represents nested structures                                                                                                                                                               | `STRUCT`        |                                                                                                                                                  |
-| `MAP`       | Dictionary of keys and values. Keys must be of primitive type, whereas values can be of any type.                                                                                          | `ARRAY<STRUCT>` | BigQuery doesn't support Maps natively. The connector implements it as a list of structs, where each struct has two columns: `name` and `value`. |
+| Hive               | Hive type description                                                                             | BigQuery        | BigQuery type description                                                                                                                        |
+|--------------------|---------------------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TINYINT`          | 1-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `SMALLINT`         | 2-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `INT`              | 4-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `BIGINT`           | 8-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `FLOAT`            | 4-byte single precision floating point number                                                     | `FLOAT64`       |                                                                                                                                                  |
+| `DOUBLE`           | 8-byte double precision floating point number                                                     | `FLOAT64`       |                                                                                                                                                  |
+| `DECIMAL`          | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                      | `DECIMAL`       | Alias of `NUMERIC`                                                                                                                               |
+| `DATE`             | Format: `YYYY-MM-DD`                                                                              | `DATE`          | Format: `YYYY-[M]M-[D]D`. Supported range: 0001-01-01 to 9999-12-31                                                                              |
+| `TIMESTAMP`        | Timezone-less timestamp stored as an offset from the UNIX epoch                                   | `DATETIME`      | A date and time, as they might be displayed on a watch, independent of time zone.                                                                |
+| `TIMESTAMPLOCALTZ` | Timezoned timestamp stored as an offset from the UNIX epoch                                       | `TIMESTAMP`     | Absolute point in time, independent of any time zone or convention such as Daylight Savings Time                                                 |
+| `BOOLEAN`          | Boolean values are represented by the keywords TRUE and FALSE                                     | `BOOLEAN`       |                                                                                                                                                  |
+| `CHAR`             | Variable-length character data                                                                    | `STRING`        |                                                                                                                                                  |
+| `VARCHAR`          | Variable-length character data                                                                    | `STRING`        |                                                                                                                                                  |
+| `STRING`           | Variable-length character data                                                                    | `STRING`        |                                                                                                                                                  |
+| `BINARY`           | Variable-length binary data                                                                       | `BYTES`         |                                                                                                                                                  |
+| `ARRAY`            | Represents repeated values                                                                        | `ARRAY`         |                                                                                                                                                  |
+| `STRUCT`           | Represents nested structures                                                                      | `STRUCT`        |                                                                                                                                                  |
+| `MAP`              | Dictionary of keys and values. Keys must be of primitive type, whereas values can be of any type. | `ARRAY<STRUCT>` | BigQuery doesn't support Maps natively. The connector implements it as a list of structs, where each struct has two columns: `name` and `value`. |
 
 ## Execution engines
 
@@ -354,17 +358,11 @@ Please note there are a few caveats:
 ## Known issues and limitations
 
 1. Ensure that the table exists in BigQuery and column names are always lowercase.
-2. A `TIMESTAMP` column in hive is interpreted to be timezone-less and stored as an offset from the UNIX epoch with
-   milliseconds precision. To display in human-readable format, use the `from_unix_time` UDF:
-
-   ```sql
-   from_unixtime(cast(cast(<timestampcolumn> as bigint)/1000 as bigint), 'yyyy-MM-dd hh:mm:ss')
-   ```
-3. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
+2. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
    files might not be automatically cleaned up from the GCS bucket. The MR execution engine does not have that
    limitation. The temporary files are always cleaned up when the job is successful, regardless of the execution engine
    in use.
-4. If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro format for reading
+3. If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro format for reading
    or the indirect method for writing. This is because Avro requires keys to be strings. If you use the Arrow format for
    reading (default) and the direct method for writing (also default), then there are no type limitations for the keys.
 

@@ -24,7 +24,6 @@ import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.Blob;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -131,7 +130,10 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
             "\"var char\",",
             "\"string\",",
             "CAST(\"2019-03-18\" AS DATE),",
-            "CAST(\"2019-03-18T01:23:45.678901\" AS TIMESTAMP),",
+            // Wall clock (no timezone)
+            "CAST(\"2000-01-01T00:23:45.123456\" as TIMESTAMP),",
+            // (Pacific/Honolulu, -10:00)
+            "CAST(\"2000-01-01 00:23:45.123456 Pacific/Honolulu\" AS TIMESTAMPLOCALTZ),",
             "CAST(\"bytes\" AS BINARY),",
             "2.0,",
             "4.2,",
@@ -143,7 +145,8 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
             "),",
             "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
             "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
-            "NAMED_STRUCT('float_field', CAST(4.2 AS FLOAT)),",
+            "NAMED_STRUCT('float_field', CAST(4.2 AS FLOAT), 'ts_field', CAST"
+                + " (\"2019-03-18T01:23:45.678901\" AS TIMESTAMP)),",
             "MAP('mykey', MAP('subkey', 999))",
             "FROM (select '1') t"));
     // Read the data using the BQ SDK
@@ -153,7 +156,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     FieldValueList row = rows.get(0);
-    assertEquals(18, row.size()); // Number of columns
+    assertEquals(19, row.size()); // Number of columns
     assertEquals(11L, row.get(0).getLongValue());
     assertEquals(22L, row.get(1).getLongValue());
     assertEquals(33L, row.get(2).getLongValue());
@@ -163,22 +166,13 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     assertEquals("var char", row.get(6).getStringValue());
     assertEquals("string", row.get(7).getStringValue());
     assertEquals("2019-03-18", row.get(8).getStringValue());
-    if (Objects.equals(writeMethod, HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      assertEquals(1552872225678901L, row.get(9).getTimestampValue());
-    } else {
-      // As we rely on the AvroSerde to generate the Avro schema for the
-      // indirect write method, we lose the micro-second precision due
-      // to the fact that the AvroSerde is currently limited to
-      // 'timestamp-mills' precision.
-      // See: https://issues.apache.org/jira/browse/HIVE-20889
-      // TODO: Write our own avro schema generation tool to get
-      //  around this limitation.
-      assertEquals(1552872225000000L, row.get(9).getTimestampValue());
-    }
-    assertArrayEquals("bytes".getBytes(), row.get(10).getBytesValue());
-    assertEquals(2.0, row.get(11).getDoubleValue());
-    assertEquals(4.2, row.get(12).getDoubleValue());
-    FieldValueList struct = row.get(13).getRecordValue();
+    assertEquals("2000-01-01T00:23:45.123456", row.get(9).getStringValue());
+    assertEquals(
+        "2000-01-01T10:23:45.123456Z", row.get(10).getTimestampInstant().toString()); // 'Z' == UTC
+    assertArrayEquals("bytes".getBytes(), row.get(11).getBytesValue());
+    assertEquals(2.0, row.get(12).getDoubleValue());
+    assertEquals(4.2, row.get(13).getDoubleValue());
+    FieldValueList struct = row.get(14).getRecordValue();
     assertEquals(
         "-99999999999999999999999999999.999999999",
         struct.get("min").getNumericValue().toPlainString());
@@ -189,22 +183,23 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     assertEquals(
         "31415926535897932384626433832.795028841",
         struct.get("big_pi").getNumericValue().toPlainString());
-    FieldValueList array = (FieldValueList) row.get(14).getValue();
+    FieldValueList array = (FieldValueList) row.get(15).getValue();
     assertEquals(3, array.size());
     assertEquals(1, array.get(0).getLongValue());
     assertEquals(2, array.get(1).getLongValue());
     assertEquals(3, array.get(2).getLongValue());
-    FieldValueList arrayOfStructs = (FieldValueList) row.get(15).getValue();
+    FieldValueList arrayOfStructs = (FieldValueList) row.get(16).getValue();
     assertEquals(1, arrayOfStructs.size());
     struct = (FieldValueList) arrayOfStructs.get(0).getValue();
     assertEquals(1L, struct.get(0).getLongValue());
-    // Struct of float
-    struct = row.get(16).getRecordValue();
+    // Mixed struct
+    struct = row.get(17).getRecordValue();
     assertEquals(
         4.199999809265137,
         struct.get("float_field").getDoubleValue()); // TODO: Address discrepancy here
+    assertEquals("2019-03-18T01:23:45.678901", struct.get("ts_field").getStringValue());
     // Check the Map type
-    FieldValueList map = (FieldValueList) row.get(17).getRepeatedValue();
+    FieldValueList map = (FieldValueList) row.get(18).getRepeatedValue();
     assertEquals(1, map.size());
     FieldValueList entry = map.get(0).getRecordValue();
     assertEquals("mykey", entry.get(0).getStringValue());

@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.output.indirect;
 
+import com.google.cloud.hive.bigquery.connector.utils.DateTimeUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroSchemaInfo;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
@@ -24,16 +25,15 @@ import java.util.*;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
+import org.apache.hadoop.hive.common.type.Timestamp;
+import org.apache.hadoop.hive.common.type.TimestampTZ;
+import org.apache.hadoop.hive.serde2.io.*;
 import org.apache.hadoop.hive.serde2.io.ByteWritable;
-import org.apache.hadoop.hive.serde2.io.DateWritableV2;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
-import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
-import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
-import org.codehaus.jackson.JsonNode;
 
 public class AvroDeserializer {
 
@@ -41,24 +41,25 @@ public class AvroDeserializer {
    * Converts the given Hive-serialized object into an Avro record, so it can later be written to
    * GCS and then loaded into BigQuery via the File Load API.
    */
-  public static Record buildSingleRecord(StructObjectInspector soi, Schema schema, Object object) {
-    Record record = new Record(schema);
+  public static Record buildSingleRecord(
+      StructObjectInspector soi, Schema avroSchema, Object object) {
+    Record record = new Record(avroSchema);
     List<? extends StructField> allStructFieldRefs = soi.getAllStructFieldRefs();
     List<Object> structFieldsDataAsList = soi.getStructFieldsDataAsList(object);
-    for (int fieldIndex = 0; fieldIndex < schema.getFields().size(); fieldIndex++) {
+    for (int fieldIndex = 0; fieldIndex < avroSchema.getFields().size(); fieldIndex++) {
       Object hiveValue = structFieldsDataAsList.get(fieldIndex);
       ObjectInspector fieldObjectInspector =
           allStructFieldRefs.get(fieldIndex).getFieldObjectInspector();
       String fieldName = allStructFieldRefs.get(fieldIndex).getFieldName();
-      Schema fieldSchema = schema.getField(fieldName).schema();
-      Object avroValue = convertHiveValueToAvroValue(fieldObjectInspector, hiveValue, fieldSchema);
+      Schema fieldSchema = avroSchema.getField(fieldName).schema();
+      Object avroValue = convertHiveValueToAvroValue(fieldObjectInspector, fieldSchema, hiveValue);
       record.put(fieldIndex, avroValue);
     }
     return record;
   }
 
   private static Object convertHiveValueToAvroValue(
-      ObjectInspector fieldObjectInspector, Object fieldValue, Schema fieldSchema) {
+      ObjectInspector fieldObjectInspector, Schema fieldSchema, Object fieldValue) {
     if (fieldValue == null) {
       return null;
     }
@@ -74,7 +75,7 @@ public class AvroDeserializer {
       while (iterator.hasNext()) {
         Object elementValue = iterator.next();
         Object converted =
-            convertHiveValueToAvroValue(elementObjectInspector, elementValue, elementSchema);
+            convertHiveValueToAvroValue(elementObjectInspector, elementSchema, elementValue);
         array.add(converted);
       }
       return array;
@@ -101,7 +102,7 @@ public class AvroDeserializer {
         Object key = entry.getKey().toString();
         Object convertedValue =
             convertHiveValueToAvroValue(
-                moi.getMapValueObjectInspector(), entry.getValue(), valueSchema);
+                moi.getMapValueObjectInspector(), valueSchema, entry.getValue());
         record.put(KeyValueObjectInspector.KEY_FIELD_NAME, key);
         record.put(KeyValueObjectInspector.VALUE_FIELD_NAME, convertedValue);
         array.add(record);
@@ -141,14 +142,13 @@ public class AvroDeserializer {
       if (fieldValue instanceof Long) {
         return fieldValue;
       }
-      JsonNode logicalType = schemaInfo.getActualSchema().getJsonProp("logicalType");
-      TimestampWritableV2 timestamp = (TimestampWritableV2) fieldValue;
-      if (logicalType != null) {
-        if (logicalType.asText().equals("timestamp-millis")) {
-          return timestamp.getSeconds() * 1_000;
-        }
-      }
-      return timestamp.getSeconds() * 1_000_000 + timestamp.getNanos() / 1000;
+      Timestamp timestamp = ((TimestampWritableV2) fieldValue).getTimestamp();
+      return DateTimeUtils.getEpochMicrosFromHiveTimestamp(timestamp);
+    }
+
+    if (fieldObjectInspector instanceof TimestampLocalTZObjectInspector) {
+      TimestampTZ timestampTZ = ((TimestampLocalTZWritable) fieldValue).getTimestampTZ();
+      return DateTimeUtils.getEpochMicrosFromHiveTimestampTZ(timestampTZ);
     }
 
     if (fieldObjectInspector instanceof DateObjectInspector) {

@@ -15,15 +15,17 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
-import java.io.IOException;
+import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
-import repackaged.by.hivebqconnector.com.google.gson.Gson;
+import repackaged.by.hivebqconnector.com.google.gson.*;
 
 /**
  * Helper class that contains some information about the job. That information is persisted as a
@@ -38,6 +40,10 @@ public class JobDetails {
   private String finalTable; // Only used by the 'direct' write method
   private String gcsTempPath; // Only used by the 'indirect' write method
   private Properties tableProperties;
+  private transient Schema bigquerySchema;
+  private String bigquerySchemaJSON;
+  private transient org.apache.avro.Schema avroSchema; // Only used by the 'indirect' write method
+  private String avroSchemaJSON; // Only used by the 'indirect' write method
 
   public JobDetails() {}
 
@@ -98,6 +104,34 @@ public class JobDetails {
 
   public void setTableProperties(Properties tableProperties) {
     this.tableProperties = tableProperties;
+  }
+
+  public Schema getBigquerySchema() {
+    if (bigquerySchema == null && bigquerySchemaJSON != null) {
+      bigquerySchema = BigQueryUtils.loadSchemaFromJSON(bigquerySchemaJSON);
+    }
+    return bigquerySchema;
+  }
+
+  public void setBigquerySchema(Schema schema) {
+    if (schema != null) {
+      bigquerySchemaJSON = BigQueryUtils.exportSchemaToJSON(schema);
+    }
+    this.bigquerySchema = schema;
+  }
+
+  public org.apache.avro.Schema getAvroSchema() {
+    if (avroSchema == null && avroSchemaJSON != null) {
+      avroSchema = org.apache.avro.Schema.parse(avroSchemaJSON);
+    }
+    return avroSchema;
+  }
+
+  public void setAvroSchema(org.apache.avro.Schema schema) {
+    if (schema != null) {
+      avroSchemaJSON = schema.toString();
+    }
+    this.avroSchema = schema;
   }
 
   /** Writes the job's details file to the job's work directory on HDFS. */

@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils.AvroOutput;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
@@ -53,11 +52,9 @@ public class IndirectAvroRecordWriter
   public IndirectAvroRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    this.avroSchema =
-        AvroUtils.adaptSchemaForBigQuery(
-            AvroUtils.extractAvroSchema(jobConf, jobDetails.getTableProperties()));
-    this.avroOutput = AvroOutput.initialize(jobConf, this.avroSchema);
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
+    this.avroSchema = jobDetails.getAvroSchema();
+    this.avroOutput = AvroOutput.initialize(jobConf, this.avroSchema);
   }
 
   @Override

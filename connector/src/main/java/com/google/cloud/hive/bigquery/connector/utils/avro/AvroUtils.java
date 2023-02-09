@@ -15,13 +15,15 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 import java.util.TimeZone;
 import java.util.UUID;
 import org.apache.avro.Schema;
@@ -31,17 +33,124 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroJob;
 import org.apache.avro.mapred.AvroOutputFormat;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.common.StringInternUtils;
-import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
-import org.apache.hadoop.hive.serde2.avro.AvroSerdeException;
-import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
+import org.apache.hadoop.hive.serde2.objectinspector.*;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.mapred.JobConf;
+import org.codehaus.jackson.node.IntNode;
 
 public class AvroUtils {
+
+  public static Schema getAvroSchema(StructObjectInspector soi, FieldList bigqueryFields) {
+    List<Schema.Field> avroFields = new ArrayList<>();
+    List<? extends StructField> allStructFieldRefs = soi.getAllStructFieldRefs();
+    for (int i = 0; i < allStructFieldRefs.size(); i++) {
+      StructField structField = allStructFieldRefs.get(i);
+      Schema fieldSchema =
+          getAvroSchema(structField.getFieldObjectInspector(), bigqueryFields.get(i));
+      Schema.Field avroField =
+          new Schema.Field(structField.getFieldName(), fieldSchema, null, null);
+      avroFields.add(avroField);
+    }
+    Schema recordSchema =
+        Schema.createRecord(
+            "record_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
+    recordSchema.setFields(avroFields);
+    return recordSchema;
+  }
+
+  public static Schema getAvroSchema(ObjectInspector fieldOi, Field bigqueryField) {
+    if (fieldOi instanceof ListObjectInspector) {
+      ListObjectInspector loi = (ListObjectInspector) fieldOi;
+      ObjectInspector elementOi = loi.getListElementObjectInspector();
+      return Schema.createArray(getAvroSchema(elementOi, bigqueryField));
+    }
+    if (fieldOi instanceof StructObjectInspector) {
+      return getAvroSchema((StructObjectInspector) fieldOi, bigqueryField.getSubFields());
+    }
+    if (fieldOi instanceof MapObjectInspector) {
+      // Convert the Map type into a list of key/value records
+      MapObjectInspector moi = (MapObjectInspector) fieldOi;
+      Schema keySchema = Schema.create(Schema.Type.STRING);
+      Schema.Field keyField =
+          new Schema.Field(KeyValueObjectInspector.KEY_FIELD_NAME, keySchema, null, null);
+      Schema valueSchema = getAvroSchema(moi.getMapValueObjectInspector(), bigqueryField);
+      Schema.Field valueField =
+          new Schema.Field(KeyValueObjectInspector.VALUE_FIELD_NAME, valueSchema, null, null);
+      Schema entrySchema =
+          Schema.createRecord(
+              "map_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
+      entrySchema.setFields(Arrays.asList(keyField, valueField));
+      return Schema.createArray(entrySchema);
+    }
+    if (fieldOi instanceof ByteObjectInspector
+        || fieldOi instanceof ShortObjectInspector
+        || fieldOi instanceof IntObjectInspector) {
+      return Schema.create(Schema.Type.INT);
+    }
+    if (fieldOi instanceof LongObjectInspector) {
+      return Schema.create(Schema.Type.LONG);
+    }
+    if (fieldOi instanceof TimestampObjectInspector) {
+      Schema schema = Schema.create(Schema.Type.LONG);
+      if (bigqueryField.getType().getStandardType().equals(StandardSQLTypeName.TIMESTAMP)) {
+        schema.addProp("logicalType", "timestamp-micros");
+      } else if (bigqueryField.getType().getStandardType().equals(StandardSQLTypeName.DATETIME)) {
+        schema.addProp("logicalType", "local-timestamp-micros");
+      } else {
+        throw new RuntimeException(
+            String.format(
+                "Unexpected BigQuery type `%s` for field `%s` with Hive type `%s`",
+                bigqueryField.getType().getStandardType(),
+                bigqueryField.getName(),
+                fieldOi.getTypeName()));
+      }
+      return schema;
+    }
+    if (fieldOi instanceof TimestampLocalTZObjectInspector) {
+      Schema schema = Schema.create(Schema.Type.LONG);
+      schema.addProp("logicalType", "timestamp-micros");
+      return schema;
+    }
+    if (fieldOi instanceof DateObjectInspector) {
+      Schema schema = Schema.create(Schema.Type.INT);
+      schema.addProp("logicalType", "date");
+      return schema;
+    }
+    if (fieldOi instanceof FloatObjectInspector) {
+      return Schema.create(Schema.Type.FLOAT);
+    }
+    if (fieldOi instanceof DoubleObjectInspector) {
+      return Schema.create(Schema.Type.DOUBLE);
+    }
+    if (fieldOi instanceof BooleanObjectInspector) {
+      return Schema.create(Schema.Type.BOOLEAN);
+    }
+    if (fieldOi instanceof BinaryObjectInspector) {
+      return Schema.create(Schema.Type.BYTES);
+    }
+    if (fieldOi instanceof HiveCharObjectInspector
+        || fieldOi instanceof HiveVarcharObjectInspector
+        || fieldOi instanceof StringObjectInspector) {
+      return Schema.create(Schema.Type.STRING);
+    }
+    if (fieldOi instanceof HiveDecimalObjectInspector) {
+      HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) fieldOi;
+      Schema schema = Schema.create(Schema.Type.BYTES);
+      schema.addProp("logicalType", "decimal");
+      schema.addProp("precision", IntNode.valueOf(hdoi.precision()));
+      schema.addProp("scale", IntNode.valueOf(hdoi.scale()));
+      return schema;
+    }
+
+    String unsupportedCategory;
+    if (fieldOi instanceof PrimitiveObjectInspector) {
+      unsupportedCategory = ((PrimitiveObjectInspector) fieldOi).getPrimitiveCategory().name();
+    } else {
+      unsupportedCategory = fieldOi.getCategory().name();
+    }
+
+    throw new IllegalStateException("Unexpected type: " + unsupportedCategory);
+  }
 
   /**
    * This function is used primarily to deal with UNION type objects, which are a union of two
@@ -67,112 +176,6 @@ public class AvroUtils {
       }
     }
     return schemaInfo;
-  }
-
-  /**
-   * Makes some modifications to the provided Avro schema to be compatible with the way we store
-   * Hive data in BigQuery. Currently, the only modification that we make is convert the Map type
-   * (which BigQuery doesn't support natively) into a list of key/value records.
-   */
-  public static Schema adaptSchemaForBigQuery(Schema originalSchema) {
-    AvroSchemaInfo schemaInfo = AvroUtils.getSchemaInfo(originalSchema);
-    Schema schema = schemaInfo.getActualSchema();
-
-    if (schema.getType() == Schema.Type.ARRAY) {
-      Schema modifiedElementType = adaptSchemaForBigQuery(schema.getElementType());
-      schema = Schema.createArray(modifiedElementType);
-    } else if (schema.getType() == Schema.Type.RECORD) {
-      List<Schema.Field> originalFields = schema.getFields();
-      List<Schema.Field> modifiedFields = new ArrayList<>();
-      originalFields.forEach(
-          originalField -> {
-            Schema modifiedFieldSchema = adaptSchemaForBigQuery(originalField.schema());
-            modifiedFields.add(
-                new Schema.Field(
-                    originalField.name(),
-                    modifiedFieldSchema,
-                    originalField.doc(),
-                    originalField.defaultValue()));
-          });
-      schema =
-          Schema.createRecord(
-              "record_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
-      schema.setFields(modifiedFields);
-    } else if (schema.getType() == Schema.Type.MAP) {
-      // Convert the Map type into a list of key/value records
-      Schema keySchema = Schema.create(Schema.Type.STRING);
-      Schema.Field keyField =
-          new Schema.Field(KeyValueObjectInspector.KEY_FIELD_NAME, keySchema, null, null);
-      Schema valueSchema = adaptSchemaForBigQuery(schema.getValueType());
-      Schema.Field valueField =
-          new Schema.Field(KeyValueObjectInspector.VALUE_FIELD_NAME, valueSchema, null, null);
-      Schema entrySchema =
-          Schema.createRecord(
-              "map_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
-      entrySchema.setFields(Arrays.asList(keyField, valueField));
-      schema = Schema.createArray(entrySchema);
-    }
-
-    if (schemaInfo.isNullable()) {
-      schema = Schema.createUnion(Arrays.asList(Schema.create(Schema.Type.NULL), schema));
-    }
-
-    return schema;
-  }
-
-  /**
-   * Returns true if the table properties contain an explicit Avro schema, either with
-   * `avro.schema.literal` or `avro.schema.url`.
-   */
-  public static boolean hasExplicitAvroSchema(Properties tableProperties) {
-    return tableProperties.getProperty(
-                AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())
-            != null
-        || tableProperties.getProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_URL.getPropName())
-            != null;
-  }
-
-  /**
-   * Extracts the Avro schema from the `columns` and `column.types` table properties, if present.
-   * Otherwise, returns null.
-   */
-  public static Schema extractSchemaFromColumnProperties(Properties tableProperties) {
-    String columnNameProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMNS);
-    String columnTypeProperty = tableProperties.getProperty(serdeConstants.LIST_COLUMN_TYPES);
-    String columnCommentProperty = tableProperties.getProperty("columns.comments", "");
-    String columnNameDelimiter =
-        tableProperties.containsKey(serdeConstants.COLUMN_NAME_DELIMITER)
-            ? tableProperties.getProperty(serdeConstants.COLUMN_NAME_DELIMITER)
-            : String.valueOf(',');
-    if (columnNameProperty != null
-        && !columnNameProperty.isEmpty()
-        && columnTypeProperty != null
-        && !columnTypeProperty.isEmpty()) {
-      List<String> columnNames =
-          StringInternUtils.internStringsInList(
-              Arrays.asList(columnNameProperty.split(columnNameDelimiter)));
-      ArrayList<TypeInfo> columnTypes =
-          TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
-      return AvroSerDe.getSchemaFromCols(
-          tableProperties, columnNames, columnTypes, columnCommentProperty);
-    }
-    return null;
-  }
-
-  /** Extract the Avro schema from the given table properties. */
-  public static Schema extractAvroSchema(Configuration conf, Properties tableProperties) {
-    Schema schema = null;
-    if (!hasExplicitAvroSchema(tableProperties)) {
-      schema = extractSchemaFromColumnProperties(tableProperties);
-    }
-    if (schema == null) {
-      try {
-        schema = AvroSerdeUtils.determineSchemaOrThrowException(conf, tableProperties);
-      } catch (IOException | AvroSerdeException e) {
-        throw new RuntimeException(e);
-      }
-    }
-    return schema;
   }
 
   /**
