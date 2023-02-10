@@ -194,9 +194,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     assertEquals(1L, struct.get(0).getLongValue());
     // Mixed struct
     struct = row.get(17).getRecordValue();
-    assertEquals(
-        4.199999809265137,
-        struct.get("float_field").getDoubleValue()); // TODO: Address discrepancy here
+    assertEquals(4.2, struct.get("float_field").getDoubleValue()); // TODO: Address discrepancy here
     assertEquals("2019-03-18T01:23:45.678901", struct.get("ts_field").getStringValue());
     // Check the Map type
     FieldValueList map = (FieldValueList) row.get(18).getRepeatedValue();
@@ -259,4 +257,20 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     assertEquals(999, rows.get(0).get(0).getLongValue());
     assertEquals("hello3", rows.get(0).get(1).getStringValue());
   }
+
+  @ParameterizedTest
+  @MethodSource(WRITE_METHOD)
+  public void testFloats(String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive();
+    runHiveScript("CREATE TABLE native_table (fl FLOAT)");
+    runHiveScript("INSERT INTO native_table VALUES ( CAST(4.2 AS FLOAT) )");
+    createExternalTable("external_table", "fl FLOAT", "fl FLOAT64");
+    runHiveScript("INSERT INTO external_table VALUES ( CAST(4.2 AS FLOAT) )");
+    List<Object[]> nativeRows = runHiveStatement("SELECT * FROM native_table WHERE fl = 4.2");
+    assertEquals(1, nativeRows.size());
+    List<Object[]> externalRows = runHiveStatement("SELECT * FROM external_table WHERE fl = 4.2");
+    assertEquals(1, externalRows.size());
+  }
+
 }

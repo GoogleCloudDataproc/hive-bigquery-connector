@@ -141,7 +141,7 @@ public class AvroDeserializer {
     }
 
     if (fieldObjectInspector instanceof FloatObjectInspector) {
-      return ((FloatWritable) fieldValue).get();
+      return Double.valueOf(Float.toString(((FloatWritable) fieldValue).get()));
     }
 
     if (fieldObjectInspector instanceof DoubleObjectInspector) {
