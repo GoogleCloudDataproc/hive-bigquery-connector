@@ -30,8 +30,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import repackaged.by.hivebqconnector.com.google.common.base.Joiner;
 
 public class IndirectOutputCommitter {
 
@@ -44,10 +46,11 @@ public class IndirectOutputCommitter {
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
     LOG.info("Committing BigQuery load job");
     // Retrieve the list of Avro files from GCS
+    String hmsDbTableName = jobDetails.getHmsDbTableName();
     List<String> avroFiles =
         FileSystemUtils.getFiles(
             conf,
-            IndirectUtils.getGcsTempDir(conf, jobDetails.getGcsTempPath()),
+            new Path(IndirectUtils.getGcsTempDir(conf, jobDetails.getGcsTempPath()), hmsDbTableName),
             IndirectUtils.getTaskTempAvroFileNamePrefix(jobDetails.getTableId()),
             Constants.LOAD_FILE_EXTENSION);
     if (avroFiles.size() > 0) {
@@ -62,13 +65,14 @@ public class IndirectOutputCommitter {
           jobDetails.isOverwrite()
               ? WriteDisposition.WRITE_TRUNCATE
               : WriteDisposition.WRITE_APPEND;
+      LOG.info("Loading avroFiles [ " + Joiner.on(",").join(avroFiles) + "]");
       try {
         // Load the Avro files into BigQuery
         bqClient.loadDataIntoTable(
             config, avroFiles, formatOptions, writeDisposition, Optional.empty());
       } finally {
         // Delete all the Avro files from GCS
-        IndirectUtils.deleteGcsTempDir(conf, jobDetails.getGcsTempPath());
+        IndirectUtils.deleteTblGcsTempDir(conf, jobDetails.getGcsTempPath(), hmsDbTableName);
       }
     }
   }

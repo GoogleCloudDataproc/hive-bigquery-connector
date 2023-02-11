@@ -38,6 +38,7 @@ import com.google.inject.Injector;
 import java.io.IOException;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -60,7 +61,7 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   Configuration conf;
-  TableInfo createTableInfo;
+  TableInfo bigQueryTableInfo;
 
   public BigQueryMetaHook(Configuration conf) {
     this.conf = conf;
@@ -103,12 +104,12 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   }
 
   /** Throws an exception if the table contains a column with the given name. */
-  private void assertDoesNotContainColumn(Table table, String columnName) throws MetaException {
-    List<FieldSchema> columns = table.getSd().getCols();
+  private void assertDoesNotContainColumn(Table hmsTable, String columnName) throws MetaException {
+    List<FieldSchema> columns = hmsTable.getSd().getCols();
     for (FieldSchema column : columns) {
       if (column.getName().equalsIgnoreCase(columnName)) {
         throw new MetaException(
-            String.format("%s already contains a column named `%s`", table, columnName));
+            String.format("%s already contains a column named `%s`", hmsTable, columnName));
       }
     }
   }
@@ -237,7 +238,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       }
 
       StandardTableDefinition tableDefinition = tableDefBuilder.build();
-      createTableInfo =
+      bigQueryTableInfo =
           TableInfo.newBuilder(opts.getTableId(), tableDefinition)
               .setDescription(table.getParameters().get("comment"))
               .build();
@@ -271,10 +272,10 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     //  `create(TableInfo)` method. We could add it to that class eventually.
     BigQuery bigQueryService =
         BigQueryUtils.getBigQueryService(opts, headerProvider, credentialsSupplier);
-    bigQueryService.create(createTableInfo);
+    bigQueryService.create(bigQueryTableInfo);
   }
 
-  /** Called before data is written to a table. */
+  /** Called before insert query. */
   public void preInsertTable(Table table, boolean overwrite) throws MetaException {
     Map<String, String> tableParameters = table.getParameters();
     Injector injector =
@@ -284,24 +285,26 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     // Load the job details file from HDFS
     JobDetails jobDetails;
+    String hmsDbTableName = HiveUtils.getDbTableName(table);
+    Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, hmsDbTableName);
     try {
-      jobDetails = JobDetails.readJobDetailsFile(conf);
+      jobDetails = JobDetails.readJobDetailsFile(conf, jobDetailsFilePath);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    // Update the job details
+    // To-Do: jobdetails should already have those, add checks on jobDetails and merge properties
     jobDetails.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
     jobDetails.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
-    String tableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
-    jobDetails.setTable(tableName);
+    String bqTableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
+    jobDetails.setTable(bqTableName);
     jobDetails.setOverwrite(overwrite);
 
     // Retrieve the BigQuery schema of the final destination table
-    TableInfo tableInfo = bqClient.getTable(jobDetails.getTableId());
-    if (tableInfo == null) {
-      throw new MetaException("Table does not exist: " + jobDetails.getTableId());
+    TableInfo bqTableInfo = bqClient.getTable(jobDetails.getTableId());
+    if (bqTableInfo == null) {
+      throw new MetaException("BigQuery table does not exist: " + jobDetails.getTableId());
     }
-    Schema bigQuerySchema = tableInfo.getDefinition().getSchema();
+    Schema bigQuerySchema = bqTableInfo.getDefinition().getSchema();
     jobDetails.setBigquerySchema(bigQuerySchema);
 
     String writeMethod =
@@ -317,7 +320,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       // `IndirectOutputCommitter` class).
       if (overwrite) {
         // Set the final destination table as the job's original table
-        jobDetails.setFinalTable(tableName);
+        jobDetails.setFinalTable(bqTableName);
         // Create a temporary table with the same schema
         // TODO: It'd be useful to add a description to the table explaining that it was
         //  created as a temporary table for a Hive query.
@@ -326,7 +329,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                 TableId.of(
                     jobDetails.getProject(),
                     jobDetails.getDataset(),
-                    tableName + "-" + HiveUtils.getHiveId(conf) + "-"),
+                    bqTableName + "-" + HiveUtils.getHiveId(conf) + "-"),
                 bigQuerySchema);
         // Set the temp table as the job's output table
         jobDetails.setTable(tempTableInfo.getTableId().getTable());
@@ -360,7 +363,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     // Save the job details file so that we can retrieve all the information at
     // later stages of the job's execution
-    JobDetails.writeJobDetailsFile(conf, jobDetails);
+    JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
   }
 
   /**
@@ -373,7 +376,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
     if (engine.equals("tez")) {
       try {
-        BigQueryOutputCommitter.commit(conf);
+        JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
+        BigQueryOutputCommitter.commit(conf, jobDetails);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -385,7 +389,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   @Override
   public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
     try {
-      FileSystemUtils.deleteWorkDirOnExit(conf);
+      String hmsDbTableName = HiveUtils.getDbTableName(table);
+      FileSystemUtils.deleteWorkDirOnExit(conf, hmsDbTableName);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

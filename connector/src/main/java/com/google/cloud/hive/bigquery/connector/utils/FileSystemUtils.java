@@ -58,11 +58,12 @@ public class FileSystemUtils {
   }
 
   /** Deletes the work directory. Typically used at the end of the job's execution. */
-  public static void deleteWorkDirOnExit(Configuration conf) throws IOException {
-    Path dir = getWorkDir(conf);
-    FileSystem fs = dir.getFileSystem(conf);
-    if (fs.exists(dir)) {
-      fs.deleteOnExit(dir);
+  public static void deleteWorkDirOnExit(Configuration conf, String hmsDbTableName) throws IOException {
+    Path workDir = getWorkDir(conf);
+    Path tblWorkPath = new Path(workDir, hmsDbTableName);
+    FileSystem fs = tblWorkPath.getFileSystem(conf);
+    if (fs.exists(tblWorkPath)) {
+      fs.deleteOnExit(tblWorkPath);
     }
   }
 
@@ -91,8 +92,10 @@ public class FileSystemUtils {
    * Returns the location of the "details" file, which contains strategic details about a job that
    * can be consulted at various stages of the job's execution.
    */
-  public static Path getJobDetailsFile(Configuration conf) {
-    return new Path(FileSystemUtils.getWorkDir(conf), Constants.JOB_DETAILS_FILE);
+  public static Path getJobDetailsFilePath(Configuration conf, String hmsDbTableName) {
+    Path workDir = getWorkDir(conf);
+    Path tblWorkPath = new Path(workDir, hmsDbTableName);
+    return new Path(tblWorkPath, Constants.JOB_DETAILS_FILE);
   }
 
   /** Utility to read a file from disk. */

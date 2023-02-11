@@ -33,6 +33,10 @@ public class HiveUtils {
     return HiveConf.getVar(conf, HiveConf.ConfVars.HIVEQUERYID);
   }
 
+  public static String getDbTableName(org.apache.hadoop.hive.metastore.api.Table table) {
+    return table.getDbName() + "." + table.getTableName();
+  }
+
   public static TaskAttemptID taskAttemptIDWrapper(JobConf jobConf) {
     return new TaskAttemptIDWrapper(
         TaskAttemptID.forName(jobConf.get("mapred.task.id")), jobConf.get("hive.tez.vertex.index"));

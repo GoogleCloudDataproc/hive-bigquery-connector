@@ -46,9 +46,9 @@ public class IndirectUtilsTest {
 
   @Test
   public void testGetTaskTempAvroFileNamePrefix() {
-    TableId tableId = TableId.of("myproject", "mydataset", "mytable");
+    TableId tableId = TableId.of("my:project", "mydataset", "mytable");
     String prefix = IndirectUtils.getTaskTempAvroFileNamePrefix(tableId);
-    assertEquals("myproject_mydataset_mytable", prefix);
+    assertEquals("my__project_mydataset_mytable", prefix);
   }
 
   @Test
@@ -56,11 +56,12 @@ public class IndirectUtilsTest {
     Configuration conf = new Configuration();
     conf.set("hive.query.id", "query123");
     TableId tableId = TableId.of("myproject", "mydataset", "mytable");
+    String hmsDbTableName = "default.hivetable";
     TaskAttemptID taskAttemptID = new TaskAttemptID();
     Path path =
-        IndirectUtils.getTaskAvroTempFile(conf, tableId, "gs://example/mypath", taskAttemptID);
+        IndirectUtils.getTaskAvroTempFile(conf, hmsDbTableName, tableId, "gs://example/mypath", taskAttemptID);
     assertEquals(
-        "gs://example/mypath/bq-hive-query123/myproject_mydataset_mytable_task__0000_r_000000.avro",
+        "gs://example/mypath/bq-hive-query123/default.hivetable/myproject_mydataset_mytable_task__0000_r_000000.avro",
         path.toString());
   }
 }

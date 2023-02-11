@@ -32,8 +32,7 @@ import org.apache.hadoop.mapred.TaskAttemptContext;
 
 public class BigQueryOutputCommitter extends OutputCommitter {
 
-  public static void commit(Configuration conf) throws IOException {
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
+  public static void commit(Configuration conf, JobDetails jobDetails) throws IOException {
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     // Pick the appropriate OutputCommitter (direct or indirect) based on the
@@ -45,7 +44,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     } else {
       throw new RuntimeException("Invalid write method setting: " + writeMethod);
     }
-    FileSystemUtils.deleteWorkDirOnExit(conf);
+    FileSystemUtils.deleteWorkDirOnExit(conf, jobDetails.getHmsDbTableName());
   }
 
   /**
@@ -58,7 +57,12 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     JobConf conf = jobContext.getJobConf();
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
     if (engine.equals("mr")) {
-      commit(conf);
+      String hmsDbTableName = conf.get("name");
+      if (hmsDbTableName.isEmpty()) {
+        throw new RuntimeException("JobConf does not have output table name");
+      }
+      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+      commit(conf, jobDetails);
     } else {
       throw new RuntimeException("Unexpected execution engine: " + engine);
     }
@@ -72,9 +76,16 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
     JobConf conf = jobContext.getJobConf();
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
+    String hmsDbTableName = conf.get("name");
+    if (hmsDbTableName.isEmpty()) {
+      throw new RuntimeException("jobContext does not have output table name");
+    }
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+    if (!jobDetails.getHmsDbTableName().equals(hmsDbTableName)) {
+      throw new RuntimeException("hive table not matching in jobDetails and jobContext");
+    }
     DirectOutputCommitter.abortJob(conf, jobDetails);
-    FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf());
+    FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf(), jobDetails.getHmsDbTableName());
     super.abortJob(jobContext, status);
   }
 

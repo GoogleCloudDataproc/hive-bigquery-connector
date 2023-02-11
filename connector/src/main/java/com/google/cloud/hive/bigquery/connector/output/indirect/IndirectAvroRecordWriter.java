@@ -45,12 +45,14 @@ public class IndirectAvroRecordWriter
 
   AvroOutput avroOutput;
   JobConf jobConf;
+  JobDetails jobDetails;
   TaskAttemptID taskAttemptID;
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
 
   public IndirectAvroRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
+    this.jobDetails = jobDetails;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     this.avroSchema = jobDetails.getAvroSchema();
@@ -73,10 +75,9 @@ public class IndirectAvroRecordWriter
   @Override
   public void close(boolean abort) throws IOException {
     if (!abort) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
       Path filePath =
           IndirectUtils.getTaskAvroTempFile(
-              jobConf, jobDetails.getTableId(), jobDetails.getGcsTempPath(), taskAttemptID);
+              jobConf, jobDetails.getHmsDbTableName(), jobDetails.getTableId(), jobDetails.getGcsTempPath(), taskAttemptID);
       FileSystem fileSystem = filePath.getFileSystem(jobConf);
       FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);
       avroOutput.getDataFileWriter().flush();

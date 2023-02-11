@@ -15,12 +15,15 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaHook;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -122,7 +125,11 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();
     jobDetails.setTableProperties(tableProperties);
-    JobDetails.writeJobDetailsFile(conf, jobDetails);
+    jobDetails.setProject(tableProperties.getProperty(HiveBigQueryConfig.PROJECT_KEY));
+    jobDetails.setDataset(tableProperties.getProperty(HiveBigQueryConfig.DATASET_KEY));
+    jobDetails.setTable(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY));
+    Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
+    JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
   }
 
   @Override

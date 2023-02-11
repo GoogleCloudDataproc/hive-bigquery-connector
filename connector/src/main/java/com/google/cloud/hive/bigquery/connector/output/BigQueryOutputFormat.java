@@ -42,10 +42,9 @@ public class BigQueryOutputFormat
    */
   @Override
   public org.apache.hadoop.mapred.RecordWriter<NullWritable, Writable> getRecordWriter(
-      FileSystem fileSystem, JobConf jobConf, String name, Progressable progressable)
+      FileSystem fileSystem, JobConf jobConf, String hmsDbTableName, Progressable progressable)
       throws IOException {
-    // Pick the appropriate RecordWriter (direct or indirect) based on the configured write method
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
     String writeMethod =
         jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
@@ -66,7 +65,11 @@ public class BigQueryOutputFormat
       Properties properties,
       Progressable progressable)
       throws IOException {
-    return (RecordWriter) getRecordWriter(null, jobConf, null, null);
+    String hmsDbTableName = properties.getProperty("name");
+    if (hmsDbTableName == null) {
+      throw new RuntimeException("properties do have have hive table name");
+    }
+    return (RecordWriter) getRecordWriter(null, jobConf, hmsDbTableName, null);
   }
 
   @Override

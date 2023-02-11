@@ -39,7 +39,7 @@ public class JobDetails {
   private boolean overwrite;
   private String finalTable; // Only used by the 'direct' write method
   private String gcsTempPath; // Only used by the 'indirect' write method
-  private Properties tableProperties;
+  private Properties hmsTableProperties;
   private transient Schema bigquerySchema;
   private String bigquerySchemaJSON;
   private transient org.apache.avro.Schema avroSchema; // Only used by the 'indirect' write method
@@ -98,12 +98,20 @@ public class JobDetails {
     this.gcsTempPath = gcsTempPath;
   }
 
-  public Properties getTableProperties() {
-    return tableProperties;
+  public String getHmsDbTableName() {
+    return this.hmsTableProperties.getProperty("name");
   }
 
-  public void setTableProperties(Properties tableProperties) {
-    this.tableProperties = tableProperties;
+  public String getJobGcsTempPath() {
+    return gcsTempPath + "/" + getHmsDbTableName();
+  }
+
+  public Properties getTableProperties() {
+    return hmsTableProperties;
+  }
+
+  public void setTableProperties(Properties hmsTableProperties) {
+    this.hmsTableProperties = hmsTableProperties;
   }
 
   public Schema getBigquerySchema() {
@@ -134,28 +142,30 @@ public class JobDetails {
     this.avroSchema = schema;
   }
 
-  /** Writes the job's details file to the job's work directory on HDFS. */
-  public static void writeJobDetailsFile(Configuration conf, JobDetails jobDetails) {
-    Path path = FileSystemUtils.getJobDetailsFile(conf);
-    FSDataOutputStream infoFile;
-    try {
-      infoFile = path.getFileSystem(conf).create(path);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+  /** Reads the job's details file from the job's work directory on HDFS. */
+  public static JobDetails readJobDetailsFile(Configuration conf, String hmsDbTableName) throws IOException {
+    Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, hmsDbTableName);
+    String jsonString = FileSystemUtils.readFile(conf, jobDetailsFilePath);
     Gson gson = new Gson();
+    return gson.fromJson(jsonString, JobDetails.class);
+  }
+
+  /** Reads the job's details file from the job's work path. */
+  public static JobDetails readJobDetailsFile(Configuration conf, Path path) throws IOException {
+    String jsonString = FileSystemUtils.readFile(conf, path);
+    Gson gson = new Gson();
+    return gson.fromJson(jsonString, JobDetails.class);
+  }
+
+  /** Writes the job's details file to the job's work directory in the path.*/
+  public static void writeJobDetailsFile(Configuration conf, Path path, JobDetails jobDetails) {
     try {
+      FSDataOutputStream infoFile = path.getFileSystem(conf).create(path);
+      Gson gson = new Gson();
       infoFile.write(gson.toJson(jobDetails).getBytes(StandardCharsets.UTF_8));
       infoFile.close();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  /** Reads the job's details file from the job's work directory on HDFS. */
-  public static JobDetails readJobDetailsFile(Configuration conf) throws IOException {
-    String jsonString = FileSystemUtils.readFile(conf, FileSystemUtils.getJobDetailsFile(conf));
-    Gson gson = new Gson();
-    return gson.fromJson(jsonString, JobDetails.class);
   }
 }
