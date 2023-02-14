@@ -50,7 +50,8 @@ public class IndirectOutputCommitter {
     List<String> avroFiles =
         FileSystemUtils.getFiles(
             conf,
-            new Path(IndirectUtils.getGcsTempDir(conf, jobDetails.getGcsTempPath()), hmsDbTableName),
+            new Path(
+                IndirectUtils.getGcsTempDir(conf, jobDetails.getGcsTempPath()), hmsDbTableName),
             IndirectUtils.getTaskTempAvroFileNamePrefix(jobDetails.getTableId()),
             Constants.LOAD_FILE_EXTENSION);
     if (avroFiles.size() > 0) {

@@ -65,8 +65,12 @@ public class DirectOutputCommitter {
       String streamName = FileSystemUtils.readFile(conf, path);
       streamNames.add(streamName);
     }
-    LOG.info("Committing streams [ " + Joiner.on(",").join(streamNames) +
-    "], stream reference files [" + Joiner.on(",").join(streamFiles) + "]");
+    LOG.info(
+        "Committing streams [ "
+            + Joiner.on(",").join(streamNames)
+            + "], stream reference files ["
+            + Joiner.on(",").join(streamFiles)
+            + "]");
 
     Injector injector =
         Guice.createInjector(

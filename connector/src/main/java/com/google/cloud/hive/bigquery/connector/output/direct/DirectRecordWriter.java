@@ -91,7 +91,8 @@ public class DirectRecordWriter
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
       Path filePath =
-          DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getHmsDbTableName(), jobDetails.getTableId(), taskAttemptID);
+          DirectUtils.getTaskTempStreamFile(
+              jobConf, jobDetails.getHmsDbTableName(), jobDetails.getTableId(), taskAttemptID);
       FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);
       streamFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
       streamFile.close();

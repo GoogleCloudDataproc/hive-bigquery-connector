@@ -134,7 +134,8 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     jobDetails.setProject(tableProperties.getProperty(HiveBigQueryConfig.PROJECT_KEY));
     jobDetails.setDataset(tableProperties.getProperty(HiveBigQueryConfig.DATASET_KEY));
     jobDetails.setTable(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY));
-    Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
+    Path jobDetailsFilePath =
+        FileSystemUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
   }
 

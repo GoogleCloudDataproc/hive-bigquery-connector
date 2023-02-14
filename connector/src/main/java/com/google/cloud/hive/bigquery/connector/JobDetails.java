@@ -143,7 +143,8 @@ public class JobDetails {
   }
 
   /** Reads the job's details file from the job's work directory on HDFS. */
-  public static JobDetails readJobDetailsFile(Configuration conf, String hmsDbTableName) throws IOException {
+  public static JobDetails readJobDetailsFile(Configuration conf, String hmsDbTableName)
+      throws IOException {
     Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, hmsDbTableName);
     String jsonString = FileSystemUtils.readFile(conf, jobDetailsFilePath);
     Gson gson = new Gson();
@@ -157,7 +158,7 @@ public class JobDetails {
     return gson.fromJson(jsonString, JobDetails.class);
   }
 
-  /** Writes the job's details file to the job's work directory in the path.*/
+  /** Writes the job's details file to the job's work directory in the path. */
   public static void writeJobDetailsFile(Configuration conf, Path path, JobDetails jobDetails) {
     try {
       FSDataOutputStream infoFile = path.getFileSystem(conf).create(path);

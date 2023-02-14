@@ -59,7 +59,8 @@ public class IndirectUtilsTest {
     String hmsDbTableName = "default.hivetable";
     TaskAttemptID taskAttemptID = new TaskAttemptID();
     Path path =
-        IndirectUtils.getTaskAvroTempFile(conf, hmsDbTableName, tableId, "gs://example/mypath", taskAttemptID);
+        IndirectUtils.getTaskAvroTempFile(
+            conf, hmsDbTableName, tableId, "gs://example/mypath", taskAttemptID);
     assertEquals(
         "gs://example/mypath/bq-hive-query123/default.hivetable/myproject_mydataset_mytable_task__0000_r_000000.avro",
         path.toString());

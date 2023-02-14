@@ -19,7 +19,6 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -84,7 +83,8 @@ public class IndirectUtils {
   }
 
   /** Deletes the directory on GCS that contains the temporary Avro files for the job. */
-  public static void deleteTblGcsTempDir(Configuration conf, String gcsPathBase, String hmsDbTableName) throws IOException {
+  public static void deleteTblGcsTempDir(
+      Configuration conf, String gcsPathBase, String hmsDbTableName) throws IOException {
     Path tmpDir = getGcsTempDir(conf, gcsPathBase);
     Path tblTempPath = new Path(tmpDir, hmsDbTableName);
     FileSystem fs = tblTempPath.getFileSystem(conf);
@@ -109,7 +109,11 @@ public class IndirectUtils {
    * @return Fully Qualified temporary table path on GCS
    */
   public static Path getTaskAvroTempFile(
-      Configuration conf, String hmsDbTableName, TableId tableId, String gcsPathBase, TaskAttemptID taskAttemptID) {
+      Configuration conf,
+      String hmsDbTableName,
+      TableId tableId,
+      String gcsPathBase,
+      TaskAttemptID taskAttemptID) {
     Path hmsTablePath = new Path(getGcsTempDir(conf, gcsPathBase), hmsDbTableName);
     return new Path(
         hmsTablePath,

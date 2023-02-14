@@ -39,10 +39,9 @@ public class DirectUtils {
   /** Return the name prefix for the temp stream file. */
   public static String getTaskTempStreamFileNamePrefix(TableId tableId) {
     return String.format(
-        "%s_%s_%s",
-        tableId.getProject(),
-        tableId.getDataset(),
-        tableId.getTable().replace("$", "__")).replace(":", "__");
+            "%s_%s_%s",
+            tableId.getProject(), tableId.getDataset(), tableId.getTable().replace("$", "__"))
+        .replace(":", "__");
   }
 
   /**
@@ -50,7 +49,10 @@ public class DirectUtils {
    * will essentially contain the name of the stream that the task writes data to.
    */
   public static Path getTaskTempStreamFile(
-      Configuration conf, String hmsDbTableName, TableId bigQueryTableId, TaskAttemptID taskAttemptID) {
+      Configuration conf,
+      String hmsDbTableName,
+      TableId bigQueryTableId,
+      TaskAttemptID taskAttemptID) {
     Path hmsTablePath = new Path(FileSystemUtils.getWorkDir(conf), hmsDbTableName);
     return new Path(
         hmsTablePath,

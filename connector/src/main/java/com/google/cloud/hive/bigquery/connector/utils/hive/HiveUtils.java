@@ -39,7 +39,8 @@ public class HiveUtils {
 
   public static boolean enableCommitterInTez(Configuration conf) {
     String tezCommitter = conf.get("hive.tez.mapreduce.output.committer.class");
-    return (tezCommitter != null && tezCommitter.equals("org.apache.tez.mapreduce.committer.MROutputCommitter"));
+    return (tezCommitter != null
+        && tezCommitter.equals("org.apache.tez.mapreduce.committer.MROutputCommitter"));
   }
 
   public static TaskAttemptID taskAttemptIDWrapper(JobConf jobConf) {

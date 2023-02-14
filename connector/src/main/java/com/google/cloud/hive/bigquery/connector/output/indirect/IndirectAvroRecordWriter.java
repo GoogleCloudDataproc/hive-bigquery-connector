@@ -77,7 +77,11 @@ public class IndirectAvroRecordWriter
     if (!abort) {
       Path filePath =
           IndirectUtils.getTaskAvroTempFile(
-              jobConf, jobDetails.getHmsDbTableName(), jobDetails.getTableId(), jobDetails.getGcsTempPath(), taskAttemptID);
+              jobConf,
+              jobDetails.getHmsDbTableName(),
+              jobDetails.getTableId(),
+              jobDetails.getGcsTempPath(),
+              taskAttemptID);
       FileSystem fileSystem = filePath.getFileSystem(jobConf);
       FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);
       avroOutput.getDataFileWriter().flush();

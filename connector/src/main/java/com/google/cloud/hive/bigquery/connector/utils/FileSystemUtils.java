@@ -58,7 +58,8 @@ public class FileSystemUtils {
   }
 
   /** Deletes the work directory. Typically used at the end of the job's execution. */
-  public static void deleteWorkDirOnExit(Configuration conf, String hmsDbTableName) throws IOException {
+  public static void deleteWorkDirOnExit(Configuration conf, String hmsDbTableName)
+      throws IOException {
     Path workDir = getWorkDir(conf);
     Path tblWorkPath = new Path(workDir, hmsDbTableName);
     FileSystem fs = tblWorkPath.getFileSystem(conf);
