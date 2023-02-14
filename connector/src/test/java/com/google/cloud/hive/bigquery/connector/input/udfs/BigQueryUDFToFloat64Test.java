@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Google Inc. All Rights Reserved.
+ * Copyright 2023 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,28 +19,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.cloud.hive.bigquery.connector.input.BigQueryFilters;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPMod;
+import org.apache.hadoop.hive.ql.udf.*;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.jupiter.api.Test;
 
-public class BigQueryUDFModTest {
+public class BigQueryUDFToFloat64Test {
 
   @Test
-  public void testMod() {
-    ExprNodeGenericFuncDesc func = new ExprNodeGenericFuncDesc();
-    func.setGenericUDF(new GenericUDFOPMod());
-    List<ExprNodeDesc> children =
-        new ArrayList<>(
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "99"),
-                new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "42")));
-    func.setChildren(children);
-    String expression = BigQueryFilters.translateFilters(func).getExprString();
-    assertEquals("MOD(99, 42)", expression);
+  public void testFloat64() {
+    Class[] udfs = new Class[] {UDFToFloat.class, UDFToDouble.class};
+    for (Class udf : udfs) {
+      ExprNodeGenericFuncDesc func = new ExprNodeGenericFuncDesc();
+      func.setGenericUDF(new GenericUDFBridge(udf.getSimpleName(), false, udf.getName()));
+      List<ExprNodeDesc> children =
+          new ArrayList<>(
+              Collections.singletonList(
+                  new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "99")));
+      func.setChildren(children);
+      String expression = BigQueryFilters.translateFilters(func).getExprString();
+      assertEquals("CAST(99 AS FLOAT64)", expression);
+    }
   }
 }

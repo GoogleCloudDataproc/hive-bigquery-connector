@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Google Inc. All Rights Reserved.
+ * Copyright 2023 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,10 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-/** Converts Hive's modulo operator to BigQuery's MOD() function. */
-public class BigQueryUDFMod extends BigQueryUDFBase {
-
-  public BigQueryUDFMod() {}
-
+public class BigQueryUDFToDecimal extends BigQueryUDFBase {
   @Override
   public String getDisplayString(String[] children) {
-    return String.format("MOD(%s, %s)", children[0], children[1]);
+    // TODO: Use NUMERIC or BIGNUMERIC based on the value's precision and scale?
+    return String.format("CAST(%s AS BIGNUMERIC)", children[0]);
   }
 }

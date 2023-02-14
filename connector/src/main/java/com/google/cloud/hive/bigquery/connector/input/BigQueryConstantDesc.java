@@ -50,7 +50,7 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
     super(typeInfo, value);
   }
 
-  /** Format the value of the predicate (.e. WHERE clause item) to be compatible with BigQuery. */
+  /** Format the value of the predicate (i.e. WHERE clause item) to be compatible with BigQuery. */
   private static String formatPredicateValue(TypeInfo typeInfo, Object value) {
     if (value == null) {
       return "NULL";
@@ -59,6 +59,10 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
         || typeInfo instanceof CharTypeInfo
         || typeInfo instanceof VarcharTypeInfo) {
       return "'" + value + "'";
+    }
+    if (typeInfo.equals(binaryTypeInfo)) {
+      byte[] bytes = (byte[]) value;
+      return "B'" + new String(bytes) + "'";
     }
     if (typeInfo.equals(dateTypeInfo)) {
       return "DATE'" + value + "'";

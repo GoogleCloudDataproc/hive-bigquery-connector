@@ -672,4 +672,36 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     runHiveScript(
         String.format("SELECT %s FROM %s", String.join(", ", casts), ALL_TYPES_TABLE_NAME));
   }
+
+  /**
+   * Smoke test for CAST statements in the WHERE clause. To see the UDF translations, check out unit
+   * tests in com.google.cloud.hive.bigquery.connector.input.udfs.*
+   */
+  @Test
+  public void testCastsInWhereClauseSmoke() {
+    initHive();
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
+    runHiveStatement(
+        "SELECT * FROM "
+            + ALL_TYPES_TABLE_NAME
+            + " WHERE "
+            + String.join(
+                " OR\n",
+                "CAST(str as DATE) = '2010-10-10'",
+                "CAST(str as TIMESTAMP) = '2010-10-10'",
+                "CAST(str as TIMESTAMPLOCALTZ) = '2010-10-10'",
+                "CAST(str as BINARY) = CAST('abcd' as BINARY)",
+                "CAST(tiny_int_val as STRING) = '2'",
+                "CAST(tiny_int_val as VARCHAR(20)) = '2'",
+                "CAST(tiny_int_val as CHAR(20)) = '2'",
+                "CAST(small_int_val as TINYINT) = 3",
+                "CAST(tiny_int_val as SMALLINT) = 3",
+                "CAST(tiny_int_val as INT) = 3",
+                "CAST(tiny_int_val as BIGINT) = 3",
+                "CAST(tiny_int_val as DECIMAL) = 3",
+                "CAST(str as BOOLEAN) = true",
+                "CAST(tiny_int_val as FLOAT) = 4.2",
+                "CAST(tiny_int_val as DOUBLE) = 4.2"));
+  }
 }
