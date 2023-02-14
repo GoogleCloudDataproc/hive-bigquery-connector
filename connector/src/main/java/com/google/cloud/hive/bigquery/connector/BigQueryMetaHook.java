@@ -61,7 +61,6 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   Configuration conf;
-  TableInfo bigQueryTableInfo;
 
   public BigQueryMetaHook(Configuration conf) {
     this.conf = conf;
@@ -112,6 +111,23 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             String.format("%s already contains a column named `%s`", hmsTable, columnName));
       }
     }
+  }
+
+  private void createBigQueryTable(Table hmsTable, TableInfo bigQueryTableInfo) {
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(),
+            new HiveBigQueryConnectorModule(conf, hmsTable.getParameters()));
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+    BigQueryCredentialsSupplier credentialsSupplier =
+        injector.getInstance(BigQueryCredentialsSupplier.class);
+    HeaderProvider headerProvider = injector.getInstance(HeaderProvider.class);
+
+    // TODO: We cannot use the BigQueryClient class here because it doesn't have a
+    //  `create(TableInfo)` method. We could add it to that class eventually.
+    BigQuery bigQueryService =
+        BigQueryUtils.getBigQueryService(opts, headerProvider, credentialsSupplier);
+    bigQueryService.create(bigQueryTableInfo);
   }
 
   /**
@@ -238,10 +254,11 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       }
 
       StandardTableDefinition tableDefinition = tableDefBuilder.build();
-      bigQueryTableInfo =
+      TableInfo bigQueryTableInfo =
           TableInfo.newBuilder(opts.getTableId(), tableDefinition)
               .setDescription(table.getParameters().get("comment"))
               .build();
+      createBigQueryTable(table, bigQueryTableInfo);
     }
 
     table
@@ -254,25 +271,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   @Override
   public void commitCreateTable(Table table) throws MetaException {
-    if (MetaStoreUtils.isExternalTable(table)) {
-      // Nothing to do for external tables
-      return;
-    }
-    // Create the managed table in BigQuery
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, table.getParameters()));
-    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
-    BigQueryCredentialsSupplier credentialsSupplier =
-        injector.getInstance(BigQueryCredentialsSupplier.class);
-    HeaderProvider headerProvider = injector.getInstance(HeaderProvider.class);
-
-    // TODO: We cannot use the BigQueryClient class here because it doesn't have a
-    //  `create(TableInfo)` method. We could add it to that class eventually.
-    BigQuery bigQueryService =
-        BigQueryUtils.getBigQueryService(opts, headerProvider, credentialsSupplier);
-    bigQueryService.create(bigQueryTableInfo);
+    // Do nothing yet
   }
 
   /** Called before insert query. */

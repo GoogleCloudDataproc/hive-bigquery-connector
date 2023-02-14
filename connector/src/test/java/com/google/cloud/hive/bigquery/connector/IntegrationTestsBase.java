@@ -128,6 +128,29 @@ public class IntegrationTestsBase {
             ");"));
   }
 
+  public void createHiveTable(
+      String hmsTableName,
+      String bqTableName,
+      String hiveDDL,
+      boolean isExternal,
+      String properties,
+      String comment) {
+    runHiveScript(
+        String.join(
+            "\n",
+            "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + hmsTableName + " (",
+            hiveDDL,
+            ")",
+            comment != null ? "COMMENT \"" + comment + "\"" : "",
+            "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "TBLPROPERTIES (",
+            "  'bq.project'='${project}',",
+            "  'bq.dataset'='${dataset}',",
+            "  'bq.table'='" + bqTableName + "'",
+            properties != null ? "," + properties : "",
+            ");"));
+  }
+
   public void createExternalTable(String tableName, String hiveDDL) {
     createHiveTable(tableName, hiveDDL, true, null, null);
   }

@@ -56,10 +56,6 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     super.commitJob(jobContext);
   }
 
-  /**
-   * This method is called automatically at the end of a failed job when using the "mr" execution
-   * engine.
-   */
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
     JobConf conf = jobContext.getJobConf();

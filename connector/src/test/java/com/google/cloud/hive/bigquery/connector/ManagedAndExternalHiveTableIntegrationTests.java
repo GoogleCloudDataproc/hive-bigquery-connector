@@ -64,6 +64,34 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that hive table is not created if BigQuery fails to create the table */
+  @Test
+  public void testCreateManagedTableFailInBQ() {
+    initHive();
+    // Try to create the managed table using Hive with invalid table name for BigQuery
+    Throwable bqException =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                createHiveTable(
+                    MANAGED_TEST_TABLE_NAME,
+                    "invalid_$table:name",
+                    HIVE_ALL_TYPES_TABLE_DDL,
+                    false,
+                    null,
+                    null));
+    assertTrue(bqException.getMessage().contains("Invalid table ID"));
+
+    // Verify that table is not created in Hive.
+    Throwable hiveException =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> runHiveScript("describe " + MANAGED_TEST_TABLE_NAME));
+    assertTrue(hiveException.getMessage().contains("Table not found " + MANAGED_TEST_TABLE_NAME));
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   @Test
   public void testDropManagedTable() {
     initHive();
