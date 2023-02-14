@@ -20,6 +20,7 @@ import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
@@ -107,7 +108,6 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
     if (engine.equals("mr")) {
-      // The OutputCommitter class is only used by the "mr" engine, not "tez".
       if (conf.get(Constants.THIS_IS_AN_OUTPUT_JOB, "false").equals("true")) {
         // Only set the OutputCommitter class if we're dealing with an actual output job,
         // i.e. where data gets written to BigQuery. Otherwise, the "mr" engine will call
@@ -121,7 +121,13 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
+    // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
     conf.set(Constants.THIS_IS_AN_OUTPUT_JOB, "true");
+
+    if (HiveUtils.enableCommitterInTez(conf)) {
+      // This version Hive enables tez committer HIVE-24629
+      conf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
+    }
     JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();
     jobDetails.setTableProperties(tableProperties);
@@ -144,6 +150,6 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureTableJobProperties(TableDesc tableDesc, Map<String, String> map) {
-    // Do nothing
+    // Deprecated
   }
 }

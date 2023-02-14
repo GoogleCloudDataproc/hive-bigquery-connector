@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
-import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
@@ -23,8 +22,6 @@ import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCo
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputCommitter;
@@ -47,25 +44,15 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     FileSystemUtils.deleteWorkDirOnExit(conf, jobDetails.getHmsDbTableName());
   }
 
-  /**
-   * This method is called automatically at the end of a successful job when using the "mr"
-   * execution engine. This method is not called when using "tez" -- for that, see {@link
-   * BigQueryMetaHook#commitInsertTable(Table, boolean)}
-   */
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
     JobConf conf = jobContext.getJobConf();
-    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
-    if (engine.equals("mr")) {
-      String hmsDbTableName = conf.get("name");
-      if (hmsDbTableName.isEmpty()) {
-        throw new RuntimeException("JobConf does not have output table name");
-      }
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-      commit(conf, jobDetails);
-    } else {
-      throw new RuntimeException("Unexpected execution engine: " + engine);
+    String hmsDbTableName = conf.get("name");
+    if (hmsDbTableName.isEmpty()) {
+      throw new RuntimeException("JobConf does not have output table name");
     }
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+    commit(conf, jobDetails);
     super.commitJob(jobContext);
   }
 

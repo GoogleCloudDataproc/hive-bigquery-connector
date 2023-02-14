@@ -374,15 +374,18 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   @Override
   public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
-    if (engine.equals("tez")) {
-      try {
-        JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
-        BigQueryOutputCommitter.commit(conf, jobDetails);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
+    if (!engine.equals("tez")) {
       throw new MetaException("Unexpected execution engine: " + engine);
+    }
+    if (HiveUtils.enableCommitterInTez(conf)) {
+      // Rely on BigQueryOutputCommitter.commitJob instead of MetaHook.
+      return;
+    }
+    try {
+      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
+      BigQueryOutputCommitter.commit(conf, jobDetails);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 

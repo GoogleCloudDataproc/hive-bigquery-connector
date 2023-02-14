@@ -37,6 +37,11 @@ public class HiveUtils {
     return table.getDbName() + "." + table.getTableName();
   }
 
+  public static boolean enableCommitterInTez(Configuration conf) {
+    String tezCommitter = conf.get("hive.tez.mapreduce.output.committer.class");
+    return (tezCommitter != null && tezCommitter.equals("org.apache.tez.mapreduce.committer.MROutputCommitter"));
+  }
+
   public static TaskAttemptID taskAttemptIDWrapper(JobConf jobConf) {
     return new TaskAttemptIDWrapper(
         TaskAttemptID.forName(jobConf.get("mapred.task.id")), jobConf.get("hive.tez.vertex.index"));
