@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -372,14 +371,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
    */
   @Override
   public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
-    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
-    if (!engine.equals("tez")) {
-      throw new MetaException("Unexpected execution engine: " + engine);
-    }
-    if (HiveUtils.enableCommitterInTez(conf)) {
-      // Rely on BigQueryOutputCommitter.commitJob instead of MetaHook.
-      return;
-    }
     try {
       JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
       BigQueryOutputCommitter.commit(conf, jobDetails);

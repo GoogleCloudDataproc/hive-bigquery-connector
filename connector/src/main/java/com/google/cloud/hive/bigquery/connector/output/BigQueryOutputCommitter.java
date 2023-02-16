@@ -15,19 +15,25 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
+import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import java.io.IOException;
+import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import repackaged.by.hivebqconnector.com.google.common.collect.Sets;
 
 public class BigQueryOutputCommitter extends OutputCommitter {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);
 
   public static void commit(Configuration conf, JobDetails jobDetails) throws IOException {
     String writeMethod =
@@ -46,29 +52,40 @@ public class BigQueryOutputCommitter extends OutputCommitter {
 
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
-    JobConf conf = jobContext.getJobConf();
-    String hmsDbTableName = conf.get("name");
-    if (hmsDbTableName.isEmpty()) {
-      throw new RuntimeException("JobConf does not have output table name");
+    JobConf jobConf = jobContext.getJobConf();
+    Set<String> outputTables = getOutputTables(jobConf);
+    LOG.info("Committing job {} with output tables {}", jobContext.getJobID(), outputTables);
+    for (String hmsDbTableName : outputTables) {
+      JobDetails jobDetails;
+      try {
+        jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
+      } catch (Exception e) {
+        // TO-DO: should we abort the job?
+        LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
+        continue;
+      }
+      commit(jobConf, jobDetails);
     }
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-    commit(conf, jobDetails);
     super.commitJob(jobContext);
   }
 
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
-    JobConf conf = jobContext.getJobConf();
-    String hmsDbTableName = conf.get("name");
-    if (hmsDbTableName.isEmpty()) {
-      throw new RuntimeException("jobContext does not have output table name");
+    JobConf jobConf = jobContext.getJobConf();
+    Set<String> outputTables = getOutputTables(jobConf);
+    LOG.info("aborting job {} with output tables {}", jobContext.getJobID(), outputTables);
+    for (String hmsDbTableName : outputTables) {
+      JobDetails jobDetails;
+      try {
+        jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
+      } catch (Exception e) {
+        LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
+        continue;
+      }
+      DirectOutputCommitter.abortJob(jobConf, jobDetails);
+      FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf(), jobDetails.getHmsDbTableName());
     }
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-    if (!jobDetails.getHmsDbTableName().equals(hmsDbTableName)) {
-      throw new RuntimeException("hive table not matching in jobDetails and jobContext");
-    }
-    DirectOutputCommitter.abortJob(conf, jobDetails);
-    FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf(), jobDetails.getHmsDbTableName());
+    // FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf());
     super.abortJob(jobContext, status);
   }
 
@@ -95,5 +112,10 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   @Override
   public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
     // Do nothing
+  }
+
+  private Set<String> getOutputTables(JobConf jobConf) {
+    String outputTblsStr = jobConf.get(Constants.HIVE_OUTPUT_TABLES_KEY);
+    return Sets.newHashSet(Constants.TABLE_NAME_SPLITTER.split(outputTblsStr));
   }
 }

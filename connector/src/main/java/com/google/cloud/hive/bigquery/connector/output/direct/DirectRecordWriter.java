@@ -85,17 +85,20 @@ public class DirectRecordWriter
 
   @Override
   public void close(boolean abort) throws IOException {
-    // Only save the stream reference file if the task has succeeded
-    if (!abort) {
+    if (abort) {
+      streamWriter.abort();
+    } else {
+      // To-Do: find a better way to store streams info than small hdfs files
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
       Path filePath =
           DirectUtils.getTaskTempStreamFile(
               jobConf, jobDetails.getHmsDbTableName(), jobDetails.getTableId(), taskAttemptID);
-      FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);
-      streamFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
-      streamFile.close();
+      FSDataOutputStream streamRefFile = filePath.getFileSystem(jobConf).create(filePath);
+      streamRefFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
+      streamRefFile.close();
+      streamWriter.close();
     }
   }
 

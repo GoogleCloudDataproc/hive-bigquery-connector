@@ -107,6 +107,43 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Test the multi insert statement, which inserts into multiple tables. */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testMultiInsert(String engine, String writeMethod) {
+    // avoid bug unrelated to multi-insert test itself
+    hive.setHiveConfValue("hive.auto.convert.join", "false");
+    hive.setHiveConfValue("hive.vectorized.execution.enabled", "false");
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    createExternalTable("bq_a", "id int, name string", "id int64, name string");
+    createExternalTable("bq_b", "id int, name string", "id int64, name string");
+    String setupQ =
+        "create table hdfs_a (id int, name string); "
+            + "create table hdfs_b (id int, name string); "
+            + "insert into table hdfs_a values (1, 'aaa'), (2, 'bbb'); "
+            + "insert into table hdfs_b values (1, 'aaa'), (2, 'ccc'); ";
+    String multiInsertQ =
+        "with c as (select a.id, b.name from hdfs_a a join hdfs_b b on a.id=b.id and a.name=b.name"
+            + " ) from c insert overwrite table bq_a select id*10, name insert into table bq_b"
+            + " select count(1)*20, name group by name;";
+    runHiveScript(setupQ);
+    runHiveScript(multiInsertQ);
+
+    TableResult resultA = runBqQuery("SELECT * FROM `${dataset}.bq_a`");
+    assertEquals(1, resultA.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(resultA.iterateAll()).collect(Collectors.toList());
+    assertEquals(10L, rows.get(0).get(0).getLongValue());
+    assertEquals("aaa", rows.get(0).get(1).getStringValue());
+
+    TableResult resultB = runBqQuery("SELECT * FROM `${dataset}.bq_b`");
+    assertEquals(1, resultB.getTotalRows());
+    rows = Streams.stream(resultB.iterateAll()).collect(Collectors.toList());
+    assertEquals(20L, rows.get(0).get(0).getLongValue());
+    assertEquals("aaa", rows.get(0).get(1).getStringValue());
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Check that we can write all types of data to BigQuery. */
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)

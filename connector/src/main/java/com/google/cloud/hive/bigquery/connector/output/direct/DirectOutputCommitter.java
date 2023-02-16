@@ -45,7 +45,6 @@ public class DirectOutputCommitter {
    * created in the job's work directory. The reference files essentially contain the stream names.
    */
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
-    LOG.info("Committing BigQuery direct write job");
     String hmsDbTableName = jobDetails.getHmsDbTableName();
     List<String> streamFiles =
         FileSystemUtils.getFiles(

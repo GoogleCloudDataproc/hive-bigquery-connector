@@ -21,6 +21,7 @@ import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
@@ -39,6 +40,7 @@ import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputFormat;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
@@ -116,7 +118,24 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
         jobConf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
       }
     }
+    String hmsDbTableName = tableDesc.getProperties().getProperty("name");
+    String tables = jobConf.get(Constants.HIVE_OUTPUT_TABLES_KEY);
+    tables =
+        tables == null ? hmsDbTableName : tables + Constants.TABLE_NAME_SEPARATOR + hmsDbTableName;
+    jobConf.set(Constants.HIVE_OUTPUT_TABLES_KEY, tables);
     setGCSAccessTokenProvider(jobConf);
+  }
+
+  /**
+   * Committer with no-op job commit. Set this for Tez so it uses BigQueryMetaHook's
+   * commitInsertTable to commit per table. For task commit/abort and job abort still use
+   * BigQueryOutputCommitter.
+   */
+  static class BigQueryNoJobCommitter extends BigQueryOutputCommitter {
+    @Override
+    public void commitJob(JobContext jobContext) throws IOException {
+      // do nothing
+    }
   }
 
   @Override
@@ -126,7 +145,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
     if (HiveUtils.enableCommitterInTez(conf)) {
       // This version Hive enables tez committer HIVE-24629
-      conf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
+      conf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryNoJobCommitter.class.getName());
     }
     JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();
