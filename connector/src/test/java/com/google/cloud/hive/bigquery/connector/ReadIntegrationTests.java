@@ -673,6 +673,8 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         String.format("SELECT %s FROM %s", String.join(", ", casts), ALL_TYPES_TABLE_NAME));
   }
 
+  // -----------------------------------------------------------------------------------------------
+
   /**
    * Smoke test for CAST statements in the WHERE clause. To see the UDF translations, check out unit
    * tests in com.google.cloud.hive.bigquery.connector.input.udfs.*

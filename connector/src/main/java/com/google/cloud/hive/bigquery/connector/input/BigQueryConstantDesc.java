@@ -17,10 +17,8 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import static org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
-import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
@@ -68,17 +66,7 @@ public class BigQueryConstantDesc extends ExprNodeConstantDesc {
       return "DATE'" + value + "'";
     }
     if (typeInfo.equals(timestampTypeInfo)) {
-      Timestamp timestamp = (Timestamp) value;
-      LocalDateTime localDateTime =
-          LocalDateTime.of(
-              timestamp.getYear(),
-              timestamp.getMonth(),
-              timestamp.getDay(),
-              timestamp.getHours(),
-              timestamp.getMinutes(),
-              timestamp.getSeconds(),
-              timestamp.getNanos());
-      return "DATETIME'" + localDateTime + "'";
+      return "DATETIME'" + value + "'";
     }
     if (typeInfo instanceof TimestampLocalTZTypeInfo) {
       return "TIMESTAMP'" + value + "'";

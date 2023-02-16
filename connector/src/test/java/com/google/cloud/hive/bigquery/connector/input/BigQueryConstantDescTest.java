@@ -112,10 +112,16 @@ public class BigQueryConstantDescTest {
 
   @Test
   public void testTimestamp() {
-    BigQueryConstantDesc desc =
+    assertEquals(
+        "DATETIME'2010-10-10 01:02:03.123456'",
         new BigQueryConstantDesc(
-            TypeInfoFactory.timestampTypeInfo, Timestamp.valueOf("2010-10-10 1:2:3.123456"));
-    assertEquals("DATETIME'2010-10-10T01:02:03.123456'", desc.getExprString());
+                TypeInfoFactory.timestampTypeInfo, Timestamp.valueOf("2010-10-10 1:2:3.123456"))
+            .getExprString());
+    assertEquals(
+        "DATETIME'2022-01-06 00:00:00'",
+        new BigQueryConstantDesc(
+                TypeInfoFactory.timestampTypeInfo, Timestamp.valueOf("2022-01-06 00:00:00"))
+            .getExprString());
   }
 
   @Test
