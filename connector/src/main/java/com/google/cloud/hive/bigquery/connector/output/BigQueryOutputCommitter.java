@@ -85,7 +85,6 @@ public class BigQueryOutputCommitter extends OutputCommitter {
       DirectOutputCommitter.abortJob(jobConf, jobDetails);
       FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf(), jobDetails.getHmsDbTableName());
     }
-    // FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf());
     super.abortJob(jobContext, status);
   }
 

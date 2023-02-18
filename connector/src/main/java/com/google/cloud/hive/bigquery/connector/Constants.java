@@ -24,7 +24,8 @@ public class Constants {
 
   public static final String HADOOP_TMP_DIR_KEY = "hadoop.tmp.dir";
   public static final String HADOOP_COMMITTER_CLASS_KEY = "mapred.output.committer.class";
-  public static final String HIVE_OUTPUT_TABLES_KEY = "mr.output.tables";
+  public static final String HIVE_OUTPUT_TABLES_KEY = "hive.bq.output.tables";
+  public static final String HIVE_CREATE_TABLES_KEY = "hive.bq.create.tables";
   public static final String TABLE_NAME_SEPARATOR = "|";
   public static final Splitter TABLE_NAME_SPLITTER = Splitter.on(TABLE_NAME_SEPARATOR);
   public static final String THIS_IS_AN_OUTPUT_JOB = "...this.is.an.output.job...";

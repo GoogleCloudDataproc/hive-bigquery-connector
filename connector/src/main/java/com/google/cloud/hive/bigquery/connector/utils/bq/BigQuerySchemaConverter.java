@@ -115,7 +115,9 @@ public class BigQuerySchemaConverter {
       bigQueryFieldBuilder = Field.newBuilder(fieldName, fieldType);
     }
 
-    bigQueryFieldBuilder.setMode(mode);
+    if (mode != null) {
+      bigQueryFieldBuilder.setMode(mode);
+    }
     bigQueryFieldBuilder.setDescription(comment);
     return bigQueryFieldBuilder.build();
   }

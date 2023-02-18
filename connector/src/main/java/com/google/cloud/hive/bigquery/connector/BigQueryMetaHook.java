@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -50,6 +51,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.Pr
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
 import org.apache.hadoop.mapred.JobContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import repackaged.by.hivebqconnector.com.google.common.base.Strings;
 import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
 
@@ -59,6 +62,8 @@ import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
  */
 public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryMetaHook.class);
+
   Configuration conf;
 
   public BigQueryMetaHook(Configuration conf) {
@@ -67,6 +72,19 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   private static String getDefaultProject() {
     return BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
+  }
+
+  private boolean isIndirectWrite() throws MetaException {
+    String writeMethod =
+        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT)
+            .toLowerCase();
+    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+      return true;
+    }
+    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+      return false;
+    }
+    throw new MetaException("Invalid write method " + writeMethod);
   }
 
   /** Validates that the given TypeInfo is supported. */
@@ -127,6 +145,31 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     BigQuery bigQueryService =
         BigQueryUtils.getBigQueryService(opts, headerProvider, credentialsSupplier);
     bigQueryService.create(bigQueryTableInfo);
+  }
+
+  private void configJobDetailsForIndirectWrite(
+      JobDetails jobDetails, Schema bigQuerySchema, Injector injector) throws MetaException {
+    // Convert BigQuery schema to Avro schema
+    StructObjectInspector rowObjectInspector =
+        BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
+    org.apache.avro.Schema avroSchema =
+        AvroUtils.getAvroSchema(rowObjectInspector, bigQuerySchema.getFields());
+    jobDetails.setAvroSchema(avroSchema);
+    // Set GCS path to store the temporary Avro files
+    String tempGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
+    jobDetails.setGcsTempPath(tempGcsPath);
+    if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
+      throw new MetaException(
+          String.format(
+              "The '%s' property must be set when using the '%s' write method.",
+              HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
+    } else if (!IndirectUtils.hasGcsWriteAccess(
+        injector.getInstance(BigQueryCredentialsSupplier.class), tempGcsPath)) {
+      throw new MetaException(
+          String.format(
+              "Does not have write access to the following GCS path, or bucket does not exist: %s",
+              tempGcsPath));
+    }
   }
 
   /**
@@ -192,80 +235,111 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                 .getParameters()
                 .getOrDefault(HiveBigQueryConfig.PROJECT_KEY, getDefaultProject()));
 
-    // If it's a managed table, generate the BigQuery schema
-    if (!MetaStoreUtils.isExternalTable(table)) {
-      Injector injector =
-          Guice.createInjector(
-              new BigQueryClientModule(),
-              new HiveBigQueryConnectorModule(conf, table.getParameters()));
-      BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-      HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
-      if (bqClient.tableExists(opts.getTableId())) {
-        throw new MetaException("BigQuery table already exists: " + opts.getTableId());
-      }
-
-      Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd());
-
-      StandardTableDefinition.Builder tableDefBuilder =
-          StandardTableDefinition.newBuilder().setSchema(tableSchema);
-
-      // Clustering
-      Optional<ImmutableList<String>> clusteredFields = opts.getClusteredFields();
-      if (clusteredFields.isPresent()) {
-        Clustering clustering = Clustering.newBuilder().setFields(clusteredFields.get()).build();
-        tableDefBuilder.setClustering(clustering);
-      }
-
-      // Time partitioning
-      Optional<TimePartitioning.Type> partitionType = opts.getPartitionType();
-      if (partitionType.isPresent()) {
-        TimePartitioning.Builder tpBuilder = TimePartitioning.newBuilder(partitionType.get());
-        Optional<String> partitionField = opts.getPartitionField();
-        if (partitionField.isPresent()) {
-          tpBuilder.setField(partitionField.get());
-        } else {
-          // This is an ingestion-time partition table, so we add the BigQuery
-          // pseudo columns to the Hive MetaStore schema.
-          assertDoesNotContainColumn(table, Constants.PARTITION_TIME_PSEUDO_COLUMN);
-          table
-              .getSd()
-              .addToCols(
-                  new FieldSchema(
-                      Constants.PARTITION_TIME_PSEUDO_COLUMN,
-                      "timestamp",
-                      "Ingestion time pseudo column"));
-          assertDoesNotContainColumn(table, Constants.PARTITION_DATE_PSEUDO_COLUMN);
-          table
-              .getSd()
-              .addToCols(
-                  new FieldSchema(
-                      Constants.PARTITION_DATE_PSEUDO_COLUMN,
-                      "date",
-                      "Ingestion time pseudo column"));
-        }
-        OptionalLong partitionExpirationMs = opts.getPartitionExpirationMs();
-        if (partitionExpirationMs.isPresent()) {
-          tpBuilder.setExpirationMs(partitionExpirationMs.getAsLong());
-        }
-        Optional<Boolean> partitionRequireFilter = opts.getPartitionRequireFilter();
-        partitionRequireFilter.ifPresent(tpBuilder::setRequirePartitionFilter);
-        tableDefBuilder.setTimePartitioning(tpBuilder.build());
-      }
-
-      StandardTableDefinition tableDefinition = tableDefBuilder.build();
-      TableInfo bigQueryTableInfo =
-          TableInfo.newBuilder(opts.getTableId(), tableDefinition)
-              .setDescription(table.getParameters().get("comment"))
-              .build();
-      createBigQueryTable(table, bigQueryTableInfo);
-    }
-
     table
         .getSd()
         .setInputFormat("com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat");
     table
         .getSd()
         .setOutputFormat("com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat");
+
+    if (MetaStoreUtils.isExternalTable(table)) {
+      return;
+    }
+
+    // If it's a managed table, generate the BigQuery schema
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(),
+            new HiveBigQueryConnectorModule(conf, table.getParameters()));
+    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+    if (bqClient.tableExists(opts.getTableId())) {
+      throw new MetaException("BigQuery table already exists: " + opts.getTableId());
+    }
+
+    Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd());
+
+    StandardTableDefinition.Builder tableDefBuilder =
+        StandardTableDefinition.newBuilder().setSchema(tableSchema);
+
+    // Clustering
+    Optional<ImmutableList<String>> clusteredFields = opts.getClusteredFields();
+    if (clusteredFields.isPresent()) {
+      Clustering clustering = Clustering.newBuilder().setFields(clusteredFields.get()).build();
+      tableDefBuilder.setClustering(clustering);
+    }
+
+    // Time partitioning
+    Optional<TimePartitioning.Type> partitionType = opts.getPartitionType();
+    if (partitionType.isPresent()) {
+      TimePartitioning.Builder tpBuilder = TimePartitioning.newBuilder(partitionType.get());
+      Optional<String> partitionField = opts.getPartitionField();
+      if (partitionField.isPresent()) {
+        tpBuilder.setField(partitionField.get());
+      } else {
+        // This is an ingestion-time partition table, so we add the BigQuery
+        // pseudo columns to the Hive MetaStore schema.
+        assertDoesNotContainColumn(table, Constants.PARTITION_TIME_PSEUDO_COLUMN);
+        table
+            .getSd()
+            .addToCols(
+                new FieldSchema(
+                    Constants.PARTITION_TIME_PSEUDO_COLUMN,
+                    "timestamp",
+                    "Ingestion time pseudo column"));
+        assertDoesNotContainColumn(table, Constants.PARTITION_DATE_PSEUDO_COLUMN);
+        table
+            .getSd()
+            .addToCols(
+                new FieldSchema(
+                    Constants.PARTITION_DATE_PSEUDO_COLUMN,
+                    "date",
+                    "Ingestion time pseudo column"));
+      }
+      OptionalLong partitionExpirationMs = opts.getPartitionExpirationMs();
+      if (partitionExpirationMs.isPresent()) {
+        tpBuilder.setExpirationMs(partitionExpirationMs.getAsLong());
+      }
+      Optional<Boolean> partitionRequireFilter = opts.getPartitionRequireFilter();
+      partitionRequireFilter.ifPresent(tpBuilder::setRequirePartitionFilter);
+      tableDefBuilder.setTimePartitioning(tpBuilder.build());
+    }
+
+    StandardTableDefinition tableDefinition = tableDefBuilder.build();
+    TableInfo bigQueryTableInfo =
+        TableInfo.newBuilder(opts.getTableId(), tableDefinition)
+            .setDescription(table.getParameters().get("comment"))
+            .build();
+    createBigQueryTable(table, bigQueryTableInfo);
+
+    String hmsDbTableName = HiveUtils.getDbTableName(table);
+    LOG.info("Created BigQuery table {} for {}", opts.getTableId(), hmsDbTableName);
+    String tables = conf.get(Constants.HIVE_CREATE_TABLES_KEY);
+    tables =
+        tables == null ? hmsDbTableName : tables + Constants.TABLE_NAME_SEPARATOR + hmsDbTableName;
+    conf.set(Constants.HIVE_CREATE_TABLES_KEY, tables);
+
+    try {
+      Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, hmsDbTableName);
+      // JobDetails file exists before table is created, likely a CTAS, we should update it
+      if (jobDetailsFilePath.getFileSystem(conf).exists(jobDetailsFilePath)) {
+        // Before we have a better way to handle CTAS in Tez, throw error
+        if (HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE)
+            .toLowerCase()
+            .equals("tez")) {
+          throw new MetaException("CTAS currently not supported in Tez mode for BigQuery table.");
+        }
+        JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+        jobDetails.setBigquerySchema(tableSchema);
+
+        if (isIndirectWrite()) {
+          configJobDetailsForIndirectWrite(jobDetails, tableSchema, injector);
+        }
+        JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
+      }
+    } catch (IOException e) {
+      LOG.warn("Can not update jobDetails for table {}", hmsDbTableName);
+    }
   }
 
   @Override
@@ -305,9 +379,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     Schema bigQuerySchema = bqTableInfo.getDefinition().getSchema();
     jobDetails.setBigquerySchema(bigQuerySchema);
 
-    String writeMethod =
-        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+    boolean isDirectWrite = !isIndirectWrite();
+    if (isDirectWrite) {
       // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
       // write method. In this case, we will stream-write to a temporary table
       // and then finally overwrite the final destination table with the temporary
@@ -332,7 +405,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         // Set the temp table as the job's output table
         jobDetails.setTable(tempTableInfo.getTableId().getTable());
       }
-    } else if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+    } else {
       // Convert BigQuery schema to Avro schema
       StructObjectInspector rowObjectInspector =
           BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
@@ -355,8 +428,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                     + " following GCS path, or bucket does not exist: %s",
                 table.getTableName(), tempGcsPath));
       }
-    } else {
-      throw new MetaException("Invalid write method: " + writeMethod);
     }
 
     // Save the job details file so that we can retrieve all the information at

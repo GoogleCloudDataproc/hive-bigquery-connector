@@ -108,7 +108,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
-    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
+    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
     if (engine.equals("mr")) {
       if (conf.get(Constants.THIS_IS_AN_OUTPUT_JOB, "false").equals("true")) {
         // Only set the OutputCommitter class if we're dealing with an actual output job,
