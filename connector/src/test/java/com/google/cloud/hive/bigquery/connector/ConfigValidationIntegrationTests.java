@@ -35,12 +35,12 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
         assertThrows(
             RuntimeException.class,
             () ->
-                runHiveScript(
+                runHiveQuery(
                     String.join(
                         "\n",
                         "CREATE TABLE some_table (number BIGINT, text" + " STRING)",
                         "STORED BY"
-                            + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler';")));
+                            + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'")));
     assertTrue(
         exception
             .getMessage()
@@ -59,7 +59,7 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
     Throwable exception =
         assertThrows(
             RuntimeException.class,
-            () -> runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
+            () -> runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
     assertTrue(
         exception
             .getMessage()
@@ -81,7 +81,7 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
     Throwable exception =
         assertThrows(
             RuntimeException.class,
-            () -> runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
+            () -> runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
     // TODO: Look into why we don't always get the same message back
     String message1 =
         "Cannot write to table 'test'. Does not have write access to the following GCS path, or"

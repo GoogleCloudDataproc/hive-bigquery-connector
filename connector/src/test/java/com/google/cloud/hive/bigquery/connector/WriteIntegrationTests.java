@@ -39,7 +39,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     initHive(engine, HiveBigQueryConfig.AVRO);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data using Hive
-    runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
+    runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
     // Read the data using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
@@ -96,7 +96,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run INSERT OVERWRITE in Hive
-    runHiveScript("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
+    runHiveQuery("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
     // Make sure the new data erased the old one
     result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     assertEquals(1, result.getTotalRows());
@@ -154,7 +154,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using Hive
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
@@ -271,7 +271,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
             String.format("INSERT `${dataset}.%s` (str_val) VALUES", ANOTHER_TEST_TABLE_NAME),
             "(\"hello1\"), (\"hello2\"), (\"hello3\")"));
     // Read and write in the same query using Hive
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "INSERT INTO " + TEST_TABLE_NAME + " SELECT",
@@ -286,7 +286,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
             "t2.int_val as number,",
             "'' as text",
             "FROM " + ALL_TYPES_TABLE_NAME + " t2",
-            ") unioned;"));
+            ") unioned"));
     // Read the result using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));

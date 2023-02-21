@@ -50,7 +50,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     Throwable exception =
         assertThrows(
             RuntimeException.class,
-            () -> runHiveStatement(String.format("SELECT * FROM %s", TEST_TABLE_NAME)));
+            () -> runHiveQuery(String.format("SELECT * FROM %s", TEST_TABLE_NAME)));
     assertTrue(
         exception
             .getMessage()
@@ -67,7 +67,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   public void testReadEmptyTable(String engine, String readDataFormat) {
     initHive(engine, readDataFormat);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
-    List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", TEST_TABLE_NAME));
+    List<Object[]> rows = runHiveQuery(String.format("SELECT * FROM %s", TEST_TABLE_NAME));
     assertThat(rows).isEmpty();
   }
 
@@ -89,7 +89,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals(2, result.getTotalRows());
     // Read filtered data using Hive
     List<Object[]> rows =
-        runHiveStatement(String.format("SELECT * FROM %s WHERE number = 999", TEST_TABLE_NAME));
+        runHiveQuery(String.format("SELECT * FROM %s WHERE number = 999", TEST_TABLE_NAME));
     // Verify we get the expected rows
     assertArrayEquals(
         new Object[] {
@@ -118,8 +118,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     // Read filtered data using Hive
     // Try with both columns in order
     List<Object[]> rows =
-        runHiveStatement(
-            String.format("SELECT number, text FROM %s ORDER BY number", TEST_TABLE_NAME));
+        runHiveQuery(String.format("SELECT number, text FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
           new Object[] {123L, "hello"},
@@ -128,8 +127,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         rows.toArray());
     // Try in different order
     rows =
-        runHiveStatement(
-            String.format("SELECT text, number FROM %s ORDER BY number", TEST_TABLE_NAME));
+        runHiveQuery(String.format("SELECT text, number FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
           new Object[] {"hello", 123L},
@@ -137,11 +135,10 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         },
         rows.toArray());
     // Try a single column
-    rows =
-        runHiveStatement(String.format("SELECT number FROM %s ORDER BY number", TEST_TABLE_NAME));
+    rows = runHiveQuery(String.format("SELECT number FROM %s ORDER BY number", TEST_TABLE_NAME));
     assertArrayEquals(new Object[] {new Object[] {123L}, new Object[] {999L}}, rows.toArray());
     // Try another single column
-    rows = runHiveStatement(String.format("SELECT text FROM %s ORDER BY text", TEST_TABLE_NAME));
+    rows = runHiveQuery(String.format("SELECT text FROM %s ORDER BY text", TEST_TABLE_NAME));
     assertArrayEquals(new Object[] {new Object[] {"abcd"}, new Object[] {"hello"}}, rows.toArray());
   }
 
@@ -153,7 +150,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     initHive();
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "SELECT * FROM " + ALL_TYPES_TABLE_NAME + " WHERE",
@@ -182,7 +179,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run COUNT query in Hive
-    List<Object[]> rows = runHiveStatement("SELECT COUNT(*) FROM " + TEST_TABLE_NAME);
+    List<Object[]> rows = runHiveQuery("SELECT COUNT(*) FROM " + TEST_TABLE_NAME);
     assertEquals(1, rows.size());
     assertEquals(2L, rows.get(0)[0]);
   }
@@ -207,7 +204,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "(2, [STRUCT('txt1', 200), STRUCT('txt2', 400)]),",
             "(3, [STRUCT('new12', 44), STRUCT('new14', 99), STRUCT('new16', 55)])"));
     // Read data using Hive
-    List<Object[]> rows = runHiveStatement("SELECT * FROM mapOfInts ORDER BY id");
+    List<Object[]> rows = runHiveQuery("SELECT * FROM mapOfInts ORDER BY id");
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, Integer>> mapOfIntsTypeRef =
         new TypeReference<HashMap<String, Integer>>() {};
@@ -257,7 +254,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "INSERT `${dataset}.mapOfStructs` VALUES ",
             "(1, [STRUCT('hi', STRUCT('green')), STRUCT('hello', STRUCT('pink'))])"));
     // Read data using Hive
-    List<Object[]> rows = runHiveStatement("SELECT * FROM mapOfStructs ORDER BY id");
+    List<Object[]> rows = runHiveQuery("SELECT * FROM mapOfStructs ORDER BY id");
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, HashMap<String, String>>> mapOfStructsTypeRef =
         new TypeReference<HashMap<String, HashMap<String, String>>>() {};
@@ -308,7 +305,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "INSERT `${dataset}.mapOfArrays` VALUES ",
             "(1, [STRUCT('hi', [1, 2, 3]), STRUCT('hello', [98, 99])])"));
     // Read data using Hive
-    List<Object[]> rows = runHiveStatement("SELECT * FROM mapOfArrays ORDER BY id");
+    List<Object[]> rows = runHiveQuery("SELECT * FROM mapOfArrays ORDER BY id");
     ObjectMapper mapper = new ObjectMapper();
     TypeReference<HashMap<String, List<Integer>>> mapOfArraysTypeRef =
         new TypeReference<HashMap<String, List<Integer>>>() {};
@@ -372,7 +369,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 + " 999)])]",
             ")"));
     // Read the data using Hive
-    List<Object[]> rows = runHiveStatement("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
+    List<Object[]> rows = runHiveQuery("SELECT * FROM " + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.size());
     Object[] row = rows.get(0);
     assertEquals(19, row.length); // Number of columns
@@ -447,7 +444,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
       "select * from " + ALL_TYPES_TABLE_NAME + " where ((big_int_val % 2) = 1)"
     };
     for (String query : queries) {
-      runHiveStatement(query);
+      runHiveQuery(query);
     }
   }
 
@@ -470,7 +467,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertEquals(2, result.getTotalRows());
     // Run RLIKE query in Hive
     List<Object[]> rows =
-        runHiveStatement(
+        runHiveQuery(
             "SELECT * FROM "
                 + TEST_TABLE_NAME
                 + " where text RLIKE  '^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$'");
@@ -501,7 +498,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "(1, 'red'), (2, 'blue'), (3, 'green')"));
     // Do an inner join of the two tables using Hive
     List<Object[]> rows =
-        runHiveStatement(
+        runHiveQuery(
             String.join(
                 "\n",
                 "SELECT",
@@ -544,7 +541,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             "(123, 'hi123'), (42, 'hi42'), (999, 'hi999')"));
     // Read from multiple table in same Hive query
     List<Object[]> rows =
-        runHiveStatement(
+        runHiveQuery(
             String.join(
                 "\n",
                 "SELECT",
@@ -669,7 +666,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
         casts.add(String.format("CAST(%s AS %s)", entry.getKey(), type));
       }
     }
-    runHiveScript(
+    runHiveQuery(
         String.format("SELECT %s FROM %s", String.join(", ", casts), ALL_TYPES_TABLE_NAME));
   }
 
@@ -684,7 +681,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     initHive();
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
-    runHiveStatement(
+    runHiveQuery(
         "SELECT * FROM "
             + ALL_TYPES_TABLE_NAME
             + " WHERE "

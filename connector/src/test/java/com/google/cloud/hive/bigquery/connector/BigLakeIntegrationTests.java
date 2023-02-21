@@ -33,7 +33,7 @@ public class BigLakeIntegrationTests extends IntegrationTestsBase {
     initHive(engine, readDataFormat);
     createExternalTable(BIGLAKE_TABLE_NAME, HIVE_BIGLAKE_TABLE_DDL);
     // Read data
-    List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", BIGLAKE_TABLE_NAME));
+    List<Object[]> rows = runHiveQuery(String.format("SELECT * FROM %s", BIGLAKE_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
           new Object[] {1L, 2L, 3L},

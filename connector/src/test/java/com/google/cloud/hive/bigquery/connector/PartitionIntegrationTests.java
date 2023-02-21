@@ -93,11 +93,11 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
         HIVE_INGESTION_TIME_PARTITIONED_DDL,
         HIVE_INGESTION_TIME_PARTITIONED_PROPS,
         null);
-    runHiveScript(
+    runHiveQuery(
         String.format(
             "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
-    runHiveScript(
+    runHiveQuery(
         String.format(
             "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMPLOCALTZ'2000-01-01 00:23:45.123456"
                 + " Pacific/Honolulu'",

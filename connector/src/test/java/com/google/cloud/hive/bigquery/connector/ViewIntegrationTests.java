@@ -43,7 +43,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     Throwable exception =
         assertThrows(
             RuntimeException.class,
-            () -> runHiveStatement(String.format("SELECT * FROM %s", TEST_VIEW_NAME)));
+            () -> runHiveQuery(String.format("SELECT * FROM %s", TEST_VIEW_NAME)));
     assertTrue(exception.getMessage().contains("Views are not enabled"));
   }
 
@@ -60,7 +60,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     // Create the corresponding Hive table
     createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Query the view
-    List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", TEST_VIEW_NAME));
+    List<Object[]> rows = runHiveQuery(String.format("SELECT * FROM %s", TEST_VIEW_NAME));
     assertThat(rows).isEmpty();
   }
 
@@ -86,7 +86,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     assertEquals(2, result.getTotalRows());
     // Read filtered view using Hive
     List<Object[]> rows =
-        runHiveStatement(String.format("SELECT * FROM %s WHERE number = 999", TEST_VIEW_NAME));
+        runHiveQuery(String.format("SELECT * FROM %s WHERE number = 999", TEST_VIEW_NAME));
     // Verify we get the expected rows
     assertArrayEquals(
         new Object[] {

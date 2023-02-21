@@ -86,7 +86,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     Throwable hiveException =
         assertThrows(
             IllegalArgumentException.class,
-            () -> runHiveScript("describe " + MANAGED_TEST_TABLE_NAME));
+            () -> runHiveQuery("describe " + MANAGED_TEST_TABLE_NAME));
     assertTrue(hiveException.getMessage().contains("Table not found " + MANAGED_TEST_TABLE_NAME));
   }
 
@@ -103,7 +103,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     // Check that the table was created in BigQuery
     assertTrue(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Drop the managed table using hive
-    runHiveScript("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
+    runHiveQuery("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
     // Check that the table in BigQuery is gone
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
   }
@@ -115,7 +115,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     initHive();
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Drop the external table in Hive
-    runHiveScript("DROP TABLE " + TEST_TABLE_NAME);
+    runHiveQuery("DROP TABLE " + TEST_TABLE_NAME);
     // Check that the table still exists in BigQuery
     assertTrue(bQTableExists(dataset, TEST_TABLE_NAME));
   }

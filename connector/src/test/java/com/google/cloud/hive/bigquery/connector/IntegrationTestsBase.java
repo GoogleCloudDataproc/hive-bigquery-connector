@@ -26,6 +26,7 @@ import com.klarna.hiverunner.annotations.HiveSQL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.*;
@@ -112,7 +113,7 @@ public class IntegrationTestsBase {
 
   public void createHiveTable(
       String tableName, String hiveDDL, boolean isExternal, String properties, String comment) {
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + tableName + " (",
@@ -125,7 +126,7 @@ public class IntegrationTestsBase {
             "  'bq.dataset'='${dataset}',",
             "  'bq.table'='" + tableName + "'",
             properties != null ? "," + properties : "",
-            ");"));
+            ")"));
   }
 
   public void createHiveTable(
@@ -135,7 +136,7 @@ public class IntegrationTestsBase {
       boolean isExternal,
       String properties,
       String comment) {
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + hmsTableName + " (",
@@ -148,7 +149,7 @@ public class IntegrationTestsBase {
             "  'bq.dataset'='${dataset}',",
             "  'bq.table'='" + bqTableName + "'",
             properties != null ? "," + properties : "",
-            ");"));
+            ")"));
   }
 
   public void createExternalTable(String tableName, String hiveDDL) {
@@ -188,12 +189,19 @@ public class IntegrationTestsBase {
     return getBigqueryClient().query(renderQueryTemplate(queryTemplate));
   }
 
+  /** Runs a Hive script, which may be made of multiple Hive statements. */
   public void runHiveScript(String queryTemplate) {
     hive.execute(renderQueryTemplate(queryTemplate));
   }
 
-  public List<Object[]> runHiveStatement(String queryTemplate) {
-    return hive.executeStatement(renderQueryTemplate(queryTemplate));
+  /** Runs a single Hive statement. */
+  public List<Object[]> runHiveQuery(String queryTemplate) {
+    // Remove the ';' character at the end if there is one
+    String cleanedTemplate = StringUtils.stripEnd(queryTemplate, null);
+    if (StringUtils.endsWith(queryTemplate, ";")) {
+      cleanedTemplate = StringUtils.chop(cleanedTemplate);
+    }
+    return hive.executeStatement(renderQueryTemplate(cleanedTemplate));
   }
 
   public void initHive() {
@@ -217,7 +225,7 @@ public class IntegrationTestsBase {
         "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
     hive.setHiveConfValue("datanucleus.autoStartMechanismMode", "ignored");
     hive.start();
-    runHiveScript("CREATE DATABASE source_db");
+    runHiveQuery("CREATE DATABASE source_db");
   }
 
   protected static final String EXECUTION_ENGINE = "executionEngineParameter";
