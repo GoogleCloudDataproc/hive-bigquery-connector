@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>hive-bigquery-connector</artifactId>
+  <version>${hadoop.identifier}-${revision}</version>
 
   <dependencies>
 
@@ -48,6 +49,12 @@
       <artifactId>hadoop-mapreduce-client-common</artifactId>
       <version>${hadoop.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -128,6 +135,31 @@
     </dependency>
 
   </dependencies>
+
+  <profiles>
+    <profile>
+      <id>hadoop2</id>
+      <!--      <activation>-->
+      <!--        <activeByDefault>true</activeByDefault>-->
+      <!--      </activation>-->
+      <properties>
+        <hadoop.identifier>hadoop2</hadoop.identifier>
+        <hadoop.version>2.10.2</hadoop.version>
+        <gcs-connector.version>hadoop2-2.2.10</gcs-connector.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>hadoop3.2</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <hadoop.identifier>hadoop3</hadoop.identifier>
+        <hadoop.version>3.2.3</hadoop.version>
+        <gcs-connector.version>hadoop3-2.2.11</gcs-connector.version>
+      </properties>
+    </profile>
+  </profiles>
 
   <build>
     <plugins>
