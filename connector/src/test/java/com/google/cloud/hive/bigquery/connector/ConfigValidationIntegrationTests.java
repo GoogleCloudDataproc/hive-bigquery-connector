@@ -54,7 +54,7 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingGcsTempPath() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive("tez", HiveBigQueryConfig.AVRO, "");
+    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, "");
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(
@@ -76,7 +76,8 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingBucketPermissions() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive("tez", HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
+    initHive(
+        getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(

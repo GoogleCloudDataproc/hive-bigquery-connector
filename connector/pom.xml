@@ -26,6 +26,7 @@
   </parent>
 
   <artifactId>hive-bigquery-connector</artifactId>
+  <version>${hadoop.identifier}-${revision}</version>
 
   <dependencies>
 
@@ -48,6 +49,12 @@
       <artifactId>hadoop-mapreduce-client-common</artifactId>
       <version>${hadoop.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -101,10 +108,56 @@
     </dependency-->
 
     <dependency>
+      <artifactId>tez-dag</artifactId>
+      <groupId>org.apache.tez</groupId>
+      <version>${tez.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <artifactId>tez-common</artifactId>
+      <groupId>org.apache.tez</groupId>
+      <version>${tez.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <artifactId>tez-mapreduce</artifactId>
+      <groupId>org.apache.tez</groupId>
+      <version>${tez.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+
+    <dependency>
       <groupId>io.github.hiverunner</groupId>
       <artifactId>hiverunner</artifactId>
       <version>${hiverunner.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.tez</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -135,6 +188,28 @@
     </dependency>
 
   </dependencies>
+
+  <profiles>
+    <profile>
+      <id>hadoop2</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <hadoop.identifier>hadoop2</hadoop.identifier>
+        <hadoop.version>2.10.2</hadoop.version>
+        <gcs-connector.version>hadoop2-2.2.10</gcs-connector.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>hadoop3</id>
+      <properties>
+        <hadoop.identifier>hadoop3</hadoop.identifier>
+        <hadoop.version>3.2.3</hadoop.version>
+        <gcs-connector.version>hadoop3-2.2.11</gcs-connector.version>
+      </properties>
+    </profile>
+  </profiles>
 
   <build>
     <plugins>
@@ -226,11 +301,8 @@
               <goal>single</goal>
             </goals>
             <configuration>
-              <descriptorRefs>
-                <descriptorRef>jar-with-dependencies</descriptorRef>
-              </descriptorRefs>
               <appendAssemblyId>false</appendAssemblyId>
-              <finalName>${project.artifactId}-${revision}-with-dependencies</finalName>
+              <finalName>${project.version}-with-dependencies</finalName>
             </configuration>
           </execution>
         </executions>

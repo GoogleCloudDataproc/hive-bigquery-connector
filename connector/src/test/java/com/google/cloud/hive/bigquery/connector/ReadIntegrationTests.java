@@ -190,7 +190,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(READ_FORMAT)
   public void testMapOfInts(String readDataFormat) throws IOException {
-    initHive("tez", readDataFormat);
+    initHive(getDefaultExecutionEngine(), readDataFormat);
     createExternalTable(
         "mapOfInts",
         "id INT, map_col MAP<STRING, INT>",
@@ -242,7 +242,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(READ_FORMAT)
   public void testMapOfStructs(String readDataFormat) throws IOException {
-    initHive("tez", readDataFormat);
+    initHive(getDefaultExecutionEngine(), readDataFormat);
     createExternalTable(
         "mapOfStructs",
         "id INT, map_col MAP<STRING, STRUCT<COLOR: STRING>>",
@@ -293,7 +293,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(READ_FORMAT)
   public void testMapOfArrays(String readDataFormat) throws IOException {
-    initHive("tez", readDataFormat);
+    initHive(getDefaultExecutionEngine(), readDataFormat);
     createExternalTable(
         "mapOfArrays",
         "id INT, map_col MAP<STRING, ARRAY<INT>>",
@@ -332,7 +332,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(READ_FORMAT)
   public void testReadAllTypes(String readDataFormat) throws IOException {
-    initHive("tez", readDataFormat);
+    initHive(getDefaultExecutionEngine(), readDataFormat);
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using the BQ SDK
@@ -429,7 +429,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
    */
   @Test
   public void testUDFWhereClauseSmoke() {
-    initHive("tez", HiveBigQueryConfig.ARROW);
+    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.ARROW);
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     String[] queries = {
@@ -571,7 +571,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(READ_FORMAT)
   public void testExplicitCasts(String readDataFormat) throws IOException {
-    initHive("tez", readDataFormat);
+    initHive(getDefaultExecutionEngine(), readDataFormat);
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using the BQ SDK

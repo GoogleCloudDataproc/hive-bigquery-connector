@@ -10,7 +10,8 @@ See the details in [CHANGES.md](CHANGES.md).
 
 ## Version support
 
-This connector has been tested with Hive 3.1.2, Hadoop 2.10.1, and Tez 0.9.1.
+This connector supports Hive 3.1.2, Tez 0.9.2, and Hadoop 2.10.2 and 3.2.3 on
+[Dataproc](https://cloud.google.com/dataproc).
 
 ## Installation
 
@@ -24,16 +25,16 @@ This connector has been tested with Hive 3.1.2, Hadoop 2.10.1, and Tez 0.9.1.
 
 3. Compile and package the JAR:
    ``` sh
-   ./mvnw package -DskipTests
+   ./mvnw package -DskipTests -Phadoop3
    ```
-   The packaged JAR is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar`
+   The packaged JAR is now available at: `connector/target/hive-bigquery-connector-hadoop3-2.0.0-SNAPSHOT-with-dependencies.jar`
 
 4. Copy the packaged JAR to a Google Cloud Storage bucket that can be accessed from your Hive cluster.
 
 5. Open the Hive CLI and load the JAR:
 
    ```sh
-   hive> add jar gs://<JAR location>/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar;
+   hive> add jar gs://<JAR location>/hive-bigquery-connector-hadoop3-2.0.0-SNAPSHOT-with-dependencies.jar;
    ```
 
 4. Verify that the JAR is correctly loaded:
