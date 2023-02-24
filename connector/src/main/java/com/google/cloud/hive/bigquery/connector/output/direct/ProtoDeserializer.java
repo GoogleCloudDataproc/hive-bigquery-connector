@@ -34,8 +34,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
-import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
-import repackaged.by.hivebqconnector.com.google.protobuf.DynamicMessage;
+import shaded.hivebqcon.com.google.protobuf.Descriptors;
+import shaded.hivebqcon.com.google.protobuf.DynamicMessage;
 
 public class ProtoDeserializer {
 

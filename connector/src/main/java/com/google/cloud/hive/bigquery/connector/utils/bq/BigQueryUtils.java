@@ -25,10 +25,10 @@ import com.google.cloud.http.HttpTransportOptions;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.hive.metastore.api.Table;
-import repackaged.by.hivebqconnector.com.google.gson.Gson;
-import repackaged.by.hivebqconnector.com.google.gson.JsonArray;
-import repackaged.by.hivebqconnector.com.google.gson.JsonElement;
-import repackaged.by.hivebqconnector.com.google.gson.JsonObject;
+import shaded.hivebqcon.com.google.gson.Gson;
+import shaded.hivebqcon.com.google.gson.JsonArray;
+import shaded.hivebqcon.com.google.gson.JsonElement;
+import shaded.hivebqcon.com.google.gson.JsonObject;
 
 public class BigQueryUtils {
 

@@ -33,7 +33,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import repackaged.by.hivebqconnector.com.google.common.base.Joiner;
+import shaded.hivebqcon.com.google.common.base.Joiner;
 
 public class DirectOutputCommitter {
 

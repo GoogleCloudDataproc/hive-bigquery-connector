@@ -53,8 +53,8 @@ import org.apache.hadoop.hive.serde2.typeinfo.*;
 import org.apache.hadoop.mapred.JobContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import repackaged.by.hivebqconnector.com.google.common.base.Strings;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.base.Strings;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 /**
  * Class {@link BigQueryMetaHook} can be used to validate and perform different actions during the

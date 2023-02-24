@@ -33,9 +33,9 @@ import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
-import repackaged.by.hivebqconnector.org.apache.arrow.vector.*;
-import repackaged.by.hivebqconnector.org.apache.arrow.vector.complex.ListVector;
-import repackaged.by.hivebqconnector.org.apache.arrow.vector.complex.StructVector;
+import shaded.hivebqcon.org.apache.arrow.vector.*;
+import shaded.hivebqcon.org.apache.arrow.vector.complex.ListVector;
+import shaded.hivebqcon.org.apache.arrow.vector.complex.StructVector;
 
 public class ArrowSerializer {
 

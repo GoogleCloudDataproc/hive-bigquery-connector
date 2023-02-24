@@ -32,7 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskAttemptID;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class IndirectUtils {
 

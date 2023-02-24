@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
-import static repackaged.by.hivebqconnector.com.google.common.base.Preconditions.checkNotNull;
+import static shaded.hivebqcon.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.*;
@@ -44,8 +44,8 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
-import repackaged.by.hivebqconnector.com.google.common.annotations.VisibleForTesting;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.annotations.VisibleForTesting;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 

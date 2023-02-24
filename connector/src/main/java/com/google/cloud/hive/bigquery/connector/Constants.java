@@ -17,8 +17,8 @@ package com.google.cloud.hive.bigquery.connector;
 
 import java.util.List;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import repackaged.by.hivebqconnector.com.google.common.base.Splitter;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.base.Splitter;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class Constants {
 

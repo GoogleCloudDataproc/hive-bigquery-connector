@@ -30,7 +30,7 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import repackaged.by.hivebqconnector.com.google.common.collect.Lists;
+import shaded.hivebqcon.com.google.common.collect.Lists;
 
 public class TestUtils {
 

@@ -25,10 +25,10 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import repackaged.by.hivebqconnector.com.google.common.base.Preconditions;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
-import repackaged.by.hivebqconnector.com.google.protobuf.DescriptorProtos;
-import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
+import shaded.hivebqcon.com.google.common.base.Preconditions;
+import shaded.hivebqcon.com.google.common.collect.ImmutableMap;
+import shaded.hivebqcon.com.google.protobuf.DescriptorProtos;
+import shaded.hivebqcon.com.google.protobuf.Descriptors;
 
 /** Utilities to convert Hive schemas into Proto descriptors. */
 public class ProtoSchemaConverter {

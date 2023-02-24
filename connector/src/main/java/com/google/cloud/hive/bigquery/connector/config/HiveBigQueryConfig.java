@@ -33,9 +33,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.threeten.bp.Duration;
-import repackaged.by.hivebqconnector.com.google.common.base.Optional;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
+import shaded.hivebqcon.com.google.common.base.Optional;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.collect.ImmutableMap;
 
 /** Main config class to interact with the bigquery-common-connector. */
 @SuppressWarnings("unchecked")

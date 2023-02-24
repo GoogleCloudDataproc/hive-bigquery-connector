@@ -100,7 +100,7 @@
               <relocations>
                 <relocation>
                   <pattern>com</pattern>
-                  <shadedPattern>repackaged.by.hivebqconnector.com</shadedPattern>
+                  <shadedPattern>shaded.hivebqcon.com</shadedPattern>
                   <includes>
                     <include>com.google.protobuf.**</include>
                     <include>com.google.common.**</include>
@@ -110,7 +110,7 @@
                 </relocation>
                 <relocation>
                   <pattern>io</pattern>
-                  <shadedPattern>repackaged.by.hivebqconnector.io</shadedPattern>
+                  <shadedPattern>shaded.hivebqcon.io</shadedPattern>
                   <includes>
                     <include>io.netty.**</include>
                     <include>io.grpc.netty.**</include>
@@ -119,7 +119,7 @@
                 </relocation>
                 <relocation>
                   <pattern>org</pattern>
-                  <shadedPattern>repackaged.by.hivebqconnector.org</shadedPattern>
+                  <shadedPattern>shaded.hivebqcon.org</shadedPattern>
                   <includes>
                     <include>org.apache.arrow.**</include>
                   </includes>

@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
+import shaded.hivebqcon.com.google.common.collect.Streams;
 
 public class WriteIntegrationTests extends IntegrationTestsBase {
 
