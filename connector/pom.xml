@@ -301,6 +301,9 @@
               <goal>single</goal>
             </goals>
             <configuration>
+              <descriptorRefs>
+                <descriptorRef>jar-with-dependencies</descriptorRef>
+              </descriptorRefs>
               <appendAssemblyId>false</appendAssemblyId>
               <finalName>${project.version}-with-dependencies</finalName>
             </configuration>
