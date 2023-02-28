@@ -111,6 +111,10 @@ public class IntegrationTestsBase {
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
   }
 
+  public void createPureHiveTable(String tableName, String hiveDDL) {
+    runHiveQuery(String.join("\n", "CREATE TABLE " + tableName + " (", hiveDDL, ")"));
+  }
+
   public void createHiveTable(
       String tableName, String hiveDDL, boolean isExternal, String properties, String comment) {
     runHiveQuery(
