@@ -305,7 +305,7 @@
                 <descriptorRef>jar-with-dependencies</descriptorRef>
               </descriptorRefs>
               <appendAssemblyId>false</appendAssemblyId>
-              <finalName>${project.version}-with-dependencies</finalName>
+              <finalName>${project.artifactId}-${project.version}-with-dependencies</finalName>
             </configuration>
           </execution>
         </executions>
