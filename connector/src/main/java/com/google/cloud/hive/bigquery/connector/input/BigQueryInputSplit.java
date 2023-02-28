@@ -44,10 +44,13 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import shaded.hivebqcon.com.google.common.annotations.VisibleForTesting;
 import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class BigQueryInputSplit extends HiveInputSplit implements Writable {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryInputSplit.class);
 
   private ReadRowsHelper readRowsHelper;
   private Path warehouseLocation;
@@ -55,6 +58,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   private List<String> columnNames;
   private BigQueryClientFactory bqClientFactory;
   private HiveBigQueryConfig config;
+  private long hiveSplitLength;
 
   @VisibleForTesting
   public BigQueryInputSplit() {
@@ -106,6 +110,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   public void write(DataOutput out) throws IOException {
     out.writeUTF(warehouseLocation.toString());
     out.writeUTF(streamName);
+    out.writeLong(hiveSplitLength);
     byte[] columnNamesAsBytes = String.join(",", columnNames).getBytes(StandardCharsets.UTF_8);
     out.writeInt(columnNamesAsBytes.length);
     out.write(columnNamesAsBytes);
@@ -117,6 +122,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   public void readFields(DataInput in) throws IOException {
     warehouseLocation = new Path(in.readUTF());
     streamName = in.readUTF();
+    hiveSplitLength = in.readLong();
     int length = in.readInt();
     byte[] columnNamesAsBytes = new byte[length];
     in.readFully(columnNamesAsBytes);
@@ -125,18 +131,19 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     config = (HiveBigQueryConfig) readObject(in);
   }
 
+  public void setHiveSplitLength(long hiveSplitLength) {
+    this.hiveSplitLength = hiveSplitLength;
+  }
+
   @Override
   public long getLength() {
-    // FIXME: Supposedly should return the number of bytes in the input split.
-    //  Might not be relevant in the context of BigQuery...
-    return 1L;
+    return this.hiveSplitLength;
   }
 
   @Override
   public String[] getLocations() throws IOException {
-    // FIXME: Supposedly should return the list of hostnames where the input split is located.
-    //  Might not be relevant in the context of BigQuery...
-    return new String[0];
+    // For data locality, irrelevant for bq.
+    return new String[] {"*"};
   }
 
   @Override
@@ -157,7 +164,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     return columnNames;
   }
 
-  public static InputSplit[] createSplitsFromBigQueryReadStreams(JobConf jobConf) {
+  public static InputSplit[] createSplitsFromBigQueryReadStreams(JobConf jobConf, int numSplits) {
     Injector injector =
         Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(jobConf));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
@@ -223,7 +230,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
           "Table '" + BigQueryUtil.friendlyTableName(config.getTableId()) + "' not found");
     }
 
-    // Create the BQ read session
+    LOG.info("Create readSession for {}", tableInfo);
     ReadSessionCreatorConfig readSessionCreatorConfig = config.toReadSessionCreatorConfig();
     ReadSessionCreator readSessionCreator =
         new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
@@ -232,13 +239,24 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
             config.getTableId(), ImmutableList.copyOf(selectedFields), filter);
     ReadSession readSession = readSessionResponse.getReadSession();
 
-    // Assign a new InputSplit instance for each stream in the read session
     Path warehouseLocation = new Path(jobConf.get("location"));
+    // To-Do: replace when ReadStream has size estimation.
+    long totalSize = readSession.getEstimatedTotalBytesScanned();
+    int streamsCount = readSession.getStreamsCount();
+    long hiveSplitSize = getHiveSplitLength(jobConf, totalSize, streamsCount, numSplits);
     return readSession.getStreamsList().stream()
         .map(
-            readStream ->
-                new BigQueryInputSplit(
-                    warehouseLocation, readStream.getName(), columnNames, bqClientFactory, config))
+            readStream -> {
+              BigQueryInputSplit split =
+                  new BigQueryInputSplit(
+                      warehouseLocation,
+                      readStream.getName(),
+                      columnNames,
+                      bqClientFactory,
+                      config);
+              split.setHiveSplitLength(hiveSplitSize);
+              return split;
+            })
         .toArray(FileSplit[]::new);
   }
 
@@ -257,5 +275,26 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
               config.toReadSessionCreatorConfig().toReadRowsHelperOptions());
     }
     return readRowsHelper;
+  }
+
+  private static long getHiveSplitLength(
+      JobConf jobConf, long totalSize, int streamCount, int requestGrpCount) {
+    long avgStreamSize = streamCount == 0 ? totalSize : totalSize / streamCount;
+    long hiveSplitSize = avgStreamSize;
+    long minLengthPerGroup = jobConf.getLong("tez.grouping.min-size", 50 * 1024 * 1024L);
+    long maxLengthPerGroup = jobConf.getLong("tez.grouping.max-size", 1024 * 1024 * 1024L);
+    if (jobConf.getBoolean("bq.disable.tez.grouping", false) && avgStreamSize > minLengthPerGroup) {
+      // Disable tez grouping for debug, Math.min(maxLengthPerGroup, Math.max(avgStreamSize,
+      // minLengthPerGroup));
+      hiveSplitSize = Math.max(requestGrpCount, streamCount) * maxLengthPerGroup / streamCount;
+      LOG.info("Set hiveSplitSize differently to try disable tez grouping.");
+    }
+    LOG.info(
+        "BQ estimated totalSize={}, streamCount={}, avgStreamSize={}, set hiveSplitSize={}",
+        totalSize,
+        streamCount,
+        avgStreamSize,
+        hiveSplitSize);
+    return hiveSplitSize;
   }
 }

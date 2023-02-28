@@ -33,13 +33,13 @@ public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWrit
    * corresponding stream.
    *
    * @param jobConf The job's configuration
-   * @param numSplits Number of splits requested by MapReduce, but ignored as BigQuery decides the
-   *     number of streams used in the read session.
+   * @param numSplits Number of splits requested. Tez mode a suggested number based on cluster
+   *     capacity.
    * @return InputSplit[] - Collection of FileSplits
    */
   @Override
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
-    return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf);
+    return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf, numSplits);
   }
 
   @Override
