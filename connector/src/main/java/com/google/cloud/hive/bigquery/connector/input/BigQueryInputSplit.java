@@ -183,15 +183,10 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     Set<String> selectedFields;
     String engine = HiveConf.getVar(jobConf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
     if (engine.equals("mr")) {
-      // Unfortunately the MR engine does not provide a reliable value for the
-      // "hive.io.file.readcolumn.names" when multiple tables are read in the
-      // same query. So we have to select all the columns (i.e. `SELECT *`).
-      // This is unfortunately quite inefficient. Tez, however, does not have that issue.
-      // See more info here: https://lists.apache.org/thread/g464zybq4g6c7p2h6nd9jmmznq472785
-      // TODO: Investigate to see if we can come up with a workaround. Maybe try
-      //  using the new MapRed API (org.apache.hadoop.mapreduce) instead of the old
-      //  one (org.apache.hadoop.mapred)?
-      selectedFields = new HashSet<>(columnNames);
+      // To-Do: a workaround for HIVE-27115, remove when fix available.
+      List<String> neededFields = getMRColumnProject(jobConf);
+      selectedFields =
+          neededFields.isEmpty() ? new HashSet<>(columnNames) : new HashSet<>(neededFields);
     } else {
       selectedFields =
           new HashSet<>(Arrays.asList(ColumnProjectionUtils.getReadColumnNames(jobConf)));
@@ -296,5 +291,23 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
         avgStreamSize,
         hiveSplitSize);
     return hiveSplitSize;
+  }
+
+  // This is a workaround for HIVE-27115, used in MR mode.
+  private static List<String> getMRColumnProject(JobConf jobConf) {
+    String dir = jobConf.get("mapreduce.input.fileinputformat.inputdir");
+    Path path = new Path(dir);
+    try {
+      MapWork mapWork = org.apache.hadoop.hive.ql.exec.Utilities.getMapWork(jobConf);
+      if (mapWork == null || mapWork.getPathToAliases() == null) {
+        return Collections.emptyList();
+      }
+      String alias = mapWork.getPathToAliases().get(path).get(0);
+      TableScanDesc tableScanDesc = (TableScanDesc) mapWork.getAliasToWork().get(alias).getConf();
+      return tableScanDesc.getNeededColumns();
+    } catch (Exception e) {
+      LOG.warn("Not able to find column project from plan for {}", dir);
+      return Collections.emptyList();
+    }
   }
 }

@@ -22,11 +22,16 @@ import com.google.cloud.hive.bigquery.connector.input.arrow.ArrowRecordReader;
 import com.google.cloud.hive.bigquery.connector.input.avro.AvroRecordReader;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.*;
 
-public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWritable> {
+public class BigQueryInputFormat
+    implements InputFormat<NullWritable, ObjectWritable>,
+        CombineHiveInputFormat.AvoidSplitCombination {
 
   /**
    * Creates hadoop splits (i.e BigQuery streams) so that each task can read data from the
@@ -53,5 +58,10 @@ public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWrit
       return new AvroRecordReader((BigQueryInputSplit) inputSplit, jobConf);
     }
     throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
+  }
+
+  @Override
+  public boolean shouldSkipCombine(Path path, Configuration conf) {
+    return true;
   }
 }
