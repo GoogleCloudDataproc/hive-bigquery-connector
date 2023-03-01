@@ -444,24 +444,68 @@ gsutil iam ch ${BIGLAKE_SA}:objectViewer gs://${PROJECT}-biglake-tests
 You must use Java version 8, as it's the version that Hive itself uses. Make sure that `JAVA_HOME` points to the Java
 8's base directory.
 
-To run the integration tests:
+* To run the integration tests:
+  ```sh
+  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
+  ```
 
-```sh
-./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
-```
+* To run a specific test method:
+  ```sh
+  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests#testInsertTez"
+  ```
 
-To run a specific test method:
+* To debug the tests, add the `-Dmaven.failsafe.debug` property:
+  ```sh
+  ./mvnw verify -Dmaven.failsafe.debug --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
+  ```
+  ... then run a remote debugger in IntelliJ at port `5005`. Read more about debugging with FailSafe
+  here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
 
-```sh
-./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests#testInsertTez"
-```
+##### Running the tests for different Hadoop versions
 
-To debug the tests, add the `-Dmaven.failsafe.debug` property:
+To run the tests for Hadoop 2, pass the `-Phadoop2` parameter to the `mvnw verify` command to
+activate the `hadoop2` Maven profile. For Hadoop 3, pass `-Phadoop3` instead.
 
-```sh
-./mvnw verify -Dmaven.failsafe.debug --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
-```
+Before you can run the tests with Hadoop 3, you also must install Tez's latest (unreleased) 0.9.3:
 
-... then run a remote debugger in IntelliJ at port 5005.
+* Install Protobuf v2.5.0:
 
-Read more about debugging with FailSafe here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
+  If you're on MacOS, install these packages:
+  ```sh
+  brew install automake libtool wget
+  ```
+
+  Then compile Protobuf from source:
+  ```sh
+  cd ~
+  wget https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.bz2
+  tar -xvjf protobuf-2.5.0.tar.bz2
+  rm protobuf-2.5.0.tar.bz2
+  cd protobuf-2.5.0
+  ./autogen.sh
+  ./configure --prefix=$(PWD)
+  make; make check
+  make install
+  ```
+
+* Get the Tez source:
+  ```sh
+  cd ~
+  git clone
+  cd git@github.com:apache/tez.git
+  cd tez
+  git checkout origin/branch-0.9
+  ```
+
+* Compile and install Tez:
+  ```sh
+  export PATH=${HOME}/protobuf-2.5.0/bin:${PATH}
+  mvn clean install \
+    --projects=tez-api,tez-common,tez-mapreduce,tez-dag,hadoop-shim,tez-runtime-library,tez-runtime-internals \
+    -DskipTests=true -Dmaven.javadoc.skip=true \
+    -Dprotoc.path=${HOME}/protobuf-2.5.0/bin/protoc -Dhadoop.version=3.2.3
+  ```
+
+  If all steps have succeeded, then Tez's `0.9.2-SNAPSHOT` packages should be installed in your
+  local Maven repository and you should be able to run the tests with Hadoop 3 by using the
+  `-Phadoop3` argument.

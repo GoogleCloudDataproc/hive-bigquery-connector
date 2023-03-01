@@ -32,7 +32,6 @@
         <nexus.remote.skip>false</nexus.remote.skip>
 
         <hive.version>3.1.2</hive.version>
-        <tez.version>0.9.2</tez.version>
         <protobuf.version>3.21.12</protobuf.version>
         <legacy-bigquery-connector.version>hadoop2-1.0.0</legacy-bigquery-connector.version>
         <bigquery-connector-common.version>0.28.0</bigquery-connector-common.version>

@@ -29,7 +29,7 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.util.VersionInfo;
+import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
@@ -45,7 +45,6 @@ import org.junit.jupiter.params.provider.Arguments;
 public class IntegrationTestsBase {
 
   protected static String dataset;
-  public static final boolean HADOOP_V3 = VersionInfo.getVersion().startsWith("3.");
 
   @HiveSQL(
       files = {},
@@ -230,22 +229,23 @@ public class IntegrationTestsBase {
     hive.setHiveConfValue(
         "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
     hive.setHiveConfValue("datanucleus.autoStartMechanismMode", "ignored");
+
+    // This is needed to avoid an odd exception when running the tests with Tez and Hadoop 3.
+    // Similar issue to what's described in https://issues.apache.org/jira/browse/HIVE-24734
+    hive.setHiveConfValue(MRJobConfig.MAP_MEMORY_MB, "1024");
+
     hive.start();
     runHiveQuery("CREATE DATABASE source_db");
   }
 
   protected static String getDefaultExecutionEngine() {
-    return HADOOP_V3 ? "mr" : "tez";
+    return "tez";
   }
 
   protected static final String EXECUTION_ENGINE = "executionEngineParameter";
 
   protected static Stream<Arguments> executionEngineParameter() {
-    if (HADOOP_V3) {
-      return Stream.of(Arguments.of("mr"));
-    } else {
-      return Stream.of(Arguments.of("mr"), Arguments.of("tez"));
-    }
+    return Stream.of(Arguments.of("mr"), Arguments.of("tez"));
   }
 
   protected static final String READ_FORMAT = "readFormatParameter";
@@ -269,10 +269,7 @@ public class IntegrationTestsBase {
     List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
     Collections.shuffle(readFormats);
     return Stream.of(
-        Arguments.of("mr", readFormats.get(0)),
-        HADOOP_V3
-            ? Arguments.of("mr", readFormats.get(1))
-            : Arguments.of("tez", readFormats.get(1)));
+        Arguments.of("mr", readFormats.get(0)), Arguments.of("tez", readFormats.get(1)));
   }
 
   protected static final String EXECUTION_ENGINE_WRITE_METHOD =
@@ -284,10 +281,7 @@ public class IntegrationTestsBase {
             HiveBigQueryConfig.WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
     Collections.shuffle(writeMethods);
     return Stream.of(
-        Arguments.of("mr", writeMethods.get(0)),
-        HADOOP_V3
-            ? Arguments.of("mr", writeMethods.get(1))
-            : Arguments.of("tez", writeMethods.get(1)));
+        Arguments.of("mr", writeMethods.get(0)), Arguments.of("tez", writeMethods.get(1)));
   }
 
   protected static final String EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD =
@@ -302,8 +296,6 @@ public class IntegrationTestsBase {
     Collections.shuffle(writeMethods);
     return Stream.of(
         Arguments.of("mr", readFormats.get(0), writeMethods.get(0)),
-        HADOOP_V3
-            ? Arguments.of("mr", readFormats.get(1), writeMethods.get(1))
-            : Arguments.of("tez", readFormats.get(1), writeMethods.get(1)));
+        Arguments.of("tez", readFormats.get(1), writeMethods.get(1)));
   }
 }
