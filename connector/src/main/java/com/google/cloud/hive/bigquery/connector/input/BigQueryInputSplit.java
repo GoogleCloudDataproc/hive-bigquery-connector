@@ -299,7 +299,9 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     Path path = new Path(dir);
     try {
       MapWork mapWork = org.apache.hadoop.hive.ql.exec.Utilities.getMapWork(jobConf);
-      if (mapWork == null || mapWork.getPathToAliases() == null || mapWork.getPathToAliases().isEmpty()) {
+      if (mapWork == null
+          || mapWork.getPathToAliases() == null
+          || mapWork.getPathToAliases().isEmpty()) {
         return Collections.emptyList();
       }
       String alias = mapWork.getPathToAliases().get(path).get(0);

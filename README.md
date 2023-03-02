@@ -252,8 +252,6 @@ performance -- you can use it by setting the `hive.execution.engine=tez` configu
 Since BigQuery is [backed by a columnar datastore](https://cloud.google.com/blog/big-data/2016/04/inside-capacitor-bigquerys-next-generation-columnar-storage-format),
 it can efficiently stream data without reading all columns.
 
-Column pruning is currently supported only with the Tez engine.
-
 ## Predicate pushdowns
 
 The BigQuery Storage Read API supports arbitrary pushdown of predicate filters. This allows to execute the filters at
@@ -264,14 +262,14 @@ The connector automatically translates Hive generic UDFs used in predicate filte
 
 The following Hive generic UDFs and operators are supported and mapped to equivalent BigQuery functions and operators:
 
-| Hive generic UDF | BigQuery function |
-|------------------|-------------------|
-| `%`              | `MOD`             |
-| `DATE_ADD`       | `DATE_ADD`        |
-| `DATE_SUB`       | `DATE_SUB`        |
-| `DATEDIFF`       | `DATE_DIFF`       |
-| `DATEDIFF`       | `DATE_DIFF`       |
-| `RLIKE`          | `REGEXP_CONTAINS` |
+| Hive generic UDF | BigQuery function | Notes                                                                                     |
+|------------------|-------------------|-------------------------------------------------------------------------------------------|
+| `%`              | `MOD`             | BigQuery currently supports `MOD` only for the `INT64`, `NUMERIC`, and `BIGNUMERIC` types |
+| `DATE_ADD`       | `DATE_ADD`        |                                                                                           |
+| `DATE_SUB`       | `DATE_SUB`        |                                                                                           |
+| `DATEDIFF`       | `DATE_DIFF`       |                                                                                           |
+| `DATEDIFF`       | `DATE_DIFF`       |                                                                                           |
+| `RLIKE`          | `REGEXP_CONTAINS` |                                                                                           |
 
 ## Parallelism
 
