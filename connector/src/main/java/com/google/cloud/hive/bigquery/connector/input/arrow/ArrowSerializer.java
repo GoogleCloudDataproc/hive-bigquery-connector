@@ -79,8 +79,6 @@ public class ArrowSerializer {
     if (objectInspector instanceof HiveDecimalObjectInspector) {
       BigDecimal decimalValue = ((DecimalVector) value).getObject(rowId);
       HiveDecimal hiveDecimal = HiveDecimal.create(decimalValue);
-      HiveDecimal.enforcePrecisionScale(
-          hiveDecimal, decimalValue.precision(), decimalValue.scale());
       return new HiveDecimalWritable(hiveDecimal);
     }
 
