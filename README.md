@@ -25,22 +25,16 @@ This connector supports Hive 3.1.2, Tez 0.9.2, and Hadoop 2.10.2 and 3.2.3 on
 
 3. Compile and package the JAR:
    ``` sh
-   ./mvnw package -DskipTests -Phadoop3
+   ./mvnw package -DskipTests
    ```
-   The packaged JAR is now available at: `connector/target/hive-bigquery-connector-hadoop3-2.0.0-SNAPSHOT-with-dependencies.jar`
+   The packaged JAR is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT.jar`
 
-4. Copy the packaged JAR to a Google Cloud Storage bucket that can be accessed from your Hive cluster.
+4. Upload the JAR to your cluster.
 
-5. Open the Hive CLI and load the JAR:
+5. Pass the JAR's path with the `--auxpath` parameter when you start your Hive session:
 
    ```sh
-   hive> add jar gs://<JAR location>/hive-bigquery-connector-hadoop3-2.0.0-SNAPSHOT-with-dependencies.jar;
-   ```
-
-4. Verify that the JAR is correctly loaded:
-
-   ```sh
-   hive> list jars;
+   hive --auxpath <JAR path>/hive-bigquery-connector-2.0.0-SNAPSHOT.jar
    ```
 
 ## Managed vs external tables
