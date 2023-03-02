@@ -117,7 +117,7 @@ public class AvroUtils {
       return schema;
     }
     if (fieldOi instanceof FloatObjectInspector) {
-      return Schema.create(Schema.Type.FLOAT);
+      return Schema.create(Schema.Type.DOUBLE);
     }
     if (fieldOi instanceof DoubleObjectInspector) {
       return Schema.create(Schema.Type.DOUBLE);

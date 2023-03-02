@@ -92,6 +92,13 @@ public class IntegrationTestsBase {
 
     // Empty the indirect write bucket
     emptyBucket(getTestBucket());
+
+    // Set default Hadoop/Hive configuration -----------------------------------
+    // TODO: Match with Dataproc's default config as much as possible
+    // Enable map-joins
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "true");
+    // Enable vectorize mode
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
   }
 
   @AfterAll

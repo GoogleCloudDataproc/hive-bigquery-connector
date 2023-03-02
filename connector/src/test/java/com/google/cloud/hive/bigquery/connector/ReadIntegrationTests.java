@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.jupiter.api.Test;
@@ -481,6 +482,10 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testInnerJoin(String engine, String readDataFormat) {
+    // TODO: Figure out why map-joins don't work with MR in this test case
+    if (engine.equalsIgnoreCase("mr")) {
+      hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "false");
+    }
     initHive(engine, readDataFormat);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     createExternalTable(

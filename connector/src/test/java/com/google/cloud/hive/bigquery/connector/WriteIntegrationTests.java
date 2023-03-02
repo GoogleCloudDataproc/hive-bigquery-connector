@@ -25,6 +25,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.Blob;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import shaded.hivebqcon.com.google.common.collect.Streams;
@@ -111,9 +112,10 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testMultiInsert(String engine, String writeMethod) {
-    // avoid bug unrelated to multi-insert test itself
-    hive.setHiveConfValue("hive.auto.convert.join", "false");
-    hive.setHiveConfValue("hive.vectorized.execution.enabled", "false");
+    // TODO: Figure out why vectorization and map-joins must be disabled for this test to pass
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "false");
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "false");
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     createExternalTable("bq_a", "id int, name string", "id int64, name string");
     createExternalTable("bq_b", "id int, name string", "id int64, name string");
