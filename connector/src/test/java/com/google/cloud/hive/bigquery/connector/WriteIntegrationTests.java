@@ -72,6 +72,9 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
 
     // Check that the blob was created by the job.
+    // Note: The blobs are still present here during the test execution because the
+    // Hive/Hadoop session is still on, but in production those files would be
+    // automatically be cleaned up at the end of the job.
     blobs = getBlobs(getTestBucket());
     assertEquals(1, blobs.size());
     assertTrue(

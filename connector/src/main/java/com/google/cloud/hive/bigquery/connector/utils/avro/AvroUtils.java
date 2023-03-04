@@ -18,8 +18,10 @@ package com.google.cloud.hive.bigquery.connector.utils.avro;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,14 +30,20 @@ import java.util.TimeZone;
 import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
+import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroJob;
 import org.apache.avro.mapred.AvroOutputFormat;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.TaskAttemptID;
 import org.codehaus.jackson.node.IntNode;
 
 public class AvroUtils {
@@ -179,47 +187,38 @@ public class AvroUtils {
   }
 
   /**
-   * Helper class that writes Avro records into memory. This is used by the 'indirect' write method.
-   * The contents are later persisted to GCS when each task completes. And later written to BigQuery
-   * when the overall job completes.
+   * Creates a temporary Avro file in GCS for the current task to write records to. This file will
+   * later be loaded into the destination BigQuery table by the output committer at the end of the
+   * job.
    */
-  public static class AvroOutput {
-
-    final ByteArrayOutputStream outputStream;
-    final DataFileWriter<GenericRecord> dataFileWriter;
-
-    public AvroOutput(
-        DataFileWriter<GenericRecord> dataFileWriter, ByteArrayOutputStream outputStream) {
-      this.dataFileWriter = dataFileWriter;
-      this.outputStream = outputStream;
+  public static DataFileWriter<GenericRecord> createDataFileWriter(
+      JobConf jobConf, JobDetails jobDetails) {
+    Schema schema = jobDetails.getAvroSchema();
+    GenericDatumWriter<GenericRecord> gdw = new GenericDatumWriter<>(schema);
+    DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(gdw);
+    int level = jobConf.getInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, CodecFactory.DEFAULT_DEFLATE_LEVEL);
+    String codecName = jobConf.get(AvroJob.OUTPUT_CODEC, "deflate");
+    CodecFactory factory =
+        codecName.equals(DataFileConstants.DEFLATE_CODEC)
+            ? CodecFactory.deflateCodec(level)
+            : CodecFactory.fromString(codecName);
+    dataFileWriter.setCodec(factory);
+    dataFileWriter.setMeta(AvroSerDe.WRITER_TIME_ZONE, TimeZone.getDefault().toZoneId().toString());
+    TaskAttemptID taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
+    Path filePath =
+        IndirectUtils.getTaskAvroTempFile(
+            jobConf,
+            jobDetails.getHmsDbTableName(),
+            jobDetails.getTableId(),
+            jobDetails.getGcsTempPath(),
+            taskAttemptID);
+    try {
+      FileSystem fileSystem = filePath.getFileSystem(jobConf);
+      FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);
+      dataFileWriter.create(schema, fsDataOutputStream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-
-    public DataFileWriter<GenericRecord> getDataFileWriter() {
-      return dataFileWriter;
-    }
-
-    public ByteArrayOutputStream getOutputStream() {
-      return outputStream;
-    }
-
-    public static AvroOutput initialize(JobConf jobConf, Schema schema) {
-      GenericDatumWriter<GenericRecord> gdw = new GenericDatumWriter<>(schema);
-      DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(gdw);
-      int level = jobConf.getInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, -1);
-      String codecName = jobConf.get(AvroJob.OUTPUT_CODEC, "deflate");
-      CodecFactory factory =
-          codecName.equals("deflate")
-              ? CodecFactory.deflateCodec(level)
-              : CodecFactory.fromString(codecName);
-      dataFileWriter.setCodec(factory);
-      dataFileWriter.setMeta("writer.time.zone", TimeZone.getDefault().toZoneId().toString());
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try {
-        dataFileWriter.create(schema, baos);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      return new AvroOutput(dataFileWriter, baos);
-    }
+    return dataFileWriter;
   }
 }
