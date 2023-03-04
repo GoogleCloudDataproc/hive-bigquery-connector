@@ -329,8 +329,9 @@ and this method only incur [costs related to GCS write operations and storage](h
 However, this method is also generally much slower due to its multi-stage nature and data being routed through GCS.
 Learn more about other [limitations](https://cloud.google.com/bigquery/docs/batch-loading-data#limitations).
 
-The connector uses the direct write method by default. To let it use the indirect method instead, set the
-`bq.write.method` configuration property to `indirect`.
+The connector uses the direct write method by default. To let it use the indirect method instead,
+set the `bq.write.method` configuration property to `indirect`, and set the `bq.temp.gcs.path`
+property to indicate where to store the temporary Avro files in GCS.
 
 ## Reading From BigQuery Views
 
