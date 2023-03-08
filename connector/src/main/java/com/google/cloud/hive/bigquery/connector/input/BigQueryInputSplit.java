@@ -18,7 +18,6 @@ package com.google.cloud.hive.bigquery.connector.input;
 import static shaded.hivebqcon.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.bigquery.TableInfo;
-import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.hive.bigquery.connector.Constants;
@@ -46,6 +45,7 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.*;
 import shaded.hivebqcon.com.google.common.annotations.VisibleForTesting;
 import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 

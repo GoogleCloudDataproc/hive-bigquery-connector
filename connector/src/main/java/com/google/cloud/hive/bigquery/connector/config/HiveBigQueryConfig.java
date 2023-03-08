@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.config;
 
-import static com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
+import static shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.JobInfo;
@@ -23,7 +23,6 @@ import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
-import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions.CompressionCodec;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
@@ -33,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.threeten.bp.Duration;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.*;
 import shaded.hivebqcon.com.google.common.base.Optional;
 import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 import shaded.hivebqcon.com.google.common.collect.ImmutableMap;

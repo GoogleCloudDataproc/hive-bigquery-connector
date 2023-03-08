@@ -102,6 +102,7 @@
                   <pattern>com</pattern>
                   <shadedPattern>shaded.hivebqcon.com</shadedPattern>
                   <includes>
+                    <include>com.google.cloud.bigquery.connector.common.**</include>
                     <include>com.google.protobuf.**</include>
                     <include>com.google.common.**</include>
                     <include>com.google.gson.**</include>

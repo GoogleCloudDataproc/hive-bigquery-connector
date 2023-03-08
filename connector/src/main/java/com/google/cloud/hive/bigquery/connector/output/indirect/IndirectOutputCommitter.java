@@ -17,8 +17,6 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.FormatOptions;
 import com.google.cloud.bigquery.JobInfo.WriteDisposition;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
@@ -33,6 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import shaded.hivebqcon.com.google.common.base.Joiner;
 
 public class IndirectOutputCommitter {

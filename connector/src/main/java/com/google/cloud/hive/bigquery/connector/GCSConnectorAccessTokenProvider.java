@@ -16,14 +16,14 @@
 package com.google.cloud.hive.bigquery.connector;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
-import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 
 /**
  * Simple AccessTokenProvider that delegates credentials retrieval to BigQueryCredentialsSupplier.

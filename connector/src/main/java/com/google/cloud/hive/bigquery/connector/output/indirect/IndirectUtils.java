@@ -16,7 +16,6 @@
 package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
@@ -32,6 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskAttemptID;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class IndirectUtils {

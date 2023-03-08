@@ -17,14 +17,14 @@ package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.*;
-import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
-import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
-import com.google.cloud.bigquery.connector.common.BigQueryProxyTransporterBuilder;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.http.HttpTransportOptions;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.hive.metastore.api.Table;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryProxyTransporterBuilder;
 import shaded.hivebqcon.com.google.gson.Gson;
 import shaded.hivebqcon.com.google.gson.JsonArray;
 import shaded.hivebqcon.com.google.gson.JsonElement;

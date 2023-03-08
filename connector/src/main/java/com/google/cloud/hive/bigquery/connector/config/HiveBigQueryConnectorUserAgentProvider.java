@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.config;
 
-import com.google.cloud.bigquery.connector.common.UserAgentProvider;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.UserAgentProvider;
 
 public class HiveBigQueryConnectorUserAgentProvider implements UserAgentProvider {
 
