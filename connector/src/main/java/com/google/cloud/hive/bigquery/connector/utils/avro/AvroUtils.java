@@ -145,8 +145,8 @@ public class AvroUtils {
       HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) fieldOi;
       Schema schema = Schema.create(Schema.Type.BYTES);
       schema.addProp("logicalType", "decimal");
-      schema.addProp("precision", IntNode.valueOf(hdoi.precision()));
-      schema.addProp("scale", IntNode.valueOf(hdoi.scale()));
+      schema.addProp("precision", hdoi.precision());
+      schema.addProp("scale", hdoi.scale());
       return schema;
     }
 
