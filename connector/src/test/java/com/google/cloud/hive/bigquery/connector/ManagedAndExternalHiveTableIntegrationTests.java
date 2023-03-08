@@ -64,6 +64,34 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that hive table is not created if BigQuery fails to create the table */
+  @Test
+  public void testCreateManagedTableFailInBQ() {
+    initHive();
+    // Try to create the managed table using Hive with invalid table name for BigQuery
+    Throwable bqException =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                createHiveTable(
+                    MANAGED_TEST_TABLE_NAME,
+                    "invalid_$table:name",
+                    HIVE_ALL_TYPES_TABLE_DDL,
+                    false,
+                    null,
+                    null));
+    assertTrue(bqException.getMessage().contains("Invalid table ID"));
+
+    // Verify that table is not created in Hive.
+    Throwable hiveException =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> runHiveQuery("describe " + MANAGED_TEST_TABLE_NAME));
+    assertTrue(hiveException.getMessage().contains("Table not found " + MANAGED_TEST_TABLE_NAME));
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   @Test
   public void testDropManagedTable() {
     initHive();
@@ -75,7 +103,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     // Check that the table was created in BigQuery
     assertTrue(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
     // Drop the managed table using hive
-    runHiveScript("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
+    runHiveQuery("DROP TABLE " + MANAGED_TEST_TABLE_NAME);
     // Check that the table in BigQuery is gone
     assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
   }
@@ -87,7 +115,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
     initHive();
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Drop the external table in Hive
-    runHiveScript("DROP TABLE " + TEST_TABLE_NAME);
+    runHiveQuery("DROP TABLE " + TEST_TABLE_NAME);
     // Check that the table still exists in BigQuery
     assertTrue(bQTableExists(dataset, TEST_TABLE_NAME));
   }

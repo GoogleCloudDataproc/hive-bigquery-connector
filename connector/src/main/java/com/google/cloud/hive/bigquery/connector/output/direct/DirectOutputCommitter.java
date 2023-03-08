@@ -33,6 +33,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import shaded.hivebqcon.com.google.common.base.Joiner;
 
 public class DirectOutputCommitter {
 
@@ -44,16 +45,18 @@ public class DirectOutputCommitter {
    * created in the job's work directory. The reference files essentially contain the stream names.
    */
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
-    LOG.info("Committing BigQuery direct write job");
+    String hmsDbTableName = jobDetails.getHmsDbTableName();
     List<String> streamFiles =
         FileSystemUtils.getFiles(
             conf,
-            FileSystemUtils.getWorkDir(conf),
+            new Path(FileSystemUtils.getWorkDir(conf), hmsDbTableName),
             DirectUtils.getTaskTempStreamFileNamePrefix(jobDetails.getTableId()),
             Constants.STREAM_FILE_EXTENSION);
     if (streamFiles.size() <= 0) {
+      LOG.info("Nothing to commit, found 0 stream files.");
       return;
     }
+
     // Extract the stream names from the stream reference files
     List<String> streamNames = new ArrayList<>();
     for (String streamFile : streamFiles) {
@@ -61,6 +64,13 @@ public class DirectOutputCommitter {
       String streamName = FileSystemUtils.readFile(conf, path);
       streamNames.add(streamName);
     }
+    LOG.info(
+        "Committing streams [ "
+            + Joiner.on(",").join(streamNames)
+            + "], stream reference files ["
+            + Joiner.on(",").join(streamFiles)
+            + "]");
+
     Injector injector =
         Guice.createInjector(
             new BigQueryClientModule(),

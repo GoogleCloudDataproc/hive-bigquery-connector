@@ -30,7 +30,7 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import repackaged.by.hivebqconnector.com.google.common.collect.Lists;
+import shaded.hivebqcon.com.google.common.collect.Lists;
 
 public class TestUtils {
 
@@ -45,8 +45,8 @@ public class TestUtils {
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
-  public static final String INDIRECT_WRITE_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
-  public static final String TEMP_GCS_PATH = "gs://" + getIndirectWriteBucket() + "/temp";
+  public static final String HIVE_TEST_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
+  public static final String TEMP_GCS_PATH = "gs://" + getTestBucket() + "/temp";
 
   // The BigLake bucket and connection must be created before running the tests.
   // Also, the connection's service account must be given permission to access the bucket.
@@ -70,7 +70,8 @@ public class TestUtils {
           "var_char STRING OPTIONS (description = 'A description for a VARCHAR'),",
           "str STRING OPTIONS (description = 'A description for a STRING'),",
           "day DATE OPTIONS (description = 'A description for a DATE'),",
-          "ts TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMP'),",
+          "ts DATETIME OPTIONS (description = 'A description for a TIMESTAMP'),",
+          "tstz TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMPLOCALTZ'),",
           "bin BYTES OPTIONS (description = 'A description for a BINARY'),",
           "fl FLOAT64 OPTIONS (description = 'A description for a FLOAT'),",
           "dbl FLOAT64 OPTIONS (description = 'A description for a DOUBLE'),",
@@ -79,8 +80,8 @@ public class TestUtils {
           "int_arr ARRAY<int64> OPTIONS (description = 'A description for a ARRAY-BIGINT'),",
           "int_struct_arr ARRAY<STRUCT<i INT64>> OPTIONS (description = 'A description for a"
               + " ARRAY-STRUCT'),",
-          "float_struct STRUCT<float_field FLOAT64> OPTIONS (description = 'A description for a"
-              + " STRUCT-FLOAT'),",
+          "mixed_struct STRUCT<float_field FLOAT64, ts_field DATETIME> OPTIONS (description = 'A"
+              + " description for a STRUCT-MIXED'),",
           "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>> OPTIONS"
               + " (description = 'A description for a MAP')");
 
@@ -117,6 +118,7 @@ public class TestUtils {
           "str STRING COMMENT 'A description for a STRING',",
           "day DATE COMMENT 'A description for a DATE',",
           "ts TIMESTAMP COMMENT 'A description for a TIMESTAMP',",
+          "tstz TIMESTAMPLOCALTZ COMMENT 'A description for a TIMESTAMPLOCALTZ',",
           "bin BINARY COMMENT 'A description for a BINARY',",
           "fl FLOAT COMMENT 'A description for a FLOAT',",
           "dbl DOUBLE COMMENT 'A description for a DOUBLE',",
@@ -124,7 +126,8 @@ public class TestUtils {
               + " DECIMAL(38,10), big_pi: DECIMAL(38,10)> COMMENT 'A description for a STRUCT',",
           "int_arr ARRAY<BIGINT> COMMENT 'A description for a ARRAY-BIGINT',",
           "int_struct_arr ARRAY<STRUCT<i: BIGINT>> COMMENT 'A description for a ARRAY-STRUCT',",
-          "float_struct STRUCT<float_field:FLOAT> COMMENT 'A description for a STRUCT-FLOAT',",
+          "mixed_struct STRUCT<float_field:FLOAT,ts_field:TIMESTAMP> COMMENT 'A description for a"
+              + " STRUCT-MIXED',",
           "mp MAP<STRING,MAP<STRING,INT>> COMMENT 'A description for a MAP'");
 
   public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL =
@@ -196,9 +199,9 @@ public class TestUtils {
    * Returns the name of the bucket used to store temporary Avro files when testing the indirect
    * write method. This bucket is created automatically when running the tests.
    */
-  public static String getIndirectWriteBucket() {
+  public static String getTestBucket() {
     return System.getenv()
-        .getOrDefault(INDIRECT_WRITE_BUCKET_NAME_ENV_VAR, getProject() + "-indirect-write-tests");
+        .getOrDefault(HIVE_TEST_BUCKET_NAME_ENV_VAR, getProject() + "-hive-tests");
   }
 
   public static void createBqDataset(String dataset) {

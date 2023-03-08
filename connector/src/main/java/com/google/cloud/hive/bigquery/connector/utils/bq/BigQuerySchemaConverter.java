@@ -24,8 +24,8 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
-import repackaged.by.hivebqconnector.com.google.common.base.Preconditions;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableMap;
+import shaded.hivebqcon.com.google.common.base.Preconditions;
+import shaded.hivebqcon.com.google.common.collect.ImmutableMap;
 
 /** Converts Hive Schema to BigQuery schema. */
 public class BigQuerySchemaConverter {
@@ -58,6 +58,9 @@ public class BigQuerySchemaConverter {
               .put(PrimitiveObjectInspector.PrimitiveCategory.DATE, StandardSQLTypeName.DATE)
               .put(
                   PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,
+                  StandardSQLTypeName.DATETIME)
+              .put(
+                  PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMPLOCALTZ,
                   StandardSQLTypeName.TIMESTAMP)
               .put(PrimitiveObjectInspector.PrimitiveCategory.BINARY, StandardSQLTypeName.BYTES)
               .build();
@@ -114,7 +117,9 @@ public class BigQuerySchemaConverter {
       bigQueryFieldBuilder = Field.newBuilder(fieldName, fieldType);
     }
 
-    bigQueryFieldBuilder.setMode(mode);
+    if (mode != null) {
+      bigQueryFieldBuilder.setMode(mode);
+    }
     bigQueryFieldBuilder.setDescription(comment);
     return bigQueryFieldBuilder.build();
   }

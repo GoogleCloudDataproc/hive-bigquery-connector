@@ -24,7 +24,7 @@ import com.google.cloud.bigquery.TimePartitioning;
 import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class PartitionIntegrationTests extends IntegrationTestsBase {
 
@@ -93,13 +93,14 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
         HIVE_INGESTION_TIME_PARTITIONED_DDL,
         HIVE_INGESTION_TIME_PARTITIONED_PROPS,
         null);
-    runHiveScript(
-        String.format(
-            "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMP'2018-09-05 00:10:04.19'",
-            INGESTION_TIME_PARTITIONED_TABLE_NAME));
-    runHiveScript(
+    runHiveQuery(
         String.format(
             "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
+            INGESTION_TIME_PARTITIONED_TABLE_NAME));
+    runHiveQuery(
+        String.format(
+            "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMPLOCALTZ'2000-01-01 00:23:45.123456"
+                + " Pacific/Honolulu'",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
   }
 }

@@ -41,6 +41,6 @@ public class BigQueryUDFDateSubTest {
                 new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "42")));
     func.setChildren(children);
     String expression = BigQueryFilters.translateFilters(func).getExprString();
-    assertEquals("DATE_SUB(DATE('2010-07-07'), INTERVAL 42 DAY)", expression);
+    assertEquals("DATE_SUB(DATE'2010-07-07', INTERVAL 42 DAY)", expression);
   }
 }

@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.avro;
 
-import com.google.cloud.bigquery.connector.common.ReadRowsHelper;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
@@ -36,7 +35,7 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
-import repackaged.by.hivebqconnector.com.google.protobuf.ByteString;
+import shaded.hivebqcon.com.google.protobuf.ByteString;
 
 /**
  * Reads Avro-formatted records returned by the BigQuery Storage Read API responses and serializes
@@ -50,13 +49,14 @@ public class AvroRecordReader implements RecordReader<NullWritable, ObjectWritab
   private Schema schema;
   private final List<String> columnNames;
   private final StructObjectInspector rowObjectInspector;
+  private final JobConf jobConf;
 
   public AvroRecordReader(BigQueryInputSplit inputSplit, JobConf jobConf) {
-    ReadRowsHelper readRowsHelper = inputSplit.getReadRowsHelper();
-    responseIterator = readRowsHelper.readRows();
-    recordIterator = Collections.emptyIterator();
-    columnNames = inputSplit.getColumnNames();
-    rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobConf);
+    this.jobConf = jobConf;
+    this.responseIterator = inputSplit.getReadRowsHelper().readRows();
+    this.recordIterator = Collections.emptyIterator();
+    this.columnNames = inputSplit.getColumnNames();
+    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobConf);
   }
 
   /**

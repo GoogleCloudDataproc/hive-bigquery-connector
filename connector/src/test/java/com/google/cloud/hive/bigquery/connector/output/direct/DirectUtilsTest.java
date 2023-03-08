@@ -27,9 +27,9 @@ public class DirectUtilsTest {
 
   @Test
   public void testGetTaskTempStreamFileNamePrefix() {
-    TableId tableId = TableId.of("myproject", "mydataset", "mytable");
+    TableId tableId = TableId.of("my:project", "mydataset", "mytable");
     String prefix = DirectUtils.getTaskTempStreamFileNamePrefix(tableId);
-    assertEquals("myproject_mydataset_mytable", prefix);
+    assertEquals("my__project_mydataset_mytable", prefix);
   }
 
   @Test
@@ -37,11 +37,12 @@ public class DirectUtilsTest {
     Configuration conf = new Configuration();
     conf.set("hive.query.id", "query123");
     conf.set("bq.work.dir.parent.path", "/my/workdir");
+    String hmsDbTableName = "default.hivetable";
     TableId tableId = TableId.of("myproject", "mydataset", "mytable");
     TaskAttemptID taskAttemptID = new TaskAttemptID();
-    Path path = DirectUtils.getTaskTempStreamFile(conf, tableId, taskAttemptID);
+    Path path = DirectUtils.getTaskTempStreamFile(conf, hmsDbTableName, tableId, taskAttemptID);
     assertEquals(
-        "/my/workdir/bq-hive-query123/myproject_mydataset_mytable_task__0000_r_000000.stream",
+        "/my/workdir/bq-hive-query123/default.hivetable/myproject_mydataset_mytable_task__0000_r_000000.stream",
         path.toString());
   }
 }

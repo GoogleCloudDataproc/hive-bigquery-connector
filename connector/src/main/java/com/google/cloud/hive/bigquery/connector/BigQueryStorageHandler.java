@@ -15,12 +15,17 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaHook;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -35,6 +40,7 @@ import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputFormat;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
@@ -102,9 +108,8 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
-    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
+    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
     if (engine.equals("mr")) {
-      // The OutputCommitter class is only used by the "mr" engine, not "tez".
       if (conf.get(Constants.THIS_IS_AN_OUTPUT_JOB, "false").equals("true")) {
         // Only set the OutputCommitter class if we're dealing with an actual output job,
         // i.e. where data gets written to BigQuery. Otherwise, the "mr" engine will call
@@ -113,16 +118,44 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
         jobConf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
       }
     }
+    String hmsDbTableName = tableDesc.getProperties().getProperty("name");
+    String tables = jobConf.get(Constants.HIVE_OUTPUT_TABLES_KEY);
+    tables =
+        tables == null ? hmsDbTableName : tables + Constants.TABLE_NAME_SEPARATOR + hmsDbTableName;
+    jobConf.set(Constants.HIVE_OUTPUT_TABLES_KEY, tables);
     setGCSAccessTokenProvider(jobConf);
+  }
+
+  /**
+   * Committer with no-op job commit. Set this for Tez so it uses BigQueryMetaHook's
+   * commitInsertTable to commit per table. For task commit/abort and job abort still use
+   * BigQueryOutputCommitter.
+   */
+  static class BigQueryNoJobCommitter extends BigQueryOutputCommitter {
+    @Override
+    public void commitJob(JobContext jobContext) throws IOException {
+      // do nothing
+    }
   }
 
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
+    // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
     conf.set(Constants.THIS_IS_AN_OUTPUT_JOB, "true");
+
+    if (HiveUtils.enableCommitterInTez(conf)) {
+      // This version Hive enables tez committer HIVE-24629
+      conf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryNoJobCommitter.class.getName());
+    }
     JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();
     jobDetails.setTableProperties(tableProperties);
-    JobDetails.writeJobDetailsFile(conf, jobDetails);
+    jobDetails.setProject(tableProperties.getProperty(HiveBigQueryConfig.PROJECT_KEY));
+    jobDetails.setDataset(tableProperties.getProperty(HiveBigQueryConfig.DATASET_KEY));
+    jobDetails.setTable(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY));
+    Path jobDetailsFilePath =
+        FileSystemUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
+    JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
   }
 
   @Override
@@ -137,6 +170,6 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureTableJobProperties(TableDesc tableDesc, Map<String, String> map) {
-    // Do nothing
+    // Deprecated
   }
 }

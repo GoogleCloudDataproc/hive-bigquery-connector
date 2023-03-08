@@ -24,12 +24,13 @@ import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.Blob;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
-import org.junitpioneer.jupiter.cartesian.CartesianTest;
-import repackaged.by.hivebqconnector.com.google.common.collect.Streams;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import shaded.hivebqcon.com.google.common.collect.Streams;
 
-public class WriteIntegrationtests extends IntegrationTestsBase {
+public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
@@ -39,7 +40,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     initHive(engine, HiveBigQueryConfig.AVRO);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data using Hive
-    runHiveScript("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
+    runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
     // Read the data using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
@@ -51,25 +52,30 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
   }
 
   /** Insert data using the "direct" write method. */
-  @CartesianTest
-  public void testInsertDirect(@CartesianTest.Values(strings = {"mr", "tez"}) String engine) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE)
+  public void testInsertDirect(String engine) {
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
   }
 
   // ---------------------------------------------------------------------------------------------------
 
   /** Insert data using the "indirect" write method. */
-  @CartesianTest
-  public void testInsertIndirect(@CartesianTest.Values(strings = {"mr", "tez"}) String engine) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE)
+  public void testInsertIndirect(String engine) {
     // Check that the bucket is empty
-    List<Blob> blobs = getBlobs(getIndirectWriteBucket());
+    List<Blob> blobs = getBlobs(getTestBucket());
     assertEquals(0, blobs.size());
 
     // Insert data using Hive
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
 
     // Check that the blob was created by the job.
-    blobs = getBlobs(getIndirectWriteBucket());
+    // Note: The blobs are still present here during the test execution because the
+    // Hive/Hadoop session is still on, but in production those files would be
+    // automatically be cleaned up at the end of the job.
+    blobs = getBlobs(getTestBucket());
     assertEquals(1, blobs.size());
     assertTrue(
         blobs.get(0).getName().startsWith("temp/bq-hive-")
@@ -79,15 +85,9 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
   // ---------------------------------------------------------------------------------------------------
 
   /** Test the "INSERT OVERWRITE" statement, which clears the table before writing the new data. */
-  @CartesianTest
-  public void testInsertOverwrite(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(
-              strings = {
-                HiveBigQueryConfig.WRITE_METHOD_DIRECT,
-                HiveBigQueryConfig.WRITE_METHOD_INDIRECT
-              })
-          String writeMethod) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testInsertOverwrite(String engine, String writeMethod) {
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
@@ -100,7 +100,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run INSERT OVERWRITE in Hive
-    runHiveScript("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
+    runHiveQuery("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
     // Make sure the new data erased the old one
     result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
     assertEquals(1, result.getTotalRows());
@@ -111,23 +111,55 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Test the multi insert statement, which inserts into multiple tables. */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testMultiInsert(String engine, String writeMethod) {
+    // TODO: Figure out why vectorization and map-joins must be disabled for this test to pass
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "false");
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "false");
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    createExternalTable("bq_a", "id int, name string", "id int64, name string");
+    createExternalTable("bq_b", "id int, name string", "id int64, name string");
+    String setupQ =
+        "create table hdfs_a (id int, name string); "
+            + "create table hdfs_b (id int, name string); "
+            + "insert into table hdfs_a values (1, 'aaa'), (2, 'bbb'); "
+            + "insert into table hdfs_b values (1, 'aaa'), (2, 'ccc'); ";
+    String multiInsertQ =
+        "with c as (select a.id, b.name from hdfs_a a join hdfs_b b on a.id=b.id and a.name=b.name"
+            + " ) from c insert overwrite table bq_a select id*10, name insert into table bq_b"
+            + " select count(1)*20, name group by name;";
+    runHiveScript(setupQ);
+    runHiveScript(multiInsertQ);
+
+    TableResult resultA = runBqQuery("SELECT * FROM `${dataset}.bq_a`");
+    assertEquals(1, resultA.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(resultA.iterateAll()).collect(Collectors.toList());
+    assertEquals(10L, rows.get(0).get(0).getLongValue());
+    assertEquals("aaa", rows.get(0).get(1).getStringValue());
+
+    TableResult resultB = runBqQuery("SELECT * FROM `${dataset}.bq_b`");
+    assertEquals(1, resultB.getTotalRows());
+    rows = Streams.stream(resultB.iterateAll()).collect(Collectors.toList());
+    assertEquals(20L, rows.get(0).get(0).getLongValue());
+    assertEquals("aaa", rows.get(0).get(1).getStringValue());
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Check that we can write all types of data to BigQuery. */
-  @CartesianTest
-  public void testWriteAllTypes(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(
-              strings = {
-                HiveBigQueryConfig.WRITE_METHOD_DIRECT,
-                HiveBigQueryConfig.WRITE_METHOD_INDIRECT
-              })
-          String writeMethod) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testWriteAllTypes(String engine, String writeMethod) {
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     // Create the BQ table
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using Hive
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
@@ -140,7 +172,10 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
             "\"var char\",",
             "\"string\",",
             "CAST(\"2019-03-18\" AS DATE),",
-            "CAST(\"2019-03-18T01:23:45.678901\" AS TIMESTAMP),",
+            // Wall clock (no timezone)
+            "CAST(\"2000-01-01T00:23:45.123456\" as TIMESTAMP),",
+            // (Pacific/Honolulu, -10:00)
+            "CAST(\"2000-01-01 00:23:45.123456 Pacific/Honolulu\" AS TIMESTAMPLOCALTZ),",
             "CAST(\"bytes\" AS BINARY),",
             "2.0,",
             "4.2,",
@@ -152,7 +187,8 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
             "),",
             "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
             "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
-            "NAMED_STRUCT('float_field', CAST(4.2 AS FLOAT)),",
+            "NAMED_STRUCT('float_field', CAST(4.2 AS FLOAT), 'ts_field', CAST"
+                + " (\"2019-03-18T01:23:45.678901\" AS TIMESTAMP)),",
             "MAP('mykey', MAP('subkey', 999))",
             "FROM (select '1') t"));
     // Read the data using the BQ SDK
@@ -162,7 +198,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     FieldValueList row = rows.get(0);
-    assertEquals(18, row.size()); // Number of columns
+    assertEquals(19, row.size()); // Number of columns
     assertEquals(11L, row.get(0).getLongValue());
     assertEquals(22L, row.get(1).getLongValue());
     assertEquals(33L, row.get(2).getLongValue());
@@ -172,22 +208,13 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals("var char", row.get(6).getStringValue());
     assertEquals("string", row.get(7).getStringValue());
     assertEquals("2019-03-18", row.get(8).getStringValue());
-    if (Objects.equals(writeMethod, HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      assertEquals(1552872225678901L, row.get(9).getTimestampValue());
-    } else {
-      // As we rely on the AvroSerde to generate the Avro schema for the
-      // indirect write method, we lose the micro-second precision due
-      // to the fact that the AvroSerde is currently limited to
-      // 'timestamp-mills' precision.
-      // See: https://issues.apache.org/jira/browse/HIVE-20889
-      // TODO: Write our own avro schema generation tool to get
-      //  around this limitation.
-      assertEquals(1552872225000000L, row.get(9).getTimestampValue());
-    }
-    assertArrayEquals("bytes".getBytes(), row.get(10).getBytesValue());
-    assertEquals(2.0, row.get(11).getDoubleValue());
-    assertEquals(4.2, row.get(12).getDoubleValue());
-    FieldValueList struct = row.get(13).getRecordValue();
+    assertEquals("2000-01-01T00:23:45.123456", row.get(9).getStringValue());
+    assertEquals(
+        "2000-01-01T10:23:45.123456Z", row.get(10).getTimestampInstant().toString()); // 'Z' == UTC
+    assertArrayEquals("bytes".getBytes(), row.get(11).getBytesValue());
+    assertEquals(2.0, row.get(12).getDoubleValue());
+    assertEquals(4.2, row.get(13).getDoubleValue());
+    FieldValueList struct = row.get(14).getRecordValue();
     assertEquals(
         "-9999999999999999999999999999.9999999999",
         struct.get("min").getNumericValue().toPlainString());
@@ -198,22 +225,23 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
     assertEquals(
         "3141592653589793238462643383.2795028841",
         struct.get("big_pi").getNumericValue().toPlainString());
-    FieldValueList array = (FieldValueList) row.get(14).getValue();
+    FieldValueList array = (FieldValueList) row.get(15).getValue();
     assertEquals(3, array.size());
     assertEquals(1, array.get(0).getLongValue());
     assertEquals(2, array.get(1).getLongValue());
     assertEquals(3, array.get(2).getLongValue());
-    FieldValueList arrayOfStructs = (FieldValueList) row.get(15).getValue();
+    FieldValueList arrayOfStructs = (FieldValueList) row.get(16).getValue();
     assertEquals(1, arrayOfStructs.size());
     struct = (FieldValueList) arrayOfStructs.get(0).getValue();
     assertEquals(1L, struct.get(0).getLongValue());
-    // Struct of float
-    struct = row.get(16).getRecordValue();
+    // Mixed struct
+    struct = row.get(17).getRecordValue();
     assertEquals(
         4.199999809265137,
         struct.get("float_field").getDoubleValue()); // TODO: Address discrepancy here
+    assertEquals("2019-03-18T01:23:45.678901", struct.get("ts_field").getStringValue());
     // Check the Map type
-    FieldValueList map = (FieldValueList) row.get(17).getRepeatedValue();
+    FieldValueList map = (FieldValueList) row.get(18).getRepeatedValue();
     assertEquals(1, map.size());
     FieldValueList entry = map.get(0).getRecordValue();
     assertEquals("mykey", entry.get(0).getStringValue());
@@ -226,17 +254,9 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
   // ---------------------------------------------------------------------------------------------------
 
   /** Test a write operation and multiple read operations in the same query. */
-  @CartesianTest
-  public void testMultiReadWrite(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat,
-      @CartesianTest.Values(
-              strings = {
-                HiveBigQueryConfig.WRITE_METHOD_DIRECT,
-                HiveBigQueryConfig.WRITE_METHOD_INDIRECT
-              })
-          String writeMethod) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD)
+  public void testMultiReadWrite(String engine, String readDataFormat, String writeMethod) {
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, readDataFormat);
     createExternalTable(
@@ -256,7 +276,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
             String.format("INSERT `${dataset}.%s` (str_val) VALUES", ANOTHER_TEST_TABLE_NAME),
             "(\"hello1\"), (\"hello2\"), (\"hello3\")"));
     // Read and write in the same query using Hive
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "INSERT INTO " + TEST_TABLE_NAME + " SELECT",
@@ -271,7 +291,7 @@ public class WriteIntegrationtests extends IntegrationTestsBase {
             "t2.int_val as number,",
             "'' as text",
             "FROM " + ALL_TYPES_TABLE_NAME + " t2",
-            ") unioned;"));
+            ") unioned"));
     // Read the result using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));

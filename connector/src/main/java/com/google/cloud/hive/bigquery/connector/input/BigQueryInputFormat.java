@@ -22,25 +22,29 @@ import com.google.cloud.hive.bigquery.connector.input.arrow.ArrowRecordReader;
 import com.google.cloud.hive.bigquery.connector.input.avro.AvroRecordReader;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.*;
 
-public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWritable> {
+public class BigQueryInputFormat
+    implements InputFormat<NullWritable, ObjectWritable>,
+        CombineHiveInputFormat.AvoidSplitCombination {
 
   /**
    * Creates hadoop splits (i.e BigQuery streams) so that each task can read data from the
    * corresponding stream.
    *
    * @param jobConf The job's configuration
-   * @param numSplits Number of splits requested by MapReduce, but ignored as BigQuery decides the
-   *     number of streams used in the read session.
+   * @param numSplits Number of splits requested. Tez mode a suggested number based on cluster
+   *     capacity.
    * @return InputSplit[] - Collection of FileSplits
    */
   @Override
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
-    jobConf.set(HiveBigQueryConfig.READ_PREFERRED_PARALLELISM, String.valueOf(numSplits));
-    return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf);
+    return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf, numSplits);
   }
 
   @Override
@@ -54,5 +58,10 @@ public class BigQueryInputFormat implements InputFormat<NullWritable, ObjectWrit
       return new AvroRecordReader((BigQueryInputSplit) inputSplit, jobConf);
     }
     throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
+  }
+
+  @Override
+  public boolean shouldSkipCombine(Path path, Configuration conf) {
+    return true;
   }
 }

@@ -32,7 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskAttemptID;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class IndirectUtils {
 
@@ -83,11 +83,13 @@ public class IndirectUtils {
   }
 
   /** Deletes the directory on GCS that contains the temporary Avro files for the job. */
-  public static void deleteGcsTempDir(Configuration conf, String gcsPathBase) throws IOException {
-    Path dir = getGcsTempDir(conf, gcsPathBase);
-    FileSystem fs = dir.getFileSystem(conf);
-    if (fs.exists(dir)) {
-      fs.deleteOnExit(dir);
+  public static void deleteTblGcsTempDir(
+      Configuration conf, String gcsPathBase, String hmsDbTableName) throws IOException {
+    Path tmpDir = getGcsTempDir(conf, gcsPathBase);
+    Path tblTempPath = new Path(tmpDir, hmsDbTableName);
+    FileSystem fs = tblTempPath.getFileSystem(conf);
+    if (fs.exists(tblTempPath)) {
+      fs.deleteOnExit(tblTempPath);
     }
   }
 
@@ -95,7 +97,9 @@ public class IndirectUtils {
   public static String getTaskTempAvroFileNamePrefix(TableId tableId) {
     return String.format(
         "%s_%s_%s",
-        tableId.getProject(), tableId.getDataset(), tableId.getTable().replace("$", "__"));
+        tableId.getProject().replace(":", "__"),
+        tableId.getDataset(),
+        tableId.getTable().replace("$", "__"));
   }
 
   /**
@@ -105,9 +109,14 @@ public class IndirectUtils {
    * @return Fully Qualified temporary table path on GCS
    */
   public static Path getTaskAvroTempFile(
-      Configuration conf, TableId tableId, String gcsPathBase, TaskAttemptID taskAttemptID) {
+      Configuration conf,
+      String hmsDbTableName,
+      TableId tableId,
+      String gcsPathBase,
+      TaskAttemptID taskAttemptID) {
+    Path hmsTablePath = new Path(getGcsTempDir(conf, gcsPathBase), hmsDbTableName);
     return new Path(
-        getGcsTempDir(conf, gcsPathBase),
+        hmsTablePath,
         String.format(
             "%s_%s.%s",
             getTaskTempAvroFileNamePrefix(tableId),

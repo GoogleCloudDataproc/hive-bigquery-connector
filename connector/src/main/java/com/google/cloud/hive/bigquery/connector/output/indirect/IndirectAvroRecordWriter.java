@@ -18,14 +18,10 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
-import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils.AvroOutput;
-import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
 import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.NullWritable;
@@ -33,7 +29,6 @@ import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.TaskAttemptID;
 
 /**
  * Writes records to an Avro file in GCS. Each task runs its own instance of this writer class, i.e.
@@ -44,20 +39,18 @@ public class IndirectAvroRecordWriter
     implements org.apache.hadoop.mapred.RecordWriter<NullWritable, Writable>,
         FileSinkOperator.RecordWriter {
 
-  AvroOutput avroOutput;
   JobConf jobConf;
-  TaskAttemptID taskAttemptID;
+  JobDetails jobDetails;
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
+  final DataFileWriter<GenericRecord> dataFileWriter;
 
   public IndirectAvroRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
-    this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    this.avroSchema =
-        AvroUtils.adaptSchemaForBigQuery(
-            AvroUtils.extractAvroSchema(jobConf, jobDetails.getTableProperties()));
-    this.avroOutput = AvroOutput.initialize(jobConf, this.avroSchema);
+    this.jobDetails = jobDetails;
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
+    this.avroSchema = jobDetails.getAvroSchema();
+    this.dataFileWriter = AvroUtils.createDataFileWriter(jobConf, jobDetails);
   }
 
   @Override
@@ -70,22 +63,12 @@ public class IndirectAvroRecordWriter
     Object serializedRecord = ((ObjectWritable) writable).get();
     GenericRecord record =
         AvroDeserializer.buildSingleRecord(rowObjectInspector, avroSchema, serializedRecord);
-    this.avroOutput.getDataFileWriter().append(record);
+    dataFileWriter.append(record);
   }
 
   @Override
   public void close(boolean abort) throws IOException {
-    if (!abort) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
-      Path filePath =
-          IndirectUtils.getTaskAvroTempFile(
-              jobConf, jobDetails.getTableId(), jobDetails.getGcsTempPath(), taskAttemptID);
-      FileSystem fileSystem = filePath.getFileSystem(jobConf);
-      FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);
-      avroOutput.getDataFileWriter().flush();
-      fsDataOutputStream.write(avroOutput.getOutputStream().toByteArray());
-      fsDataOutputStream.close();
-    }
+    dataFileWriter.close();
   }
 
   @Override

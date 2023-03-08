@@ -17,12 +17,17 @@ package com.google.cloud.hive.bigquery.connector;
 
 import java.util.List;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import repackaged.by.hivebqconnector.com.google.common.collect.ImmutableList;
+import shaded.hivebqcon.com.google.common.base.Splitter;
+import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class Constants {
 
   public static final String HADOOP_TMP_DIR_KEY = "hadoop.tmp.dir";
   public static final String HADOOP_COMMITTER_CLASS_KEY = "mapred.output.committer.class";
+  public static final String HIVE_OUTPUT_TABLES_KEY = "hive.bq.output.tables";
+  public static final String HIVE_CREATE_TABLES_KEY = "hive.bq.create.tables";
+  public static final String TABLE_NAME_SEPARATOR = "|";
+  public static final Splitter TABLE_NAME_SPLITTER = Splitter.on(TABLE_NAME_SEPARATOR);
   public static final String THIS_IS_AN_OUTPUT_JOB = "...this.is.an.output.job...";
   public static final String LOAD_FILE_EXTENSION = "avro";
   public static final String STREAM_FILE_EXTENSION = "stream";
@@ -45,6 +50,7 @@ public class Constants {
           PrimitiveObjectInspector.PrimitiveCategory.DOUBLE,
           PrimitiveObjectInspector.PrimitiveCategory.DATE,
           PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,
+          PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMPLOCALTZ,
           PrimitiveObjectInspector.PrimitiveCategory.BINARY,
           PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN,
           PrimitiveObjectInspector.PrimitiveCategory.CHAR,

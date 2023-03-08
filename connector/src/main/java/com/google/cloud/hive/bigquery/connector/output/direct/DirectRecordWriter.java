@@ -32,8 +32,8 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TaskAttemptID;
-import repackaged.by.hivebqconnector.com.google.protobuf.Descriptors;
-import repackaged.by.hivebqconnector.com.google.protobuf.DynamicMessage;
+import shaded.hivebqcon.com.google.protobuf.Descriptors;
+import shaded.hivebqcon.com.google.protobuf.DynamicMessage;
 
 /**
  * Writes records to a given BQ stream. Each task runs its own instance of this writer class, i.e.
@@ -45,6 +45,7 @@ public class DirectRecordWriter
         FileSinkOperator.RecordWriter {
 
   JobConf jobConf;
+  JobDetails jobDetails;
   TaskAttemptID taskAttemptID;
   BigQueryDirectDataWriterHelper streamWriter;
   StructObjectInspector rowObjectInspector;
@@ -53,6 +54,7 @@ public class DirectRecordWriter
   public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
+    this.jobDetails = jobDetails;
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);
@@ -76,23 +78,27 @@ public class DirectRecordWriter
   public void write(Writable writable) throws IOException {
     Object object = ((ObjectWritable) writable).get();
     DynamicMessage message =
-        ProtoDeserializer.buildSingleRowMessage(rowObjectInspector, descriptor, object);
+        ProtoDeserializer.buildSingleRowMessage(
+            rowObjectInspector, descriptor, jobDetails.getBigquerySchema().getFields(), object);
     streamWriter.addRow(message.toByteString());
   }
 
   @Override
   public void close(boolean abort) throws IOException {
-    // Only save the stream reference file if the task has succeeded
-    if (!abort) {
+    if (abort) {
+      streamWriter.abort();
+    } else {
+      // To-Do: find a better way to store streams info than small hdfs files
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf);
       Path filePath =
-          DirectUtils.getTaskTempStreamFile(jobConf, jobDetails.getTableId(), taskAttemptID);
-      FSDataOutputStream streamFile = filePath.getFileSystem(jobConf).create(filePath);
-      streamFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
-      streamFile.close();
+          DirectUtils.getTaskTempStreamFile(
+              jobConf, jobDetails.getHmsDbTableName(), jobDetails.getTableId(), taskAttemptID);
+      FSDataOutputStream streamRefFile = filePath.getFileSystem(jobConf).create(filePath);
+      streamRefFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
+      streamRefFile.close();
+      streamWriter.close();
     }
   }
 

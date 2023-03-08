@@ -25,8 +25,8 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.RecordReader;
-import repackaged.by.hivebqconnector.org.apache.arrow.vector.FieldVector;
-import repackaged.by.hivebqconnector.org.apache.arrow.vector.VectorSchemaRoot;
+import shaded.hivebqcon.org.apache.arrow.vector.FieldVector;
+import shaded.hivebqcon.org.apache.arrow.vector.VectorSchemaRoot;
 
 /**
  * Reads from Arrow-formatted batches of rows, and returns individual rows in a serialized format
@@ -42,9 +42,9 @@ public class ArrowRecordReader
   private final StructObjectInspector rowObjectInspector;
 
   public ArrowRecordReader(BigQueryInputSplit inputSplit, JobConf jobConf) {
-    arrowBatchReader = new ArrowBatchReader(inputSplit, jobConf);
-    columnNames = inputSplit.getColumnNames();
-    rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobConf);
+    this.arrowBatchReader = new ArrowBatchReader(inputSplit, jobConf);
+    this.columnNames = inputSplit.getColumnNames();
+    this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobConf);
   }
 
   /**

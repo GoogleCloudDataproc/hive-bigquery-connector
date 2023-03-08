@@ -18,24 +18,22 @@ package com.google.cloud.hive.bigquery.connector;
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.List;
-import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class BigLakeIntegrationTests extends IntegrationTestsBase {
 
-  @CartesianTest
-  public void testReadBigLakeTable(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testReadBigLakeTable(String engine, String readDataFormat) {
     // Create BigLake table
     runBqQuery(BIGQUERY_BIGLAKE_TABLE_CREATE_QUERY);
     // Create Hive table
     initHive(engine, readDataFormat);
     createExternalTable(BIGLAKE_TABLE_NAME, HIVE_BIGLAKE_TABLE_DDL);
     // Read data
-    List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", BIGLAKE_TABLE_NAME));
+    List<Object[]> rows = runHiveQuery(String.format("SELECT * FROM %s", BIGLAKE_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
           new Object[] {1L, 2L, 3L},

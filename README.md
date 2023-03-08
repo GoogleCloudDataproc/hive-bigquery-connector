@@ -10,7 +10,8 @@ See the details in [CHANGES.md](CHANGES.md).
 
 ## Version support
 
-This connector has been tested with Hive 3.1.2, Hadoop 2.10.1, and Tez 0.9.1.
+This connector supports Hive 3.1.2, Tez 0.9.2, and Hadoop 2.10.2 and 3.2.3 on
+[Dataproc](https://cloud.google.com/dataproc).
 
 ## Installation
 
@@ -26,20 +27,14 @@ This connector has been tested with Hive 3.1.2, Hadoop 2.10.1, and Tez 0.9.1.
    ``` sh
    ./mvnw package -DskipTests
    ```
-   The packaged JAR is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar`
+   The packaged JAR is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT.jar`
 
-4. Copy the packaged JAR to a Google Cloud Storage bucket that can be accessed from your Hive cluster.
+4. Upload the JAR to your cluster.
 
-5. Open the Hive CLI and load the JAR:
-
-   ```sh
-   hive> add jar gs://<JAR location>/hive-bigquery-connector-2.0.0-SNAPSHOT-with-dependencies.jar;
-   ```
-
-4. Verify that the JAR is correctly loaded:
+5. Pass the JAR's path with the `--auxpath` parameter when you start your Hive session:
 
    ```sh
-   hive> list jars;
+   hive --auxpath <JAR path>/hive-bigquery-connector-2.0.0-SNAPSHOT.jar
    ```
 
 ## Managed vs external tables
@@ -101,12 +96,14 @@ partitioning and ingestion time partitioning.
 
 ### Time-unit column partitioning
 
-You can partition a table on a `DATE` or `TIMESTAMP` column. When you write data to the table,
-BigQuery automatically puts the data into the correct partition based on the values in the column.
+You can partition a table on a column of Hive type `DATE`, `TIMESTAMP`, or `TIMESTAMPLOCALTZ`, which
+respectively correspond to the BigQuery `DATE`, `DATETIME`, and `TIMESTAMP` types. When you write
+data to the table, BigQuery automatically puts the data into the correct partition based on the
+values in the column.
 
-For `TIMESTAMP` columns, the partitions can have either hourly, daily, monthly, or yearly
-granularity. For `DATE` columns, the partitions can have daily, monthly, or yearly granularity.
-Partitions boundaries are based on UTC time.
+For `TIMESTAMP` and `TIMESTAMPLOCALTZ` columns, the partitions can have either hourly, daily,
+monthly, or yearly granularity. For `DATE` columns, the partitions can have daily, monthly, or
+yearly granularity. Partitions boundaries are based on UTC time.
 
 To create a table partitioned by a time-unit column, you must set the `bq.time.partition.field`
 table property to the column's name.
@@ -137,8 +134,9 @@ or yearly boundaries for the partitions. Partitions boundaries are based on UTC 
 An ingestion-time partitioned table also has two pseudo columns:
 
 - `_PARTITIONTIME`: ingestion time for each row, truncated to the partition boundary (such as hourly
-  or daily).
-- `_PARTITIONDATE`: UTC date corresponding to the value in the `_PARTITIONTIME` pseudo column.
+  or daily). This column has the `DATE` Hive type, which corresponds to the BigQuery `DATE` type.
+- `_PARTITIONDATE`: UTC date corresponding to the value in the `_PARTITIONTIME` pseudo column. This
+  column has the `TIMESTAMPLOCALTZ` Hive type, which corresponds to the BigQuery `TIMESTAMP` type.
 
 To create a table partitioned by ingestion time, you must set the `bq.time.partition.type` table
 property to the partition boundary of your choice (`HOUR`, `DAY`, `MONTH`, or `YEAR`).
@@ -217,25 +215,26 @@ You can set the following Hive/Hadoop configuration properties in your environme
 
 Add links to Hive & BQ types doc.
 
-| Hive        | Hive type description                                                                                                                                                                      | BigQuery        | BigQuery type description                                                                                                                        |
-|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `TINYINT`   | 1-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `SMALLINT`  | 2-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `INT`       | 4-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `BIGINT`    | 8-byte signed integer                                                                                                                                                                      | `INT64`         |                                                                                                                                                  |
-| `FLOAT`     | 4-byte single precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
-| `DOUBLE`    | 8-byte double precision floating point number                                                                                                                                              | `FLOAT64`       |                                                                                                                                                  |
-| `DECIMAL`   | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                                                                                                               | `BIGDECIMAL`    | Alias of `BIGNUMERIC`                                                                                                                            |
-| `DATE`      | Format: `YYYY-MM-DD`                                                                                                                                                                       | `DATE`          | Format: `YYYY-[M]M-[D]D`. Supported range: 0001-01-01 to 9999-12-31                                                                              |
-| `TIMESTAMP` | Represents an absolute point in time since Unix epoch with millisecond precision (on Hive) compared to Microsecond precision on Bigquery. Considered timezoneless and based on local time. | `TIMESTAMP`     |                                                                                                                                                  |
-| `BOOLEAN`   | Boolean values are represented by the keywords TRUE and FALSE                                                                                                                              | `BOOLEAN`       |                                                                                                                                                  |
-| `CHAR`      | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
-| `VARCHAR`   | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
-| `STRING`    | Variable-length character data                                                                                                                                                             | `STRING`        |                                                                                                                                                  |
-| `BINARY`    | Variable-length binary data                                                                                                                                                                | `BYTES`         |                                                                                                                                                  |
-| `ARRAY`     | Represents repeated values                                                                                                                                                                 | `ARRAY`         |                                                                                                                                                  |
-| `STRUCT`    | Represents nested structures                                                                                                                                                               | `STRUCT`        |                                                                                                                                                  |
-| `MAP`       | Dictionary of keys and values. Keys must be of primitive type, whereas values can be of any type.                                                                                          | `ARRAY<STRUCT>` | BigQuery doesn't support Maps natively. The connector implements it as a list of structs, where each struct has two columns: `name` and `value`. |
+| Hive               | Hive type description                                                                             | BigQuery        | BigQuery type description                                                                                                                        |
+|--------------------|---------------------------------------------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TINYINT`          | 1-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `SMALLINT`         | 2-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `INT`              | 4-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `BIGINT`           | 8-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
+| `FLOAT`            | 4-byte single precision floating point number                                                     | `FLOAT64`       |                                                                                                                                                  |
+| `DOUBLE`           | 8-byte double precision floating point number                                                     | `FLOAT64`       |                                                                                                                                                  |
+| `DECIMAL`          | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                      | `BIGDECIMAL`    | Alias of `BIGNUMERIC`                                                                                                                            |
+| `DATE`             | Format: `YYYY-MM-DD`                                                                              | `DATE`          | Format: `YYYY-[M]M-[D]D`. Supported range: 0001-01-01 to 9999-12-31                                                                              |
+| `TIMESTAMP`        | Timezone-less timestamp stored as an offset from the UNIX epoch                                   | `DATETIME`      | A date and time, as they might be displayed on a watch, independent of time zone.                                                                |
+| `TIMESTAMPLOCALTZ` | Timezoned timestamp stored as an offset from the UNIX epoch                                       | `TIMESTAMP`     | Absolute point in time, independent of any time zone or convention such as Daylight Savings Time                                                 |
+| `BOOLEAN`          | Boolean values are represented by the keywords TRUE and FALSE                                     | `BOOLEAN`       |                                                                                                                                                  |
+| `CHAR`             | Variable-length character data                                                                    | `STRING`        |                                                                                                                                                  |
+| `VARCHAR`          | Variable-length character data                                                                    | `STRING`        |                                                                                                                                                  |
+| `STRING`           | Variable-length character data                                                                    | `STRING`        |                                                                                                                                                  |
+| `BINARY`           | Variable-length binary data                                                                       | `BYTES`         |                                                                                                                                                  |
+| `ARRAY`            | Represents repeated values                                                                        | `ARRAY`         |                                                                                                                                                  |
+| `STRUCT`           | Represents nested structures                                                                      | `STRUCT`        |                                                                                                                                                  |
+| `MAP`              | Dictionary of keys and values. Keys must be of primitive type, whereas values can be of any type. | `ARRAY<STRUCT>` | BigQuery doesn't support Maps natively. The connector implements it as a list of structs, where each struct has two columns: `name` and `value`. |
 
 ## Execution engines
 
@@ -247,8 +246,6 @@ performance -- you can use it by setting the `hive.execution.engine=tez` configu
 Since BigQuery is [backed by a columnar datastore](https://cloud.google.com/blog/big-data/2016/04/inside-capacitor-bigquerys-next-generation-columnar-storage-format),
 it can efficiently stream data without reading all columns.
 
-Column pruning is currently supported only with the Tez engine.
-
 ## Predicate pushdowns
 
 The BigQuery Storage Read API supports arbitrary pushdown of predicate filters. This allows to execute the filters at
@@ -259,14 +256,14 @@ The connector automatically translates Hive generic UDFs used in predicate filte
 
 The following Hive generic UDFs and operators are supported and mapped to equivalent BigQuery functions and operators:
 
-| Hive generic UDF | BigQuery function |
-|------------------|-------------------|
-| `%`              | `MOD`             |
-| `DATE_ADD`       | `DATE_ADD`        |
-| `DATE_SUB`       | `DATE_SUB`        |
-| `DATEDIFF`       | `DATE_DIFF`       |
-| `DATEDIFF`       | `DATE_DIFF`       |
-| `RLIKE`          | `REGEXP_CONTAINS` |
+| Hive generic UDF | BigQuery function | Notes                                                                                     |
+|------------------|-------------------|-------------------------------------------------------------------------------------------|
+| `%`              | `MOD`             | BigQuery currently supports `MOD` only for the `INT64`, `NUMERIC`, and `BIGNUMERIC` types |
+| `DATE_ADD`       | `DATE_ADD`        |                                                                                           |
+| `DATE_SUB`       | `DATE_SUB`        |                                                                                           |
+| `DATEDIFF`       | `DATE_DIFF`       |                                                                                           |
+| `DATEDIFF`       | `DATE_DIFF`       |                                                                                           |
+| `RLIKE`          | `REGEXP_CONTAINS` |                                                                                           |
 
 ## Parallelism
 
@@ -275,15 +272,12 @@ The following Hive generic UDFs and operators are supported and mapped to equiva
 The connector allows parallel reads from BigQuery by using the
 [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage).
 
-When you run a read query, the connector first retrieves the desired number of splits as specified by the
-Hadoop MapReduce `InputFormat.getSplits()` method. The connector then passes this number to
+You can set the `preferredMinParallelism` configuration property, which the connector passes to
 [`CreateReadSessionRequest.setPreferredMinStreamCount()`](https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest.Builder#com_google_cloud_bigquery_storage_v1_CreateReadSessionRequest_Builder_setPreferredMinStreamCount_int_)
-when it creates the BigQuery read session.
-
-This parameter can be used to inform the BigQuery service that there is a desired lower bound on the number of streams.
-This is typically the target parallelism of the client (e.g. a Hive cluster with N-workers would set this to a low
-multiple of N to ensure good cluster utilization). The BigQuery backend makes a best effort to provide at least this
-number of streams, but in some cases might provide less.
+when it creates the BigQuery read session. This parameter can be used to inform the BigQuery service that there is a
+desired lower bound on the number of streams. This is typically the target parallelism of the client (e.g. a Hive
+cluster with N-workers would set this to a low multiple of N to ensure good cluster utilization). The BigQuery backend
+makes a best effort to provide at least this number of streams, but in some cases might provide less.
 
 Additionally, you can set the `maxParallelism` configuration property, which the connector passes to
 [CreateReadSessionRequest.setMaxStreamCount()](https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest.Builder#com_google_cloud_bigquery_storage_v1_CreateReadSessionRequest_Builder_setMaxStreamCount_int_).
@@ -335,8 +329,9 @@ and this method only incur [costs related to GCS write operations and storage](h
 However, this method is also generally much slower due to its multi-stage nature and data being routed through GCS.
 Learn more about other [limitations](https://cloud.google.com/bigquery/docs/batch-loading-data#limitations).
 
-The connector uses the direct write method by default. To let it use the indirect method instead, set the
-`bq.write.method` configuration property to `indirect`.
+The connector uses the direct write method by default. To let it use the indirect method instead,
+set the `bq.write.method` configuration property to `indirect`, and set the `bq.temp.gcs.path`
+property to indicate where to store the temporary Avro files in GCS.
 
 ## Reading From BigQuery Views
 
@@ -357,17 +352,11 @@ Please note there are a few caveats:
 ## Known issues and limitations
 
 1. Ensure that the table exists in BigQuery and column names are always lowercase.
-2. A `TIMESTAMP` column in hive is interpreted to be timezone-less and stored as an offset from the UNIX epoch with
-   milliseconds precision. To display in human-readable format, use the `from_unix_time` UDF:
-
-   ```sql
-   from_unixtime(cast(cast(<timestampcolumn> as bigint)/1000 as bigint), 'yyyy-MM-dd hh:mm:ss')
-   ```
-3. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
+2. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
    files might not be automatically cleaned up from the GCS bucket. The MR execution engine does not have that
    limitation. The temporary files are always cleaned up when the job is successful, regardless of the execution engine
    in use.
-4. If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro format for reading
+3. If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro format for reading
    or the indirect method for writing. This is because Avro requires keys to be strings. If you use the Arrow format for
    reading (default) and the direct method for writing (also default), then there are no type limitations for the keys.
 
@@ -448,24 +437,68 @@ gsutil iam ch ${BIGLAKE_SA}:objectViewer gs://${PROJECT}-biglake-tests
 You must use Java version 8, as it's the version that Hive itself uses. Make sure that `JAVA_HOME` points to the Java
 8's base directory.
 
-To run the integration tests:
+* To run the integration tests:
+  ```sh
+  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
+  ```
 
-```sh
-./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
-```
+* To run a specific test method:
+  ```sh
+  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests#testInsertTez"
+  ```
 
-To run a specific test method:
+* To debug the tests, add the `-Dmaven.failsafe.debug` property:
+  ```sh
+  ./mvnw verify -Dmaven.failsafe.debug --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
+  ```
+  ... then run a remote debugger in IntelliJ at port `5005`. Read more about debugging with FailSafe
+  here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
 
-```sh
-./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests#testInsertTez"
-```
+##### Running the tests for different Hadoop versions
 
-To debug the tests, add the `-Dmaven.failsafe.debug` property:
+To run the tests for Hadoop 2, pass the `-Phadoop2` parameter to the `mvnw verify` command to
+activate the `hadoop2` Maven profile. For Hadoop 3, pass `-Phadoop3` instead.
 
-```sh
-./mvnw verify -Dmaven.failsafe.debug --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
-```
+Before you can run the tests with Hadoop 3, you also must install Tez's latest (unreleased) 0.9.3:
 
-... then run a remote debugger in IntelliJ at port 5005.
+* Install Protobuf v2.5.0:
 
-Read more about debugging with FailSafe here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
+  If you're on MacOS, install these packages:
+  ```sh
+  brew install automake libtool wget
+  ```
+
+  Then compile Protobuf from source:
+  ```sh
+  cd ~
+  wget https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.bz2
+  tar -xvjf protobuf-2.5.0.tar.bz2
+  rm protobuf-2.5.0.tar.bz2
+  cd protobuf-2.5.0
+  ./autogen.sh
+  ./configure --prefix=$(PWD)
+  make; make check
+  make install
+  ```
+
+* Get the Tez source:
+  ```sh
+  cd ~
+  git clone
+  cd git@github.com:apache/tez.git
+  cd tez
+  git checkout origin/branch-0.9
+  ```
+
+* Compile and install Tez:
+  ```sh
+  export PATH=${HOME}/protobuf-2.5.0/bin:${PATH}
+  mvn clean install \
+    --projects=tez-api,tez-common,tez-mapreduce,tez-dag,hadoop-shim,tez-runtime-library,tez-runtime-internals \
+    -DskipTests=true -Dmaven.javadoc.skip=true \
+    -Dprotoc.path=${HOME}/protobuf-2.5.0/bin/protoc -Dhadoop.version=3.2.3
+  ```
+
+  If all steps have succeeded, then Tez's `0.9.2-SNAPSHOT` packages should be installed in your
+  local Maven repository and you should be able to run the tests with Hadoop 3 by using the
+  `-Phadoop3` argument.

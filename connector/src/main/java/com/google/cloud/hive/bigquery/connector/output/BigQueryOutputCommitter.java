@@ -15,25 +15,27 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
-import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
+import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import java.io.IOException;
+import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import shaded.hivebqcon.com.google.common.collect.Sets;
 
 public class BigQueryOutputCommitter extends OutputCommitter {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);
 
-  public static void commit(Configuration conf) throws IOException {
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
+  public static void commit(Configuration conf, JobDetails jobDetails) throws IOException {
     String writeMethod =
         conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
     // Pick the appropriate OutputCommitter (direct or indirect) based on the
@@ -45,36 +47,44 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     } else {
       throw new RuntimeException("Invalid write method setting: " + writeMethod);
     }
-    FileSystemUtils.deleteWorkDirOnExit(conf);
+    FileSystemUtils.deleteWorkDirOnExit(conf, jobDetails.getHmsDbTableName());
   }
 
-  /**
-   * This method is called automatically at the end of a successful job when using the "mr"
-   * execution engine. This method is not called when using "tez" -- for that, see {@link
-   * BigQueryMetaHook#commitInsertTable(Table, boolean)}
-   */
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
-    JobConf conf = jobContext.getJobConf();
-    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
-    if (engine.equals("mr")) {
-      commit(conf);
-    } else {
-      throw new RuntimeException("Unexpected execution engine: " + engine);
+    JobConf jobConf = jobContext.getJobConf();
+    Set<String> outputTables = getOutputTables(jobConf);
+    LOG.info("Committing job {} with output tables {}", jobContext.getJobID(), outputTables);
+    for (String hmsDbTableName : outputTables) {
+      JobDetails jobDetails;
+      try {
+        jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
+      } catch (Exception e) {
+        // TO-DO: should we abort the job?
+        LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
+        continue;
+      }
+      commit(jobConf, jobDetails);
     }
     super.commitJob(jobContext);
   }
 
-  /**
-   * This method is called automatically at the end of a failed job when using the "mr" execution
-   * engine.
-   */
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
-    JobConf conf = jobContext.getJobConf();
-    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf);
-    DirectOutputCommitter.abortJob(conf, jobDetails);
-    FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf());
+    JobConf jobConf = jobContext.getJobConf();
+    Set<String> outputTables = getOutputTables(jobConf);
+    LOG.info("aborting job {} with output tables {}", jobContext.getJobID(), outputTables);
+    for (String hmsDbTableName : outputTables) {
+      JobDetails jobDetails;
+      try {
+        jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
+      } catch (Exception e) {
+        LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
+        continue;
+      }
+      DirectOutputCommitter.abortJob(jobConf, jobDetails);
+      FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf(), jobDetails.getHmsDbTableName());
+    }
     super.abortJob(jobContext, status);
   }
 
@@ -101,5 +111,10 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   @Override
   public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
     // Do nothing
+  }
+
+  private Set<String> getOutputTables(JobConf jobConf) {
+    String outputTblsStr = jobConf.get(Constants.HIVE_OUTPUT_TABLES_KEY);
+    return Sets.newHashSet(Constants.TABLE_NAME_SPLITTER.split(outputTblsStr));
   }
 }

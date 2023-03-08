@@ -27,6 +27,55 @@ import org.apache.hadoop.hive.ql.udf.generic.*;
 
 public class BigQueryFilters {
 
+  /** Converts the Hive UDF to the corresponding BigQuery function, if necessary. */
+  protected static void convertUDF(ExprNodeGenericFuncDesc function) {
+    // UDF conversion
+    if (function.getGenericUDF() instanceof GenericUDFDateDiff) {
+      function.setGenericUDF(new BigQueryUDFDateDiff());
+    } else if (function.getGenericUDF() instanceof GenericUDFDateSub) {
+      function.setGenericUDF(new BigQueryUDFDateSub());
+    } else if (function.getGenericUDF() instanceof GenericUDFDateAdd) {
+      function.setGenericUDF(new BigQueryUDFDateAdd());
+    } else if (function.getGenericUDF() instanceof GenericUDFOPMod) {
+      function.setGenericUDF(new BigQueryUDFMod());
+    } else if (function.getGenericUDF() instanceof GenericUDFRegExp) {
+      function.setGenericUDF(new BigQueryUDFRegExpContains());
+    } else if (function.getGenericUDF() instanceof GenericUDFToDate) {
+      function.setGenericUDF(new BigQueryUDFToDate());
+    } else if (function.getGenericUDF() instanceof GenericUDFTimestamp) {
+      function.setGenericUDF(new BigQueryUDFToDatetime());
+    } else if (function.getGenericUDF() instanceof GenericUDFToTimestampLocalTZ) {
+      function.setGenericUDF(new BigQueryUDFToTimestamp());
+    } else if (function.getGenericUDF() instanceof GenericUDFToBinary) {
+      function.setGenericUDF(new BigQueryUDFToBytes());
+    } else if (function.getGenericUDF() instanceof GenericUDFToVarchar) {
+      function.setGenericUDF(new BigQueryUDFToString());
+    } else if (function.getGenericUDF() instanceof GenericUDFToChar) {
+      function.setGenericUDF(new BigQueryUDFToString());
+    } else if (function.getGenericUDF() instanceof GenericUDFToDecimal) {
+      function.setGenericUDF(new BigQueryUDFToDecimal());
+    } else if (function.getGenericUDF() instanceof GenericUDFBridge) {
+      switch (function.getGenericUDF().getUdfName()) {
+        case "UDFToString":
+          function.setGenericUDF(new BigQueryUDFToString());
+          break;
+        case "UDFToLong":
+        case "UDFToInteger":
+        case "UDFToShort":
+        case "UDFToByte":
+          function.setGenericUDF(new BigQueryUDFToInt64());
+          break;
+        case "UDFToBoolean":
+          function.setGenericUDF(new BigQueryUDFToBoolean());
+          break;
+        case "UDFToFloat":
+        case "UDFToDouble":
+          function.setGenericUDF(new BigQueryUDFToFloat64());
+          break;
+      }
+    }
+  }
+
   /**
    * Translates the given filter expression (from a WHERE clause) to be compatible with BigQuery.
    */
@@ -34,19 +83,8 @@ public class BigQueryFilters {
     // Check if it's a function
     if (filterExpr instanceof ExprNodeGenericFuncDesc) {
       ExprNodeGenericFuncDesc function = ((ExprNodeGenericFuncDesc) filterExpr);
+      convertUDF(function);
 
-      // UDF conversion
-      if (function.getGenericUDF() instanceof GenericUDFDateDiff) {
-        function.setGenericUDF(new BigQueryUDFDateDiff());
-      } else if (function.getGenericUDF() instanceof GenericUDFDateSub) {
-        function.setGenericUDF(new BigQueryUDFDateSub());
-      } else if (function.getGenericUDF() instanceof GenericUDFDateAdd) {
-        function.setGenericUDF(new BigQueryUDFDateAdd());
-      } else if (function.getGenericUDF() instanceof GenericUDFOPMod) {
-        function.setGenericUDF(new BigQueryUDFMod());
-      } else if (function.getGenericUDF() instanceof GenericUDFRegExp) {
-        function.setGenericUDF(new BigQueryUDFRegExpContains());
-      }
       // Translate the children parameters
       List<ExprNodeDesc> translatedChildren = new ArrayList<>();
       for (ExprNodeDesc child : filterExpr.getChildren()) {

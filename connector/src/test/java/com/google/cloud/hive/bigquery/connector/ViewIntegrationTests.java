@@ -22,15 +22,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.List;
-import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class ViewIntegrationTests extends IntegrationTestsBase {
 
-  @CartesianTest
-  public void testViewsDisabled(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testViewsDisabled(String engine, String readDataFormat) {
     // Disable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "false");
     initHive(engine, readDataFormat);
@@ -44,15 +43,13 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     Throwable exception =
         assertThrows(
             RuntimeException.class,
-            () -> runHiveStatement(String.format("SELECT * FROM %s", TEST_VIEW_NAME)));
+            () -> runHiveQuery(String.format("SELECT * FROM %s", TEST_VIEW_NAME)));
     assertTrue(exception.getMessage().contains("Views are not enabled"));
   }
 
-  @CartesianTest
-  public void testReadEmptyView(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testReadEmptyView(String engine, String readDataFormat) {
     // Enable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
     initHive(engine, readDataFormat);
@@ -63,16 +60,14 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     // Create the corresponding Hive table
     createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Query the view
-    List<Object[]> rows = runHiveStatement(String.format("SELECT * FROM %s", TEST_VIEW_NAME));
+    List<Object[]> rows = runHiveQuery(String.format("SELECT * FROM %s", TEST_VIEW_NAME));
     assertThat(rows).isEmpty();
   }
 
   /** Test the WHERE clause */
-  @CartesianTest
-  public void testWhereClause(
-      @CartesianTest.Values(strings = {"mr", "tez"}) String engine,
-      @CartesianTest.Values(strings = {HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO})
-          String readDataFormat) {
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testWhereClause(String engine, String readDataFormat) {
     // Enable views
     hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
     initHive(engine, readDataFormat);
@@ -91,7 +86,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     assertEquals(2, result.getTotalRows());
     // Read filtered view using Hive
     List<Object[]> rows =
-        runHiveStatement(String.format("SELECT * FROM %s WHERE number = 999", TEST_VIEW_NAME));
+        runHiveQuery(String.format("SELECT * FROM %s WHERE number = 999", TEST_VIEW_NAME));
     // Verify we get the expected rows
     assertArrayEquals(
         new Object[] {

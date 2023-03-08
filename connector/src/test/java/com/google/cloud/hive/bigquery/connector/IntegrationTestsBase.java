@@ -24,13 +24,15 @@ import com.klarna.hiverunner.HiveRunnerExtension;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.provider.Arguments;
 
 // TODO: When running the tests, some noisy exceptions are displayed in the output:
 //  "javax.jdo.JDOFatalUserException: Persistence Manager has been closed".
@@ -53,13 +55,13 @@ public class IntegrationTestsBase {
   public static void setUpAll() {
     // Create the bucket for 'indirect' jobs.
     try {
-      createBucket(getIndirectWriteBucket());
+      createBucket(getTestBucket());
     } catch (StorageException e) {
       if (e.getCode() == 409) {
         // The bucket already exists, maybe left over after a previous test failure.
         // Delete and recreate it to start fresh with an empty bucket.
-        deleteBucket(getIndirectWriteBucket());
-        createBucket(getIndirectWriteBucket());
+        deleteBucket(getTestBucket());
+        createBucket(getTestBucket());
       }
     }
     // Upload datasets to the BigLake bucket.
@@ -89,13 +91,20 @@ public class IntegrationTestsBase {
         parameters);
 
     // Empty the indirect write bucket
-    emptyBucket(getIndirectWriteBucket());
+    emptyBucket(getTestBucket());
+
+    // Set default Hadoop/Hive configuration -----------------------------------
+    // TODO: Match with Dataproc's default config as much as possible
+    // Enable map-joins
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "true");
+    // Enable vectorize mode
+    hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
   }
 
   @AfterAll
   static void tearDownAll() {
     // Cleanup the GCS bucket
-    deleteBucket(getIndirectWriteBucket());
+    deleteBucket(getTestBucket());
     // Cleanup the test BQ dataset
     deleteBqDatasetAndTables(dataset);
   }
@@ -106,12 +115,17 @@ public class IntegrationTestsBase {
     params.put("dataset", dataset);
     params.put("location", LOCATION);
     params.put("connection", BIGLAKE_CONNECTION);
+    params.put("test_bucket", "gs://" + getTestBucket());
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
+  }
+
+  public void createPureHiveTable(String tableName, String hiveDDL) {
+    runHiveQuery(String.join("\n", "CREATE TABLE " + tableName + " (", hiveDDL, ")"));
   }
 
   public void createHiveTable(
       String tableName, String hiveDDL, boolean isExternal, String properties, String comment) {
-    runHiveScript(
+    runHiveQuery(
         String.join(
             "\n",
             "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + tableName + " (",
@@ -124,7 +138,30 @@ public class IntegrationTestsBase {
             "  'bq.dataset'='${dataset}',",
             "  'bq.table'='" + tableName + "'",
             properties != null ? "," + properties : "",
-            ");"));
+            ")"));
+  }
+
+  public void createHiveTable(
+      String hmsTableName,
+      String bqTableName,
+      String hiveDDL,
+      boolean isExternal,
+      String properties,
+      String comment) {
+    runHiveQuery(
+        String.join(
+            "\n",
+            "CREATE " + (isExternal ? "EXTERNAL" : "") + " TABLE " + hmsTableName + " (",
+            hiveDDL,
+            ")",
+            comment != null ? "COMMENT \"" + comment + "\"" : "",
+            "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
+            "TBLPROPERTIES (",
+            "  'bq.project'='${project}',",
+            "  'bq.dataset'='${dataset}',",
+            "  'bq.table'='" + bqTableName + "'",
+            properties != null ? "," + properties : "",
+            ")"));
   }
 
   public void createExternalTable(String tableName, String hiveDDL) {
@@ -164,16 +201,23 @@ public class IntegrationTestsBase {
     return getBigqueryClient().query(renderQueryTemplate(queryTemplate));
   }
 
+  /** Runs a Hive script, which may be made of multiple Hive statements. */
   public void runHiveScript(String queryTemplate) {
     hive.execute(renderQueryTemplate(queryTemplate));
   }
 
-  public List<Object[]> runHiveStatement(String queryTemplate) {
-    return hive.executeStatement(renderQueryTemplate(queryTemplate));
+  /** Runs a single Hive statement. */
+  public List<Object[]> runHiveQuery(String queryTemplate) {
+    // Remove the ';' character at the end if there is one
+    String cleanedTemplate = StringUtils.stripEnd(queryTemplate, null);
+    if (StringUtils.endsWith(queryTemplate, ";")) {
+      cleanedTemplate = StringUtils.chop(cleanedTemplate);
+    }
+    return hive.executeStatement(renderQueryTemplate(cleanedTemplate));
   }
 
   public void initHive() {
-    initHive("tez", HiveBigQueryConfig.ARROW);
+    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.ARROW);
   }
 
   public void initHive(String engine, String readDataFormat) {
@@ -192,7 +236,73 @@ public class IntegrationTestsBase {
     hive.setHiveConfValue(
         "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
     hive.setHiveConfValue("datanucleus.autoStartMechanismMode", "ignored");
+
+    // This is needed to avoid an odd exception when running the tests with Tez and Hadoop 3.
+    // Similar issue to what's described in https://issues.apache.org/jira/browse/HIVE-24734
+    hive.setHiveConfValue(MRJobConfig.MAP_MEMORY_MB, "1024");
+
     hive.start();
-    runHiveScript("CREATE DATABASE source_db");
+    runHiveQuery("CREATE DATABASE source_db");
+  }
+
+  protected static String getDefaultExecutionEngine() {
+    return "tez";
+  }
+
+  protected static final String EXECUTION_ENGINE = "executionEngineParameter";
+
+  protected static Stream<Arguments> executionEngineParameter() {
+    return Stream.of(Arguments.of("mr"), Arguments.of("tez"));
+  }
+
+  protected static final String READ_FORMAT = "readFormatParameter";
+
+  protected static Stream<Arguments> readFormatParameter() {
+    return Stream.of(Arguments.of(HiveBigQueryConfig.ARROW), Arguments.of(HiveBigQueryConfig.AVRO));
+  }
+
+  protected static final String WRITE_METHOD = "writeMethodParameters";
+
+  protected static Stream<Arguments> writeMethodParameters() {
+    return Stream.of(
+        Arguments.of(HiveBigQueryConfig.WRITE_METHOD_DIRECT),
+        Arguments.of(HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
+  }
+
+  protected static final String EXECUTION_ENGINE_READ_FORMAT =
+      "executionEngineReadFormatParameters";
+
+  protected static Stream<Arguments> executionEngineReadFormatParameters() {
+    List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
+    Collections.shuffle(readFormats);
+    return Stream.of(
+        Arguments.of("mr", readFormats.get(0)), Arguments.of("tez", readFormats.get(1)));
+  }
+
+  protected static final String EXECUTION_ENGINE_WRITE_METHOD =
+      "executionEngineWriteMethodParameters";
+
+  protected static Stream<Arguments> executionEngineWriteMethodParameters() {
+    List<String> writeMethods =
+        Arrays.asList(
+            HiveBigQueryConfig.WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    Collections.shuffle(writeMethods);
+    return Stream.of(
+        Arguments.of("mr", writeMethods.get(0)), Arguments.of("tez", writeMethods.get(1)));
+  }
+
+  protected static final String EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD =
+      "executionEngineReadFormatWriteMethodParameters";
+
+  protected static Stream<Arguments> executionEngineReadFormatWriteMethodParameters() {
+    List<String> readFormats = Arrays.asList(HiveBigQueryConfig.ARROW, HiveBigQueryConfig.AVRO);
+    List<String> writeMethods =
+        Arrays.asList(
+            HiveBigQueryConfig.WRITE_METHOD_DIRECT, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    Collections.shuffle(readFormats);
+    Collections.shuffle(writeMethods);
+    return Stream.of(
+        Arguments.of("mr", readFormats.get(0), writeMethods.get(0)),
+        Arguments.of("tez", readFormats.get(1), writeMethods.get(1)));
   }
 }

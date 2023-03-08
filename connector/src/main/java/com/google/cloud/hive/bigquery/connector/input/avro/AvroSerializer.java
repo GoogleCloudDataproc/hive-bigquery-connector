@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.avro;
 
+import com.google.cloud.hive.bigquery.connector.utils.DateTimeUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroSchemaInfo;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,10 +32,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
+import org.apache.hadoop.hive.common.type.Timestamp;
+import org.apache.hadoop.hive.common.type.TimestampTZ;
+import org.apache.hadoop.hive.serde2.io.*;
+import org.apache.hadoop.hive.serde2.io.ByteWritable;
 import org.apache.hadoop.hive.serde2.io.DateWritableV2;
+import org.apache.hadoop.hive.serde2.io.DoubleWritable;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
-import org.apache.hadoop.hive.serde2.io.TimestampWritableV2;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -64,30 +70,30 @@ public class AvroSerializer {
 
     Schema actualSchema = schemaInfo.getActualSchema();
 
-    if (actualSchema.getType() == Schema.Type.ARRAY) {
+    if (objectInspector instanceof ListObjectInspector) { // Array/List type
+      ListObjectInspector loi = (ListObjectInspector) objectInspector;
       List<?> array = (List<?>) avroObject;
-      if (objectInspector instanceof ListObjectInspector) { // Array/List type
-        ListObjectInspector loi = (ListObjectInspector) objectInspector;
-        return array.stream()
-            .map(
-                value ->
-                    serialize(
-                        value, loi.getListElementObjectInspector(), actualSchema.getElementType()))
-            .toArray();
-      }
-      if (objectInspector instanceof MapObjectInspector) { // Map type
-        MapObjectInspector moi = (MapObjectInspector) objectInspector;
-        KeyValueObjectInspector kvoi = KeyValueObjectInspector.create(moi);
-        Map<Object, Object> map = new HashMap<>();
-        for (Object object : array) {
-          Object[] item = (Object[]) serialize(object, kvoi, actualSchema.getElementType());
-          map.put(item[0], item[1]);
-        }
-        return map;
-      }
+      return array.stream()
+          .map(
+              value ->
+                  serialize(
+                      value, loi.getListElementObjectInspector(), actualSchema.getElementType()))
+          .toArray();
     }
 
-    if (actualSchema.getType() == Schema.Type.RECORD) { // Record/Struct type
+    if (objectInspector instanceof MapObjectInspector) { // Map type
+      MapObjectInspector moi = (MapObjectInspector) objectInspector;
+      List<?> array = (List<?>) avroObject;
+      KeyValueObjectInspector kvoi = KeyValueObjectInspector.create(moi);
+      Map<Object, Object> map = new HashMap<>();
+      for (Object object : array) {
+        Object[] item = (Object[]) serialize(object, kvoi, actualSchema.getElementType());
+        map.put(item[0], item[1]);
+      }
+      return map;
+    }
+
+    if (objectInspector instanceof StructObjectInspector) { // Record/Struct type
       GenericRecord record = (GenericRecord) avroObject;
       List<Schema.Field> fields = actualSchema.getFields();
       StructObjectInspector soi = (StructObjectInspector) objectInspector;
@@ -101,71 +107,73 @@ public class AvroSerializer {
           .toArray();
     }
 
-    if (actualSchema.getType() == Schema.Type.INT) {
-      String logicalType = actualSchema.getProp("logicalType");
-      if (logicalType != null && logicalType.equals("date")) {
-        int intValue = (int) avroObject;
-        LocalDate localDate = LocalDate.ofEpochDay(intValue);
-        org.apache.hadoop.hive.common.type.Date date = new Date();
-        date.setDayOfMonth(localDate.getDayOfMonth());
-        date.setMonth(localDate.getMonth().getValue());
-        date.setYear(localDate.getYear());
-        return new DateWritableV2(date);
-      }
-      throw new UnsupportedOperationException(
-          "Unsupported integer type: " + actualSchema.getType());
+    if (objectInspector instanceof DateObjectInspector) {
+      int intValue = (int) avroObject;
+      LocalDate localDate = LocalDate.ofEpochDay(intValue);
+      org.apache.hadoop.hive.common.type.Date date = new Date();
+      date.setDayOfMonth(localDate.getDayOfMonth());
+      date.setMonth(localDate.getMonth().getValue());
+      date.setYear(localDate.getYear());
+      return new DateWritableV2(date);
     }
 
-    if (actualSchema.getType() == Schema.Type.LONG) {
-      String logicalType = actualSchema.getProp("logicalType");
-      if (logicalType != null && logicalType.equals("timestamp-micros")) {
-        long longValue = (Long) avroObject;
-        TimestampWritableV2 timestamp = new TimestampWritableV2();
-        long secondsAsMillis = (longValue / 1_000_000) * 1_000;
-        int nanos = (int) (longValue % 1_000_000) * 1_000;
-        timestamp.setInternal(secondsAsMillis, nanos);
-        return timestamp;
-      }
-      if (objectInspector instanceof ByteObjectInspector) { // Tiny Int
-        return new ByteWritable(((Long) avroObject).byteValue());
-      }
-      if (objectInspector instanceof ShortObjectInspector) { // Small Int
-        return new ShortWritable(((Long) avroObject).shortValue());
-      }
-      if (objectInspector instanceof IntObjectInspector) { // Regular Int
-        return new IntWritable(((Long) avroObject).intValue());
-      }
-      // Big Int
+    if (objectInspector instanceof TimestampObjectInspector) {
+      LocalDateTime localDateTime = LocalDateTime.parse(((Utf8) avroObject).toString());
+      Timestamp timestamp = DateTimeUtils.getHiveTimestampFromLocalDatetime(localDateTime);
+      TimestampWritableV2 timestampWritable = new TimestampWritableV2();
+      timestampWritable.setInternal(timestamp.toEpochMilli(), timestamp.getNanos());
+      return timestampWritable;
+    }
+
+    if (objectInspector instanceof TimestampLocalTZObjectInspector) {
+      TimestampTZ timestampTZ = DateTimeUtils.getHiveTimestampTZFromUTC((long) avroObject);
+      return new TimestampLocalTZWritable(timestampTZ);
+    }
+
+    if (objectInspector instanceof ByteObjectInspector) { // Tiny Int
+      return new ByteWritable(((Long) avroObject).byteValue());
+    }
+
+    if (objectInspector instanceof ShortObjectInspector) { // Small Int
+      return new ShortWritable(((Long) avroObject).shortValue());
+    }
+
+    if (objectInspector instanceof IntObjectInspector) { // Regular Int
+      return new IntWritable(((Long) avroObject).intValue());
+    }
+
+    if (objectInspector instanceof LongObjectInspector) { // Big Int
       return new LongWritable((Long) avroObject);
     }
 
-    if (actualSchema.getType() == Schema.Type.DOUBLE) {
-      if (objectInspector instanceof FloatObjectInspector) {
-        return new FloatWritable(((Double) avroObject).floatValue());
-      }
+    if (objectInspector instanceof FloatObjectInspector) {
+      return new FloatWritable(((Double) avroObject).floatValue());
+    }
+
+    if (objectInspector instanceof DoubleObjectInspector) {
       return new DoubleWritable((Double) avroObject);
     }
 
-    if (actualSchema.getType() == Schema.Type.BOOLEAN) {
+    if (objectInspector instanceof BooleanObjectInspector) {
       return new BooleanWritable((Boolean) avroObject);
     }
 
-    if (actualSchema.getType() == Schema.Type.BYTES) {
+    if (objectInspector instanceof HiveDecimalObjectInspector) {
       byte[] bytes = ((ByteBuffer) avroObject).array();
-      String logicalType = actualSchema.getProp("logicalType");
-      if (logicalType != null && logicalType.equals("decimal")) {
-        int scale = actualSchema.getJsonProp("scale").asInt();
-        BigDecimal bigDecimal = new BigDecimal(new BigInteger(bytes), scale);
-        HiveDecimal hiveDecimal = HiveDecimal.create(bigDecimal);
-        HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) objectInspector;
-        HiveDecimal.enforcePrecisionScale(hiveDecimal, hdoi.precision(), hdoi.scale());
-        return new HiveDecimalWritable(hiveDecimal);
-      } else {
-        return new BytesWritable(bytes);
-      }
+      int scale = actualSchema.getJsonProp("scale").asInt();
+      BigDecimal bigDecimal = new BigDecimal(new BigInteger(bytes), scale);
+      HiveDecimal hiveDecimal = HiveDecimal.create(bigDecimal);
+      return new HiveDecimalWritable(hiveDecimal);
     }
 
-    if (actualSchema.getType() == Schema.Type.STRING) {
+    if (objectInspector instanceof BinaryObjectInspector) {
+      byte[] bytes = ((ByteBuffer) avroObject).array();
+      return new BytesWritable(bytes);
+    }
+
+    if (objectInspector instanceof StringObjectInspector
+        || objectInspector instanceof HiveVarcharObjectInspector
+        || objectInspector instanceof HiveCharObjectInspector) {
       return new Text(((Utf8) avroObject).toString());
     }
 

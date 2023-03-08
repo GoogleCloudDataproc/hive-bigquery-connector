@@ -15,13 +15,13 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-/** Converts Hive's modulo operator operator to BigQuery's mod() function. */
+/** Converts Hive's modulo operator to BigQuery's MOD() function. */
 public class BigQueryUDFMod extends BigQueryUDFBase {
 
   public BigQueryUDFMod() {}
 
   @Override
   public String getDisplayString(String[] children) {
-    return String.format("MOD(%s,%s)", children[0], children[1]);
+    return String.format("MOD(%s, %s)", children[0], children[1]);
   }
 }

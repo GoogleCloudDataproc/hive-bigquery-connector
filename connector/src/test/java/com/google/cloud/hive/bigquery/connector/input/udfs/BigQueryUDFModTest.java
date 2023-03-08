@@ -41,6 +41,6 @@ public class BigQueryUDFModTest {
                 new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "42")));
     func.setChildren(children);
     String expression = BigQueryFilters.translateFilters(func).getExprString();
-    assertEquals("MOD(99,42)", expression);
+    assertEquals("MOD(99, 42)", expression);
   }
 }
