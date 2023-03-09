@@ -20,7 +20,6 @@ import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspect
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
-import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.common.type.TimestampTZ;
@@ -98,12 +97,7 @@ public class ArrowSerializer {
     }
 
     if (objectInspector instanceof DateObjectInspector) {
-      LocalDate localDate = LocalDate.ofEpochDay(((DateDayVector) value).get(rowId));
-      Date date = new Date();
-      date.setDayOfMonth(localDate.getDayOfMonth());
-      date.setMonth(localDate.getMonth().getValue());
-      date.setYear(localDate.getYear());
-      return new DateWritableV2(date);
+      return new DateWritableV2(((DateDayVector) value).get(rowId));
     }
 
     if (objectInspector instanceof TimestampObjectInspector) {

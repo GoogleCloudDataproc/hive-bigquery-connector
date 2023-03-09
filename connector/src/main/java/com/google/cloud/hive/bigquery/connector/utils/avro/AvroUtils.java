@@ -44,7 +44,6 @@ import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskAttemptID;
-import org.codehaus.jackson.node.IntNode;
 
 public class AvroUtils {
 

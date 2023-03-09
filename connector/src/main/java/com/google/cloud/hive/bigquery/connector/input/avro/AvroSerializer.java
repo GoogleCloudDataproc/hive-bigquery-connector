@@ -22,7 +22,6 @@ import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspect
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +29,6 @@ import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.common.type.TimestampTZ;
@@ -101,13 +99,7 @@ public class AvroSerializer {
     }
 
     if (objectInspector instanceof DateObjectInspector) {
-      int intValue = (int) avroObject;
-      LocalDate localDate = LocalDate.ofEpochDay(intValue);
-      org.apache.hadoop.hive.common.type.Date date = new Date();
-      date.setDayOfMonth(localDate.getDayOfMonth());
-      date.setMonth(localDate.getMonth().getValue());
-      date.setYear(localDate.getYear());
-      return new DateWritableV2(date);
+      return new DateWritableV2((int) avroObject);
     }
 
     if (objectInspector instanceof TimestampObjectInspector) {
