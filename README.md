@@ -429,7 +429,7 @@ Give the BigLake connection's service account access to the bucket:
 
 ```sh
 BIGLAKE_SA=$(bq show --connection --format json ${PROJECT}.us.hive-integration-tests | jq -r .cloudResource.serviceAccountId)
-gsutil iam ch ${BIGLAKE_SA}:objectViewer gs://${PROJECT}-biglake-tests
+gsutil iam ch serviceAccount:${BIGLAKE_SA}:objectViewer gs://${PROJECT}-biglake-tests
 ```
 
 #### Running the tests
