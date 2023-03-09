@@ -31,8 +31,6 @@
         <revision>2.0.0-SNAPSHOT</revision>
         <nexus.remote.skip>false</nexus.remote.skip>
 
-        <!--avro.version>1.11.0</avro.version-->
-        <hive.version>3.1.2</hive.version>
         <protobuf.version>3.21.12</protobuf.version>
         <legacy-bigquery-connector.version>hadoop2-1.0.0</legacy-bigquery-connector.version>
         <bigquery-connector-common.version>0.28.0</bigquery-connector-common.version>
