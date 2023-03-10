@@ -87,6 +87,14 @@ TBLPROPERTIES (
 When you drop an external table using the `DROP TABLE` statement, the connector only drops the table
 metadata from the Hive Metastore. The corresponding BigQuery table remains unaffected.
 
+When run join query on external table, it is better run
+```sql
+analyze table <table_name> compute statistics; // for basic statisitics
+or
+analyze table <table_name> compute statistics for all columns;
+```
+to get statistics to help Hive do query planning, otherwise the external table may be deemed as a small table and run into mapjoin OOM issues.
+
 ## Partitioning
 
 As Hive's partitioning and BigQuery's partitioning inherently work in different ways, the Hive
