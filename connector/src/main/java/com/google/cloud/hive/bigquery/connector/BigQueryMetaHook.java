@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -243,6 +244,9 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         .setOutputFormat("com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat");
 
     if (MetaStoreUtils.isExternalTable(table)) {
+      // Unset stats
+      StatsSetupConst.setStatsStateForCreateTable(
+          table.getParameters(), null, StatsSetupConst.FALSE);
       return;
     }
 
