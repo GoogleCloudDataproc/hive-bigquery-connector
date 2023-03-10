@@ -392,7 +392,7 @@ Download a JSON private key for the service account, and set the `GOOGLE_APPLICA
 variable:
 
 ```sh
-GOOGLE_APPLICATION_CREDENTIALS=<path/to/your/key.json>
+export GOOGLE_APPLICATION_CREDENTIALS=<path/to/your/key.json>
 ```
 
 #### Enable APIs
@@ -407,29 +407,43 @@ gcloud services enable \
 
 #### BigLake setup
 
-Create a test BigLake connection:
+Define environment variables:
+
+the following values must NOT be changed as they are harcoded in the tests
 
 ```sh
-bq mk --connection --location=us --connection_type=CLOUD_RESOURCE hive-integration-tests
+export BIGLAKE_CONNECTION=hive-integration-tests
 ```
 
-Create a bucket to host BigLake datasets:
+
+the following values can be changed
 
 ```sh
-gsutil mb -l us-central1 gs://${PROJECT}-biglake-tests
+export PROJECT=my-gcp-project
+export BIGLAKE_LOCATION=us
+export BIGLAKE_REGION=us-central1
+export BIGLAKE_BUCKET=${USER}-biglake-test
+export INDIRECT_WRITE_BUCKET=${USER}-hive-bq-tmp
 ```
 
-Set the BigLake bucket name in an environment variable:
+Create the test BigLake connection if not created yet:
 
 ```sh
-BIGLAKE_BUCKET=${PROJECT}-biglake-tests
+bq mk --connection --location="${BIGLAKE_LOCATION}" --connection_type=CLOUD_RESOURCE "${BIGLAKE_CONNECTION}"
+```
+
+Create the bucket to host BigLake datasets if not created yet:
+
+```sh
+gsutil mb -l "${BIGLAKE_REGION}" "gs://${BIGLAKE_BUCKET}"
 ```
 
 Give the BigLake connection's service account access to the bucket:
 
 ```sh
-BIGLAKE_SA=$(bq show --connection --format json ${PROJECT}.us.hive-integration-tests | jq -r .cloudResource.serviceAccountId)
-gsutil iam ch serviceAccount:${BIGLAKE_SA}:objectViewer gs://${PROJECT}-biglake-tests
+export BIGLAKE_SA=$(bq show --connection --format json "${PROJECT}.${BIGLAKE_LOCATION}.${BIGLAKE_CONNECTION}" | jq -r .cloudResource.serviceAccountId)
+
+gsutil iam ch serviceAccount:${BIGLAKE_SA}:objectViewer gs://${BIGLAKE_BUCKET}
 ```
 
 #### Running the tests
@@ -439,17 +453,22 @@ You must use Java version 8, as it's the version that Hive itself uses. Make sur
 
 * To run the integration tests:
   ```sh
-  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
+  ./mvnw verify --projects shaded-dependencies,connector
+  ```
+
+* To run a single test class:
+  ```sh
+  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="BigLakeIntegrationTests"
   ```
 
 * To run a specific test method:
   ```sh
-  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="IntegrationTests#testInsertTez"
+  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="BigLakeIntegrationTests#testReadBigLakeTable"
   ```
 
 * To debug the tests, add the `-Dmaven.failsafe.debug` property:
   ```sh
-  ./mvnw verify -Dmaven.failsafe.debug --projects shaded-dependencies,connector -Dit.test="IntegrationTests"
+  ./mvnw verify -Dmaven.failsafe.debug --projects shaded-dependencies,connector
   ```
   ... then run a remote debugger in IntelliJ at port `5005`. Read more about debugging with FailSafe
   here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
