@@ -37,6 +37,19 @@ This connector supports Hive 3.1.2, Tez 0.9.2, and Hadoop 2.10.2 and 3.2.3 on
    hive --auxpath <JAR path>/hive-bigquery-connector-2.0.0-SNAPSHOT.jar
    ```
 
+## Hive Settings
+
+When run join query on Hive BigQuery table, in order to have proper query plan and reducer parallelism, run the following for before the query
+```sql
+set hive.stats.fetch.column.stats=true;
+
+// run the following for every hive bigquery table used in the query if haven't run yet'
+analyze table <table_name> compute statistics for columns;
+```
+Note:
+1. the setting `hive.stats.fetch.column.stats=true` will increase calls to Hive metastore to fetch column stats.
+2. The analyze table command will have a job to collect table and column stats. Run it for every Hive Bigquery table if you think the stats are not available or stale.
+
 ## Managed vs external tables
 
 Hive can have [two types](https://cwiki.apache.org/confluence/display/Hive/Managed+vs.+External+Tables) of tables:
@@ -86,14 +99,6 @@ TBLPROPERTIES (
 
 When you drop an external table using the `DROP TABLE` statement, the connector only drops the table
 metadata from the Hive Metastore. The corresponding BigQuery table remains unaffected.
-
-When run join query on external table, it is better run
-```sql
-analyze table <table_name> compute statistics; // for basic statisitics
-or
-analyze table <table_name> compute statistics for all columns;
-```
-to get statistics to help Hive do query planning, otherwise the external table may be deemed as a small table and run into mapjoin OOM issues.
 
 ## Partitioning
 
