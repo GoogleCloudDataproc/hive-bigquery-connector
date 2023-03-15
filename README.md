@@ -10,8 +10,14 @@ See the details in [CHANGES.md](CHANGES.md).
 
 ## Version support
 
-This connector supports Hive 3.1.2, Tez 0.9.2, and Hadoop 2.10.2 and 3.2.3 on
-[Dataproc](https://cloud.google.com/dataproc).
+This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.1.
+
+If you use the connector on Hadoop clusters other than Dataproc, the connector has been tested with
+the following versions:
+
+* Hive 3.1.2 and 3.1.3.
+* Hadoop 2.10.2, 3.2.3 and 3.3.3.
+* Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
 
 ## Installation
 
@@ -36,19 +42,6 @@ This connector supports Hive 3.1.2, Tez 0.9.2, and Hadoop 2.10.2 and 3.2.3 on
    ```sh
    hive --auxpath <JAR path>/hive-bigquery-connector-2.0.0-SNAPSHOT.jar
    ```
-
-## Hive Settings
-
-When run join query on Hive BigQuery table, in order to have proper query plan and reducer parallelism, run the following for before the query
-```sql
-set hive.stats.fetch.column.stats=true;
-
-// run the following for every hive bigquery table used in the query if haven't run yet'
-analyze table <table_name> compute statistics for columns;
-```
-Note:
-1. the setting `hive.stats.fetch.column.stats=true` will increase calls to Hive metastore to fetch column stats.
-2. The analyze table command will have a job to collect table and column stats. Run it for every Hive Bigquery table if you think the stats are not available or stale.
 
 ## Managed vs external tables
 
@@ -99,6 +92,24 @@ TBLPROPERTIES (
 
 When you drop an external table using the `DROP TABLE` statement, the connector only drops the table
 metadata from the Hive Metastore. The corresponding BigQuery table remains unaffected.
+
+### Statistics for external tables
+
+It is recommended to collect some [statistics](https://cwiki.apache.org/confluence/display/hive/statsdev)
+(e.g. the number of rows) for external tables. This allows Hive to optimize query plans and
+parallelism, therefore improving performance. Follow these steps to collect statistics for a table:
+
+1. Enable the following setting to activate statistics collection:
+   ```sql
+   SET hive.stats.fetch.column.stats=true;
+   ```
+2. Run the following HiveQL query (Replace `<table_name>` with your table name):
+   ```sql
+   ANALYZE TABLE <table_name> COMPUTE STATISTICS FOR COLUMNS;
+   ```
+   It is recommended to run this query the first time the table is populated, and every time you
+   believe that the table's contents might have changed significantly and therefore that the
+   existing statistics might have become stale.
 
 ## Partitioning
 
