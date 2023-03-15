@@ -93,23 +93,24 @@ TBLPROPERTIES (
 When you drop an external table using the `DROP TABLE` statement, the connector only drops the table
 metadata from the Hive Metastore. The corresponding BigQuery table remains unaffected.
 
-### Statistics for external tables
+### Statistics For Hive Query Planning
 
 It is recommended to collect some [statistics](https://cwiki.apache.org/confluence/display/hive/statsdev)
-(e.g. the number of rows) for external tables. This allows Hive to optimize query plans and
+(e.g. the number of rows, raw data size, etc) to help Hive to optimize query plans and
 parallelism, therefore improving performance. Follow these steps to collect statistics for a table:
 
-1. Enable the following setting to activate statistics collection:
-   ```sql
-   SET hive.stats.fetch.column.stats=true;
-   ```
-2. Run the following HiveQL query (Replace `<table_name>` with your table name):
+1. Run the following HiveQL query (Replace `<table_name>` with your table name):
    ```sql
    ANALYZE TABLE <table_name> COMPUTE STATISTICS FOR COLUMNS;
    ```
-   It is recommended to run this query the first time the table is populated, and every time you
+   It is recommended to run this query the first time the table is created, and every time you
    believe that the table's contents might have changed significantly and therefore that the
    existing statistics might have become stale.
+2. Enable the following setting to activate column statistics usage for query planning:
+   ```sql
+   SET hive.stats.fetch.column.stats=true;
+   ```
+   This will increase calls to Hive metastore, user can set it at query level when needed.
 
 ## Partitioning
 
