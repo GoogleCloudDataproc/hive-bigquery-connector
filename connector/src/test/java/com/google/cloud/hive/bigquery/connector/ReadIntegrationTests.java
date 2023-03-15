@@ -20,7 +20,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -141,26 +140,6 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     // Try another single column
     rows = runHiveQuery(String.format("SELECT text FROM %s ORDER BY text", TEST_TABLE_NAME));
     assertArrayEquals(new Object[] {new Object[] {"abcd"}, new Object[] {"hello"}}, rows.toArray());
-  }
-
-  // ---------------------------------------------------------------------------------------------------
-
-  /** Smoke test to make sure BigQuery accepts all different types of pushed predicates */
-  @Test
-  public void testWhereClauseAllTypes() {
-    initHive();
-    createExternalTable(
-        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
-    runHiveQuery(
-        String.join(
-            "\n",
-            "SELECT * FROM " + ALL_TYPES_TABLE_NAME + " WHERE",
-            "((int_val > 10 AND bl = TRUE)",
-            "OR (str = 'hello' OR day >= to_date('2000-01-01')))",
-            "AND (ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND"
-                + " TIMESTAMP'2019-06-11 03:55:10.00')",
-            "AND (fl <= 4.2)"));
-    // TODO: Confirm that the predicates were in fact pushed down to BigQuery
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -430,23 +409,27 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
    */
   @Test
   public void testUDFWhereClauseSmoke() {
-    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.ARROW);
+    initHive();
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
-    String[] queries = {
-      "select * from "
-          + ALL_TYPES_TABLE_NAME
-          + " where date(day + interval(5) DAY) > date('2001-09-05')",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where datediff('2022-09-07', day) > 0",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where date_sub(day, 2) > date('2001-01-01')",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where date_add(day, 2) > date('2001-01-01')",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where str RLIKE '^([0-9]|[a-z]|[A-Z])'",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where ((big_int_val / 2.0) = 1.0)",
-      "select * from " + ALL_TYPES_TABLE_NAME + " where ((big_int_val % 2) = 1)"
-    };
-    for (String query : queries) {
-      runHiveQuery(query);
-    }
+    String query =
+        "select * from "
+            + ALL_TYPES_TABLE_NAME
+            + " where "
+            + String.join(
+                "\n OR ",
+                "((int_val > 10 AND bl = TRUE) OR (fl <= 4.2) OR (str = 'hello' OR day >="
+                    + " to_date('2000-01-01')))",
+                "(ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND TIMESTAMP'2019-06-11"
+                    + " 03:55:10.00')",
+                "date(day + interval(5) DAY) > date('2001-09-05')",
+                "datediff('2022-09-07', day) > 0",
+                "date_sub(day, 2) > date('2001-01-01')",
+                "date_add(day, 2) > date('2001-01-01')",
+                "str RLIKE '^([0-9]|[a-z]|[A-Z])'",
+                "((big_int_val / 2.0) = 1.0)",
+                "((big_int_val % 2) = 1)");
+    runHiveQuery(query);
   }
 
   // ---------------------------------------------------------------------------------------------------

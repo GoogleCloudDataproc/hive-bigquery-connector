@@ -217,7 +217,11 @@ public class IntegrationTestsBase {
   }
 
   public void initHive() {
-    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.ARROW);
+    initHive(getDefaultExecutionEngine());
+  }
+
+  public void initHive(String engine) {
+    initHive(engine, HiveBigQueryConfig.ARROW);
   }
 
   public void initHive(String engine, String readDataFormat) {
