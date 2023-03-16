@@ -272,17 +272,22 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     return readRowsHelper;
   }
 
+  /*
+  Split size affects mapper task parallelism.
+   */
   private static long getHiveSplitLength(
       JobConf jobConf, long totalSize, int streamCount, int requestGrpCount) {
     long avgStreamSize = streamCount == 0 ? totalSize : totalSize / streamCount;
     long hiveSplitSize = avgStreamSize;
     long minLengthPerGroup = jobConf.getLong("tez.grouping.min-size", 50 * 1024 * 1024L);
     long maxLengthPerGroup = jobConf.getLong("tez.grouping.max-size", 1024 * 1024 * 1024L);
-    if (jobConf.getBoolean("bq.disable.tez.grouping", false) && avgStreamSize > minLengthPerGroup) {
-      // Disable tez grouping for debug, Math.min(maxLengthPerGroup, Math.max(avgStreamSize,
-      // minLengthPerGroup));
-      hiveSplitSize = Math.max(requestGrpCount, streamCount) * maxLengthPerGroup / streamCount;
-      LOG.info("Set hiveSplitSize differently to try disable tez grouping.");
+    // To-Do: further performance investigation needed. initial testing shows disabling grouping
+    // offers better performance.
+    if (jobConf.getBoolean("bq.disable.tez.grouping", true) && avgStreamSize > minLengthPerGroup) {
+      LOG.info("Set hiveSplitSize to try disable tez grouping.");
+      long disableThreshold =
+          Math.max(requestGrpCount, streamCount) * maxLengthPerGroup / streamCount;
+      hiveSplitSize = Math.max(disableThreshold, avgStreamSize);
     }
     LOG.info(
         "BQ estimated totalSize={}, streamCount={}, avgStreamSize={}, set hiveSplitSize={}",
