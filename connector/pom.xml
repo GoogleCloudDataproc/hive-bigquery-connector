@@ -118,6 +118,29 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-dataproc</artifactId>
+      <!--<scope>test</scope>-->
+      <version>${google-cloud-dataproc.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-bom</artifactId>
+      <version>${protobuf.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-bom</artifactId>
+      <version>${grpc.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <artifactId>tez-dag</artifactId>
       <groupId>org.apache.tez</groupId>
       <version>${tez.version}</version>
@@ -251,26 +274,8 @@
         <configuration>
           <excludes>
             <exclude>**/*IntegrationTests.java</exclude>
+            <exclude>**/*AcceptanceTest.java</exclude>
           </excludes>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <version>${maven-failsafe-plugin.version}</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <includes>
-            <include>**/*IntegrationTests.java</include>
-          </includes>
         </configuration>
       </plugin>
 

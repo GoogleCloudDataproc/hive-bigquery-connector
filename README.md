@@ -476,27 +476,47 @@ gsutil iam ch serviceAccount:${BIGLAKE_SA}:objectViewer gs://${BIGLAKE_BUCKET}
 You must use Java version 8, as it's the version that Hive itself uses. Make sure that `JAVA_HOME` points to the Java
 8's base directory.
 
+##### Integration tests
+
 * To run the integration tests:
   ```sh
-  ./mvnw verify --projects shaded-dependencies,connector
+  ./mvnw verify -Pintegration
   ```
 
-* To run a single test class:
+* To run a single integration test class:
   ```sh
-  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="BigLakeIntegrationTests"
+  ./mvnw verify -Pintegration -Dit.test="BigLakeIntegrationTests"
   ```
 
-* To run a specific test method:
+* To run a specific integration test method:
   ```sh
-  ./mvnw verify --projects shaded-dependencies,connector -Dit.test="BigLakeIntegrationTests#testReadBigLakeTable"
+  ./mvnw verify -Pintegration -Dit.test="BigLakeIntegrationTests#testReadBigLakeTable"
   ```
 
 * To debug the tests, add the `-Dmaven.failsafe.debug` property:
   ```sh
-  ./mvnw verify -Dmaven.failsafe.debug --projects shaded-dependencies,connector
+  ./mvnw verify -Pintegration -Dmaven.failsafe.debug
   ```
   ... then run a remote debugger in IntelliJ at port `5005`. Read more about debugging with FailSafe
   here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
+
+##### Acceptance tests
+
+Acceptance tests create Dataproc clusters with the connector and run jobs to verify it.
+
+The following environement variables must be set and **exported** first.
+
+* `GOOGLE_APPLICATION_CREDENTIALS` - the full path to a credentials JSON, either a service account or the result of a
+  `gcloud auth login` run
+* `GOOGLE_CLOUD_PROJECT` - The Google cloud platform project used to test the connector
+* `TEMPORARY_GCS_BUCKET` - The GCS bucked used to test writing to BigQuery during the integration tests
+* `ACCEPTANCE_TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the acceptance tests
+
+To run the acceptance tests:
+
+```sh
+./mvnw verify -Pacceptance
+```
 
 ##### Running the tests for different Hadoop versions
 

@@ -18,6 +18,7 @@ package com.google.cloud.hive.bigquery.connector;
 import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.storage.*;
+import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.util.HashMap;
@@ -46,7 +47,6 @@ public class TestUtils {
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
   public static final String HIVE_TEST_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
-  public static final String TEMP_GCS_PATH = "gs://" + getTestBucket() + "/temp";
 
   // The BigLake bucket and connection must be created before running the tests.
   // Also, the connection's service account must be given permission to access the bucket.
@@ -267,14 +267,30 @@ public class TestUtils {
     return Lists.newArrayList(getStorageClient().list(bucketName).iterateAll());
   }
 
+  public static List<Blob> getBlobs(String bucketName, String dir) {
+    return Lists.newArrayList(getStorageClient().list(
+        bucketName, BlobListOption.prefix(dir)).iterateAll());
+  }
+
   public static void emptyBucket(String bucketName) {
-    List<Blob> blobs = getBlobs(bucketName);
-    if (blobs.size() > 0) {
-      StorageBatch batch = getStorageClient().batch();
-      for (Blob blob : blobs) {
-        batch.delete(blob.getBlobId());
-      }
-      batch.submit();
+    deleteBlobs(getBlobs(bucketName));
+  }
+
+  public static void emptyGcsDir(String bucketName, String dir) {
+    deleteBlobs(getBlobs(bucketName, dir));
+  }
+
+  private static void deleteBlobs(List<Blob> blobs) {
+    if (blobs.size() == 0) {
+      System.err.println("No blobs to delete");
+      return;
     }
+
+    StorageBatch batch = getStorageClient().batch();
+    for (Blob blob : blobs) {
+      System.err.println("Deleting " + blob.getName());
+      batch.delete(blob.getBlobId());
+    }
+    batch.submit();
   }
 }

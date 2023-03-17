@@ -24,7 +24,13 @@ import com.klarna.hiverunner.HiveRunnerExtension;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrSubstitutor;
@@ -46,6 +52,12 @@ public class IntegrationTestsBase {
 
   protected static String dataset;
 
+  // Temp bucket for indirect writes.
+  protected static String testBucketName;
+
+  // Relative path under the temp test bucket for indirect writes.
+  protected String tempGcsDir;
+
   @HiveSQL(
       files = {},
       autoStart = false)
@@ -53,17 +65,19 @@ public class IntegrationTestsBase {
 
   @BeforeAll
   public static void setUpAll() {
-    // Create the bucket for 'indirect' jobs.
+    testBucketName = getTestBucket();
+
+    // Create the temp bucket for indirect writes if it does not exist.
     try {
-      createBucket(getTestBucket());
+      createBucket(testBucketName);
     } catch (StorageException e) {
       if (e.getCode() == 409) {
-        // The bucket already exists, maybe left over after a previous test failure.
-        // Delete and recreate it to start fresh with an empty bucket.
-        deleteBucket(getTestBucket());
-        createBucket(getTestBucket());
+        // The bucket already exists, which is okay.
       }
     }
+
+    emptyBucket(testBucketName);
+
     // Upload datasets to the BigLake bucket.
     uploadBlob(
         getBigLakeBucket(), "test.csv", "a,b,c\n1,2,3\n4,5,6".getBytes(StandardCharsets.UTF_8));
@@ -90,9 +104,6 @@ public class IntegrationTestsBase {
         testInfo.getTestMethod().get().getName(),
         parameters);
 
-    // Empty the indirect write bucket
-    emptyBucket(getTestBucket());
-
     // Set default Hadoop/Hive configuration -----------------------------------
     // TODO: Match with Dataproc's default config as much as possible
     // Enable map-joins
@@ -101,10 +112,18 @@ public class IntegrationTestsBase {
     hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
   }
 
+  @AfterEach
+  public void tearDownEach(TestInfo testInfo) {
+    if (tempGcsDir != null) {
+      emptyGcsDir(testBucketName, tempGcsDir);
+      tempGcsDir = null;
+    }
+  }
+
   @AfterAll
   static void tearDownAll() {
-    // Cleanup the GCS bucket
-    deleteBucket(getTestBucket());
+    emptyBucket(testBucketName);
+
     // Cleanup the test BQ dataset
     deleteBqDatasetAndTables(dataset);
   }
@@ -115,7 +134,7 @@ public class IntegrationTestsBase {
     params.put("dataset", dataset);
     params.put("location", LOCATION);
     params.put("connection", BIGLAKE_CONNECTION);
-    params.put("test_bucket", "gs://" + getTestBucket());
+    params.put("test_bucket", "gs://" + testBucketName);
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
   }
 
@@ -225,10 +244,14 @@ public class IntegrationTestsBase {
   }
 
   public void initHive(String engine, String readDataFormat) {
-    initHive(engine, readDataFormat, TEMP_GCS_PATH);
+    String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+    String tempGcsPath = "gs://" + testBucketName + "/temp/" + timestamp;
+    initHive(engine, readDataFormat, tempGcsPath);
   }
 
   public void initHive(String engine, String readDataFormat, String tempGcsPath) {
+    tempGcsDir = tempGcsPath.replaceFirst("gs://" + testBucketName + "/", "");
+
     // Load potential Hive config values passed from system properties
     Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
     for (String key : hiveConfSystemOverrides.keySet()) {

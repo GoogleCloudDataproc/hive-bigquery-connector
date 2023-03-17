@@ -36,8 +36,10 @@
         <protobuf.version>3.21.12</protobuf.version>
         <legacy-bigquery-connector.version>hadoop2-1.0.0</legacy-bigquery-connector.version>
         <bigquery-connector-common.version>0.28.0</bigquery-connector-common.version>
+        <google-cloud-dataproc.version>4.9.0</google-cloud-dataproc.version>
         <google-cloud-storage.version>2.17.1</google-cloud-storage.version>
         <google-cloud-bigquerystorage.version>2.28.1</google-cloud-bigquerystorage.version>
+        <grpc.version>1.53.0</grpc.version>
         <junit.version>5.9.2</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
         <hiverunner.version>6.1.0</hiverunner.version>
@@ -84,6 +86,25 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-bom</artifactId>
+                <version>${protobuf.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <pluginManagement>
@@ -163,10 +184,11 @@
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>3.0.0-M6</version>
                         <configuration>
-                            <forkCount>5</forkCount>
+                            <forkCount>1</forkCount>
                             <reuseForks>false</reuseForks>
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <includes>
-                                <include>**/*IntegrationTest.java</include>
+                                <include>**/*IntegrationTests.java</include>
                             </includes>
                         </configuration>
                         <executions>
@@ -199,7 +221,7 @@
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>${maven-failsafe-plugin.version}</version>
                         <configuration>
-                            <forkCount>10</forkCount>
+                            <forkCount>1</forkCount>
                             <reuseForks>false</reuseForks>
                             <includes>
                                 <include>**/*AcceptanceTest.java</include>
