@@ -33,11 +33,19 @@ import shaded.hivebqcon.com.google.common.collect.Streams;
 public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
-
   /** Insert data into a simple table. */
   public void insert(String engine, String writeMethod) {
+    insert(engine, writeMethod, null);
+  }
+
+  /** Insert data into a simple table. */
+  public void insert(String engine, String writeMethod, String tempGcsPath) {
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
-    initHive(engine, HiveBigQueryConfig.AVRO);
+    if (tempGcsPath != null) {
+      initHive(engine, HiveBigQueryConfig.AVRO, tempGcsPath);
+    } else {
+      initHive(engine, HiveBigQueryConfig.AVRO);
+    }
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data using Hive
     runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
@@ -64,22 +72,26 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE)
   public void testInsertIndirect(String engine) {
+    String tempGcsDir = "temp/indirect-test";
+    String tempGcsPath = "gs://" + testBucketName + "/" + tempGcsDir;
+
     // Check that the bucket is empty
-    List<Blob> blobs = getBlobs(getTestBucket());
-    assertEquals(0, blobs.size());
+    List<Blob> blobs = getBlobs(testBucketName, tempGcsDir);
+    assertEquals(0, blobs.size(), "Unexpected blobs: " + blobs);
 
     // Insert data using Hive
-    insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT, tempGcsPath);
 
     // Check that the blob was created by the job.
     // Note: The blobs are still present here during the test execution because the
     // Hive/Hadoop session is still on, but in production those files would be
     // automatically be cleaned up at the end of the job.
-    blobs = getBlobs(getTestBucket());
-    assertEquals(1, blobs.size());
+    blobs = getBlobs(testBucketName, tempGcsDir);
+    assertEquals(1, blobs.size(), "Actual blobs: " + blobs);
+    String blobName = blobs.get(0).getName();
     assertTrue(
-        blobs.get(0).getName().startsWith("temp/bq-hive-")
-            && blobs.get(0).getName().endsWith(".avro"));
+      blobName.startsWith(tempGcsDir) && blobName.endsWith(".avro"),
+      "Unexpected blob name: " + blobName);
   }
 
   // ---------------------------------------------------------------------------------------------------
