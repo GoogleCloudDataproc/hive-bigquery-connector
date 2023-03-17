@@ -90,8 +90,8 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     assertEquals(1, blobs.size(), "Actual blobs: " + blobs);
     String blobName = blobs.get(0).getName();
     assertTrue(
-      blobName.startsWith(tempGcsDir) && blobName.endsWith(".avro"),
-      "Unexpected blob name: " + blobName);
+        blobName.startsWith(tempGcsDir) && blobName.endsWith(".avro"),
+        "Unexpected blob name: " + blobName);
   }
 
   // ---------------------------------------------------------------------------------------------------

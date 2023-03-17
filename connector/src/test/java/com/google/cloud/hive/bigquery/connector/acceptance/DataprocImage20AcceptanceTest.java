@@ -1,11 +1,11 @@
 /*
- * Copyright 2023 Google LLC
+ * Copyright 2023 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *       https://www.apache.org/licenses/LICENSE-2.0
+ *       http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,8 +30,9 @@ public class DataprocImage20AcceptanceTest extends DataprocAcceptanceTestBase {
 
   @BeforeClass
   public static void setup() throws Exception {
-    context = DataprocAcceptanceTestBase.setup(
-        "2.0-debian10", "hive-bigquery-connector", Collections.emptyList());
+    context =
+        DataprocAcceptanceTestBase.setup(
+            "2.0-debian10", "hive-bigquery-connector", Collections.emptyList());
   }
 
   @AfterClass
@@ -40,6 +41,5 @@ public class DataprocImage20AcceptanceTest extends DataprocAcceptanceTestBase {
   }
 
   @Test
-  public void testRead() throws Exception {
-  }
+  public void testRead() throws Exception {}
 }

@@ -17,18 +17,17 @@ package com.google.cloud.hive.bigquery.connector.input.arrow;
 
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
-import com.google.protobuf.ByteString;
 import java.io.*;
 import java.util.Collections;
 import java.util.Iterator;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.ArrowReaderIterator;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.ReadRowsHelper;
+import shaded.hivebqcon.com.google.protobuf.ByteString;
 import shaded.hivebqcon.org.apache.arrow.memory.BufferAllocator;
 import shaded.hivebqcon.org.apache.arrow.memory.RootAllocator;
 import shaded.hivebqcon.org.apache.arrow.vector.VectorSchemaRoot;
@@ -50,9 +49,7 @@ public class ArrowBatchReader extends RecordReader<NullWritable, VectorSchemaRoo
     ReadRowsHelper readRowsHelper = inputSplit.getReadRowsHelper();
     responseIterator = readRowsHelper.readRows();
     arrowReaderIterator = Collections.emptyIterator();
-    bufferAllocator =
-        new RootAllocator(
-            HiveConf.getLongVar(conf, HiveConf.ConfVars.HIVE_ARROW_ROOT_ALLOCATOR_LIMIT));
+    bufferAllocator = new RootAllocator(Long.MAX_VALUE);
   }
 
   @Override

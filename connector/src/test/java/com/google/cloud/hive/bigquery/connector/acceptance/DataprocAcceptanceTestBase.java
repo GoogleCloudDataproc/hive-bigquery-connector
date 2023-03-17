@@ -17,18 +17,12 @@ package com.google.cloud.hive.bigquery.acceptance;
 
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_DIRECTORY;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.MAX_BIG_NUMERIC;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.MIN_BIG_NUMERIC;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.PROJECT_ID;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.REGION;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.createBqDataset;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.generateClusterName;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.getNumOfRowsOfBqTable;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.runBqQuery;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.uploadConnectorJar;
-import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assume.assumeTrue;
 
 import com.google.cloud.dataproc.v1.Cluster;
 import com.google.cloud.dataproc.v1.ClusterConfig;
@@ -41,22 +35,16 @@ import com.google.cloud.dataproc.v1.Job;
 import com.google.cloud.dataproc.v1.JobControllerClient;
 import com.google.cloud.dataproc.v1.JobControllerSettings;
 import com.google.cloud.dataproc.v1.JobPlacement;
-import com.google.cloud.dataproc.v1.JobStatus;
 import com.google.cloud.dataproc.v1.NodeInitializationAction;
 import com.google.cloud.dataproc.v1.PySparkJob;
 import com.google.cloud.dataproc.v1.SoftwareConfig;
 import com.google.common.collect.ImmutableList;
-import java.io.FileInputStream;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.junit.Test;
 
 public class DataprocAcceptanceTestBase {
 

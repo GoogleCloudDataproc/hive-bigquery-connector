@@ -268,8 +268,8 @@ public class TestUtils {
   }
 
   public static List<Blob> getBlobs(String bucketName, String dir) {
-    return Lists.newArrayList(getStorageClient().list(
-        bucketName, BlobListOption.prefix(dir)).iterateAll());
+    return Lists.newArrayList(
+        getStorageClient().list(bucketName, BlobListOption.prefix(dir)).iterateAll());
   }
 
   public static void emptyBucket(String bucketName) {

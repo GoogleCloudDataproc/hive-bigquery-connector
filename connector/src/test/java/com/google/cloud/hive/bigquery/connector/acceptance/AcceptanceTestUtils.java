@@ -57,8 +57,9 @@ public class AcceptanceTestUtils {
           .get();
     } catch (Exception e) {
       throw new Exception(
-          String.format("Failed to find artifact targetDir=%s, prefix=%s, suffix=%s", targetDir, prefix,
-              suffix),
+          String.format(
+              "Failed to find artifact targetDir=%s, prefix=%s, suffix=%s",
+              targetDir, prefix, suffix),
           e);
     }
   }
