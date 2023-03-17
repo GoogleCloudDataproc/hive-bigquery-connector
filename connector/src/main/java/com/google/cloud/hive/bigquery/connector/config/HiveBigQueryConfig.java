@@ -68,6 +68,8 @@ public class HiveBigQueryConfig
   public static final String TIME_PARTITION_REQUIRE_FILTER_KEY = "bq.time.partition.require.filter";
   public static final String CLUSTERED_FIELDS_KEY = "bq.clustered.fields";
   public static final String VIEWS_ENABLED_KEY = "viewsEnabled";
+  public static final String FAIL_ON_UNSUPPORTED_UDFS =
+      "bq.fail.on.unsupported.udfs"; // Mainly used for testing
 
   public static final int DEFAULT_CACHE_EXPIRATION_IN_MINUTES = 15;
   private static final int DEFAULT_BIGQUERY_CLIENT_CONNECT_TIMEOUT = 60 * 1000;

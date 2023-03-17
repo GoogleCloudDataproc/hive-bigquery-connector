@@ -211,8 +211,10 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     if (serializedFilterExpr != null) {
       filterExpr = SerializationUtilities.deserializeExpression(serializedFilterExpr);
       ExprNodeGenericFuncDesc translatedFilterExpr =
-          (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr);
-      filter = Optional.of(translatedFilterExpr.getExprString());
+          (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr, jobConf);
+      if (translatedFilterExpr != null) {
+        filter = Optional.of(translatedFilterExpr.getExprString());
+      }
     }
 
     // Check that the BQ table in fact exists
