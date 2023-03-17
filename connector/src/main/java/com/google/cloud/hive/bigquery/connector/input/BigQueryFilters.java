@@ -37,36 +37,42 @@ public class BigQueryFilters {
 
   static {
     identicalUDFs = new ArrayList<>();
-    for (String udf :
-        new String[] {
-          "GenericUDFOPEqual",
-          "GenericUDFOPNotEqual",
-          "GenericUDFOPGreaterThan",
-          "GenericUDFOPLessThan",
-          "GenericUDFOPEqualOrGreaterThan",
-          "GenericUDFOPEqualOrLessThan",
-          "GenericUDFIn",
-          "GenericUDFBetween",
-          "GenericUDFOPNot",
-          "GenericUDFOPNull",
-          "GenericUDFOPNotNull",
-          "GenericUDFOPTrue",
-          "GenericUDFOPNotTrue",
-          "GenericUDFOPFalse",
-          "GenericUDFOPNotFalse",
-          "GenericUDFOPAnd",
-          "GenericUDFOPOr",
-          "GenericUDFOPPlus",
-          "GenericUDFOPMinus",
-          "GenericUDFOPTrue",
-          "GenericUDFOPFalse",
-          "GenericUDFOPNegative",
-          "GenericUDFOPPositive",
-          "GenericUDFOPPower",
-          "GenericUDFOPDivide",
-          "GenericUDFOPMultiply",
+    for (Class udf :
+        new Class[] {
+          GenericUDFAbs.class,
+          GenericUDFCeil.class,
+          GenericUDFFloor.class,
+          GenericUDFCoalesce.class,
+          GenericUDFCoalesce.class,
+          GenericUDFConcat.class,
+          GenericUDFOPEqual.class,
+          GenericUDFOPNotEqual.class,
+          GenericUDFOPGreaterThan.class,
+          GenericUDFOPLessThan.class,
+          GenericUDFOPEqualOrGreaterThan.class,
+          GenericUDFOPEqualOrLessThan.class,
+          GenericUDFIn.class,
+          GenericUDFBetween.class,
+          GenericUDFOPNot.class,
+          GenericUDFOPNull.class,
+          GenericUDFOPNotNull.class,
+          GenericUDFOPTrue.class,
+          GenericUDFOPNotTrue.class,
+          GenericUDFOPFalse.class,
+          GenericUDFOPNotFalse.class,
+          GenericUDFOPAnd.class,
+          GenericUDFOPOr.class,
+          GenericUDFOPPlus.class,
+          GenericUDFOPMinus.class,
+          GenericUDFOPTrue.class,
+          GenericUDFOPFalse.class,
+          GenericUDFOPNegative.class,
+          GenericUDFOPPositive.class,
+          GenericUDFPower.class,
+          GenericUDFOPDivide.class,
+          GenericUDFOPMultiply.class
         }) {
-      identicalUDFs.add("org.apache.hadoop.hive.ql.udf.generic." + udf);
+      identicalUDFs.add(udf.getName());
     }
   }
 
