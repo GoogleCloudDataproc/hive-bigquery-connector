@@ -1,8 +1,8 @@
 # Hive-BigQuery Connector
 
-The Hive-BigQuery Connector is a Hive StorageHandler that enables Hive to interact with BigQuery's storage layer. It
-allows you to keep your existing Hive queries but move data to BigQuery. It utilizes the high throughput
-[BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/) to read and write data.
+The Hive-BigQuery Connector is a Hive storage handler that enables Hive to interact with BigQuery's
+storage layer. It allows you to run queries in Hive using the HiveQL dialect to read from and write
+to BigQuery.
 
 ## Release notes
 
@@ -12,8 +12,8 @@ See the details in [CHANGES.md](CHANGES.md).
 
 This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.1.
 
-If you use the connector on Hadoop clusters other than Dataproc, the connector has been tested with
-the following versions:
+For Hadoop clusters other than Dataproc, the connector has been tested with the following
+software versions:
 
 * Hive 3.1.2 and 3.1.3.
 * Hadoop 2.10.2, 3.2.3 and 3.3.3.
@@ -43,9 +43,10 @@ the following versions:
    hive --auxpath <JAR path>/hive-bigquery-connector-2.0.0-SNAPSHOT.jar
    ```
 
-## Managed vs external tables
+## Managed tables vs external tables
 
-Hive can have [two types](https://cwiki.apache.org/confluence/display/Hive/Managed+vs.+External+Tables) of tables:
+Hive can have [two types](https://cwiki.apache.org/confluence/display/Hive/Managed+vs.+External+Tables)
+of tables:
 
 - Managed tables, sometimes referred to as internal tables.
 - External tables.
@@ -96,7 +97,7 @@ metadata from the Hive Metastore. The corresponding BigQuery table remains unaff
 ### Statistics For Hive Query Planning
 
 It is recommended to collect some [statistics](https://cwiki.apache.org/confluence/display/hive/statsdev)
-(e.g. the number of rows, raw data size, etc) to help Hive to optimize query plans and
+(e.g. the number of rows, raw data size, etc) to help Hive to optimize query plans and read
 parallelism, therefore improving performance. Follow these steps to collect statistics for a table:
 
 1. Run the following HiveQL query (Replace `<table_name>` with your table name):
@@ -110,7 +111,7 @@ parallelism, therefore improving performance. Follow these steps to collect stat
    ```sql
    SET hive.stats.fetch.column.stats=true;
    ```
-   This will increase calls to Hive metastore, user can set it at query level when needed.
+   This will increase calls to the Hive Metastore. You can set it at query level as needed.
 
 ## Partitioning
 
@@ -273,22 +274,39 @@ it can efficiently stream data without reading all columns.
 
 ## Predicate pushdowns
 
-The BigQuery Storage Read API supports arbitrary pushdown of predicate filters. This allows to execute the filters at
-the BigQuery storage layer, therefore reducing the amount of data flowing through the network and improving overall
-performance.
+The connector supports predicate pushdowns to the BigQuery Storage Read API. This allows to filter
+data at the BigQuery storage layer, which reduces the amount of data traversing the network and
+improves overall performance.
 
-The connector automatically translates Hive generic UDFs used in predicate filters to conform to BigQuery's syntax.
+Many built-in Hive UDFs and operators (e.g. `AND`, `OR`, `ABS`, `TRIM`, `BETWEEN`...) are identical
+in BigQuery, so the connector passes those as-is to BigQuery.
 
-The following Hive generic UDFs and operators are supported and mapped to equivalent BigQuery functions and operators:
+However, some Hive UDFs and operators are different in BigQuery. So the connector automatically
+converts those to the equivalent functions in BigQuery. Below is the list of UDFs and operators that
+are automatically converted:
 
-| Hive generic UDF | BigQuery function | Notes                                                                                     |
-|------------------|-------------------|-------------------------------------------------------------------------------------------|
-| `%`              | `MOD`             | BigQuery currently supports `MOD` only for the `INT64`, `NUMERIC`, and `BIGNUMERIC` types |
-| `DATE_ADD`       | `DATE_ADD`        |                                                                                           |
-| `DATE_SUB`       | `DATE_SUB`        |                                                                                           |
-| `DATEDIFF`       | `DATE_DIFF`       |                                                                                           |
-| `DATEDIFF`       | `DATE_DIFF`       |                                                                                           |
-| `RLIKE`          | `REGEXP_CONTAINS` |                                                                                           |
+| Hive generic UDF | BigQuery function             | Notes                                                                                     |
+|------------------|-------------------------------|-------------------------------------------------------------------------------------------|
+| `%`              | `MOD`                         | BigQuery currently supports `MOD` only for the `INT64`, `NUMERIC`, and `BIGNUMERIC` types |
+| `DATE_ADD`       | `DATE_ADD`                    |                                                                                           |
+| `DATE_SUB`       | `DATE_SUB`                    |                                                                                           |
+| `DATEDIFF`       | `DATE_DIFF`                   |                                                                                           |
+| `DATEDIFF`       | `DATE_DIFF`                   |                                                                                           |
+| `HEX`            | `TO_HEX`                      |                                                                                           |
+| `UNHEX`          | `FROM_HEX`                    |                                                                                           |
+| `NVL`            | `IFNULL`                      |                                                                                           |
+| `RLIKE`          | `REGEXP_CONTAINS`             |                                                                                           |
+| `SHIFTLEFT`      | `<<`                          |                                                                                           |
+| `SHIFTRIGHT`     | `>>`                          |                                                                                           |
+| `YEAR`           | `EXTRACT(YEAR FROM ...)`      |                                                                                           |
+| `MONTH`          | `EXTRACT(MONTH FROM ...)`     |                                                                                           |
+| `DAY`            | `EXTRACT(DAY FROM ...)`       |                                                                                           |
+| `HOUR`           | `EXTRACT(HOUR FROM ...)`      |                                                                                           |
+| `MINUTE`         | `EXTRACT(MINUTE FROM ...)`    |                                                                                           |
+| `SECOND`         | `EXTRACT(SECOND FROM ...)`    |                                                                                           |
+| `DAYOFWEEK`      | `EXTRACT(DAYOFWEEK FROM ...)` |                                                                                           |
+| `WEEKOFYEAR`     | `EXTRACT(WEEK FROM ...)`      |                                                                                           |
+| `QUARTER`        | `EXTRACT(QUARTER FROM ...)`   |                                                                                           |
 
 ## Parallelism
 
@@ -376,29 +394,27 @@ Please note there are a few caveats:
 
 ## Known issues and limitations
 
-1. Ensure that the table exists in BigQuery and column names are always lowercase.
-2. If a write job fails while using the Tez execution engine and the `indirect` write method, then the temporary avro
-   files might not be automatically cleaned up from the GCS bucket. The MR execution engine does not have that
-   limitation. The temporary files are always cleaned up when the job is successful, regardless of the execution engine
-   in use.
-3. If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro format for reading
-   or the indirect method for writing. This is because Avro requires keys to be strings. If you use the Arrow format for
-   reading (default) and the direct method for writing (also default), then there are no type limitations for the keys.
-
-## Missing features
-
-The following features are not available yet but are planned or are under development:
-
-- `UPDATE`, `MERGE`, and `DELETE` statements.
-- `ALTER TABLE` statements.
-
-Your feedback and contributions are welcome for developing those new features.
+* Ensure that the table exists in BigQuery and column names are always lowercase.
+* If a write job fails when using the Tez execution engine and the `indirect` write method, the
+  temporary avro files might not be automatically cleaned up from the GCS bucket. The MR execution
+  engine does not have this limitation. The temporary files are always cleaned up when the job is
+  successful, regardless of the execution engine in use.
+* If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro
+  format for reading or the indirect method for writing. This is because Avro requires keys to be
+  strings. If you use the Arrow format for reading (default) and the direct method for writing (also
+  default), then there are no type limitations for the keys.
+* The `UPDATE`, `MERGE`, and `DELETE`, and `ALTER TABLE` statements are currently not supported.
+* The `PARTITIONED BY`, `CLUSTERED BY`, `INSERT INTO PARTITION`, and
+  `INSERT INTO PARTITION OVERWRITE` statements are not currently supported. Note, however, that
+  partitioning and clustering in BigQuery are supported via `TBLPROPERTIES`. See the corresponding
+  sections on [partitioning](#partitioning) and [clustering](#clustering).
+* CTAS (aka `CREATE TABLE AS SELECT`).
 
 ## Development
 
 ### Code formatting
 
-To standardize the code's format, run [Spotless](https://github.com/diffplug/spotless) like so:
+To standardize the code's format, use [Spotless](https://github.com/diffplug/spotless):
 
 ```sh
 ./mvnw spotless:apply
