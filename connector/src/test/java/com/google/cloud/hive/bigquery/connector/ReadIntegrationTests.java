@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -403,12 +404,13 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   // ---------------------------------------------------------------------------------------------------
 
   /**
-   * Runs a series of smoke tests to make sure that Hive UDFs used in WHERE clauses are properly
-   * translated to BigQuery's flavor of SQL. To check the actual translations, see unit tests in the
-   * "input.udfs" package.
+   * Runs a query with a number of WHERE clause statements to make sure that Hive UDFs and operators
+   * are properly translated to BigQuery's flavor of SQL. To check the actual translations, see unit
+   * tests in `input.udfs.UDFTest`.
    */
   @Test
   public void testUDFWhereClauseSmoke() {
+    hive.setHiveConfValue(HiveBigQueryConfig.FAIL_ON_UNSUPPORTED_UDFS, "true");
     initHive();
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
@@ -418,17 +420,67 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             + " where "
             + String.join(
                 "\n OR ",
-                "((int_val > 10 AND bl = TRUE) OR (fl <= 4.2) OR (str = 'hello' OR day >="
-                    + " to_date('2000-01-01')))",
-                "(ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND TIMESTAMP'2019-06-11"
-                    + " 03:55:10.00')",
-                "date(day + interval(5) DAY) > date('2001-09-05')",
-                "datediff('2022-09-07', day) > 0",
-                "date_sub(day, 2) > date('2001-01-01')",
-                "date_add(day, 2) > date('2001-01-01')",
+                "DAYOFWEEK(ts) = 2 AND QUARTER(ts) = 1 AND WEEKOFYEAR(day) = 4",
+                "YEAR(ts) = 2013 AND MONTH(ts) = 2 AND DAY(ts) = 21 AND HOUR(ts) = 5 AND"
+                    + " MINUTE(ts) = 33 AND SECOND(ts) = 17",
+                "(CASE int_val WHEN 90 THEN str ELSE 'green' END) = 'green'",
+                "HEX(bin) = 'abcd'",
+                "UNHEX(str) = CAST('abcd' AS BINARY)",
+                "CBRT(int_val) = 2",
+                "SQRT(int_val) = 2",
+                "(int_val > 10 AND bl = TRUE) OR (fl <= 4.2) OR (str = 'hello' OR day >="
+                    + " to_date('2000-01-01'))",
+                "ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND TIMESTAMP'2019-06-11"
+                    + " 03:55:10.00'",
+                "DATE(day + INTERVAL(5) DAY) > DATE('2001-09-05')",
+                "DATEDIFF('2022-09-07', day) > 0",
+                "DATE_SUB(day, 2) > DATE('2001-01-01')",
+                "DATE_ADD(day, 2) > DATE('2001-01-01')",
                 "str RLIKE '^([0-9]|[a-z]|[A-Z])'",
-                "((big_int_val / 2.0) = 1.0)",
-                "((big_int_val % 2) = 1)");
+                "ABS(big_int_val - 1) > 3",
+                "GREATEST(big_int_val, 5) > 3",
+                "LEAST(big_int_val, 5) > 3",
+                "IF(bl, 2, 5) > 3",
+                "NULLIF(str, 'abcd') IS NULL",
+                "NVL(tiny_int_val, 99) == 99",
+                "LENGTH(str) > 2",
+                "CHARACTER_LENGTH(str) > 2",
+                "OCTET_LENGTH(str) > 2",
+                "TRIM(str) = 'abcd'",
+                "RTRIM(str) = 'abcd'",
+                "LTRIM(str) = 'abcd'",
+                "UPPER(str) = 'abcd'",
+                "LOWER(str) = 'abcd'",
+                "CEIL(fl) = 2.0",
+                "FLOOR(fl) = 2.0",
+                "COALESCE(str, 'xyz') = 'abcd'",
+                "CONCAT(str, 'cd') = 'abcd'",
+                "- big_int_val > 0",
+                "+ int_val > 0",
+                "str IN ('aaa', 'bbb')",
+                "str <> 'xyz'",
+                "str != '1234'",
+                "str IS NULL",
+                "ISNULL(bl)",
+                "ISNOTNULL(int_val)",
+                "big_int_val IS NOT NULL",
+                "bl is TRUE",
+                "(fl IS NULL) IS FALSE",
+                "(small_int_val IS NULL) IS TRUE",
+                "(tiny_int_val IS NULL) IS NOT TRUE",
+                "(int_val IS NOT NULL) IS TRUE",
+                "int_val & 2 > 99",
+                "int_val | 2 < 99",
+                "int_val ^ 2 >= 99",
+                "~int_val <= 99",
+                "SHIFTLEFT(int_val, 2) > 99",
+                "SHIFTRIGHT(int_val, 2) > 99",
+                "POWER(int_val, 2) > 99",
+                "(big_int_val + 2.0) = 1.0",
+                "(big_int_val - 2.0) = 1.0",
+                "(big_int_val * 2.0) = 1.0",
+                "(big_int_val / 2.0) = 1.0",
+                "(big_int_val % 2) = 1");
     runHiveQuery(query);
   }
 

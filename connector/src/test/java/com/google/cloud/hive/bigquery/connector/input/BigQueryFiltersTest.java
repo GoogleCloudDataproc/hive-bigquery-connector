@@ -18,6 +18,7 @@ package com.google.cloud.hive.bigquery.connector.input;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
@@ -56,6 +57,8 @@ public class BigQueryFiltersTest {
    */
   @Test
   public void testSkipCustomUDF() {
+    Configuration conf = new Configuration();
+
     // Define: a = "abcd"
     ExprNodeColumnDesc a = new ExprNodeColumnDesc();
     a.setColumn("a");
@@ -87,24 +90,25 @@ public class BigQueryFiltersTest {
     and.setGenericUDF(new GenericUDFOPAnd());
     and.setChildren(Arrays.asList(equalA, customUDF, equalB));
     assertEquals(
-        "((a = 'abcd') and (b = 'xyz'))", BigQueryFilters.translateFilters(and).getExprString());
+        "((a = 'abcd') and (b = 'xyz'))",
+        BigQueryFilters.translateFilters(and, conf).getExprString());
 
     // Translate: a = "abcd" AND customUDF()
     and = new ExprNodeGenericFuncDesc();
     and.setGenericUDF(new GenericUDFOPAnd());
     and.setChildren(Arrays.asList(equalA, customUDF));
-    assertEquals("(a = 'abcd')", BigQueryFilters.translateFilters(and).getExprString());
+    assertEquals("(a = 'abcd')", BigQueryFilters.translateFilters(and, conf).getExprString());
 
     // Translate: customUDF() AND customUDF()
     and = new ExprNodeGenericFuncDesc();
     and.setGenericUDF(new GenericUDFOPAnd());
     and.setChildren(Arrays.asList(customUDF, customUDF));
-    assertEquals(null, BigQueryFilters.translateFilters(and));
+    assertEquals(null, BigQueryFilters.translateFilters(and, conf));
 
     // Translate: a = "abcd" OR customUDF() OR b = "xyz"
     ExprNodeGenericFuncDesc or = new ExprNodeGenericFuncDesc();
     or.setGenericUDF(new GenericUDFOPOr());
     or.setChildren(Arrays.asList(equalA, customUDF, equalB));
-    assertEquals(null, BigQueryFilters.translateFilters(or));
+    assertEquals(null, BigQueryFilters.translateFilters(or, conf));
   }
 }

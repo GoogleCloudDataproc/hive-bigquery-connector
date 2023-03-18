@@ -211,7 +211,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     if (serializedFilterExpr != null) {
       filterExpr = SerializationUtilities.deserializeExpression(serializedFilterExpr);
       ExprNodeGenericFuncDesc translatedFilterExpr =
-          (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr);
+          (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr, jobConf);
       if (translatedFilterExpr != null) {
         filter = Optional.of(translatedFilterExpr.getExprString());
       }
