@@ -59,6 +59,7 @@
     <modules>
         <module>hive-bigquery-parent</module>
         <module>shaded-dependencies</module>
+        <module>shaded-test-dependencies</module>
         <module>connector</module>
     </modules>
 </project>

@@ -23,28 +23,32 @@ import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.crea
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.generateClusterName;
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.uploadConnectorJar;
+import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.dataproc.v1.Cluster;
-import com.google.cloud.dataproc.v1.ClusterConfig;
-import com.google.cloud.dataproc.v1.ClusterControllerClient;
-import com.google.cloud.dataproc.v1.ClusterControllerSettings;
-import com.google.cloud.dataproc.v1.DiskConfig;
-import com.google.cloud.dataproc.v1.GceClusterConfig;
-import com.google.cloud.dataproc.v1.InstanceGroupConfig;
-import com.google.cloud.dataproc.v1.Job;
-import com.google.cloud.dataproc.v1.JobControllerClient;
-import com.google.cloud.dataproc.v1.JobControllerSettings;
-import com.google.cloud.dataproc.v1.JobPlacement;
-import com.google.cloud.dataproc.v1.NodeInitializationAction;
-import com.google.cloud.dataproc.v1.PySparkJob;
-import com.google.cloud.dataproc.v1.SoftwareConfig;
+import test.hivebqcon.com.google.cloud.dataproc.v1.Cluster;
+import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterConfig;
+import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterControllerClient;
+import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterControllerSettings;
+import test.hivebqcon.com.google.cloud.dataproc.v1.DiskConfig;
+import test.hivebqcon.com.google.cloud.dataproc.v1.GceClusterConfig;
+import test.hivebqcon.com.google.cloud.dataproc.v1.InstanceGroupConfig;
+import test.hivebqcon.com.google.cloud.dataproc.v1.Job;
+import test.hivebqcon.com.google.cloud.dataproc.v1.JobControllerClient;
+import test.hivebqcon.com.google.cloud.dataproc.v1.JobControllerSettings;
+import test.hivebqcon.com.google.cloud.dataproc.v1.JobPlacement;
+import test.hivebqcon.com.google.cloud.dataproc.v1.JobStatus;
+import test.hivebqcon.com.google.cloud.dataproc.v1.NodeInitializationAction;
+import test.hivebqcon.com.google.cloud.dataproc.v1.PySparkJob;
+import test.hivebqcon.com.google.cloud.dataproc.v1.SoftwareConfig;
 import com.google.common.collect.ImmutableList;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.junit.Test;
 
 public class DataprocAcceptanceTestBase {
 
@@ -285,5 +289,20 @@ public class DataprocAcceptanceTestBase {
     public String getMarker() {
       return marker;
     }
+  }
+
+  @Test
+  public void testRead() throws Exception {
+    String testName = "test-read";
+    Job result =
+        createAndRunPythonJob(
+            testName,
+            "read_shakespeare.py",
+            null,
+            Arrays.asList(context.getResultsDirUri(testName)),
+            120);
+    assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
+    assertThat(output.trim()).isEqualTo("spark,10");
   }
 }
