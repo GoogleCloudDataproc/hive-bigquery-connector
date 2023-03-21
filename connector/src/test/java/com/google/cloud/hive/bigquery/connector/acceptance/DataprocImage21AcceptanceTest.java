@@ -18,13 +18,12 @@ package com.google.cloud.hive.bigquery.acceptance;
 import java.util.Collections;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
 
-public class DataprocImage20AcceptanceTest extends DataprocAcceptanceTestBase {
+public class DataprocImage21AcceptanceTest extends DataprocAcceptanceTestBase {
 
   private static AcceptanceTestContext context;
 
-  public DataprocImage20AcceptanceTest() {
+  public DataprocImage21AcceptanceTest() {
     super(context, false);
   }
 
@@ -32,14 +31,11 @@ public class DataprocImage20AcceptanceTest extends DataprocAcceptanceTestBase {
   public static void setup() throws Exception {
     context =
         DataprocAcceptanceTestBase.setup(
-            "2.0-debian10", "hive-bigquery-connector", Collections.emptyList());
+            "2.1-debian11", "hive-bigquery-connector", Collections.emptyList());
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
     DataprocAcceptanceTestBase.tearDown(context);
   }
-
-  @Test
-  public void testRead() throws Exception {}
 }

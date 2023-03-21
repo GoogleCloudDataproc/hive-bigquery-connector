@@ -94,7 +94,30 @@
       <scope>provided</scope>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>gcs-connector</artifactId>
+      <version>${gcs-connector.version}</version>
+      <classifier>shaded</classifier>
+      <scope>provided</scope>
+      <exclusions>
+        <!-- Exclude all GRPC dependencies to avoid some packaging issues -->
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- ******* Testing dependencies ******* -->
+
+    <dependency>
+      <groupId>com.google.cloud.hive</groupId>
+      <artifactId>shaded-test-dependencies</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>shaded</classifier>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -114,29 +137,6 @@
       <groupId>org.junit.platform</groupId>
       <artifactId>junit-platform-launcher</artifactId>
       <version>1.9.2</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-dataproc</artifactId>
-      <!--<scope>test</scope>-->
-      <version>${google-cloud-dataproc.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-bom</artifactId>
-      <version>${protobuf.version}</version>
-      <type>pom</type>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-bom</artifactId>
-      <version>${grpc.version}</version>
-      <type>pom</type>
       <scope>test</scope>
     </dependency>
 
@@ -194,24 +194,10 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>gcs-connector</artifactId>
-      <version>${gcs-connector.version}</version>
-      <classifier>shaded</classifier>
-      <scope>provided</scope>
-      <exclusions>
-        <!-- Exclude all GRPC dependencies to avoid some packaging issues -->
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.truth</groupId>
       <artifactId>truth</artifactId>
       <version>${truth.version}</version>
+      <scope>test</scope>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
