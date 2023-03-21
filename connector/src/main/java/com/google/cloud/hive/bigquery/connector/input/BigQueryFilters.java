@@ -21,10 +21,7 @@ import com.google.cloud.hive.bigquery.connector.input.udfs.*;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
-import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
-import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
-import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
+import org.apache.hadoop.hive.ql.plan.*;
 import org.apache.hadoop.hive.ql.udf.*;
 import org.apache.hadoop.hive.ql.udf.generic.*;
 import org.slf4j.Logger;
@@ -268,6 +265,10 @@ public class BigQueryFilters {
       // Convert the ExprNodeConstantDesc to a BigQueryConstantDesc
       // to make sure the value properly formatted for BigQuery.
       return BigQueryConstantDesc.translate((ExprNodeConstantDesc) filterExpr);
+    }
+    if (filterExpr instanceof ExprNodeFieldDesc) {
+      ExprNodeFieldDesc fieldDesc = ((ExprNodeFieldDesc) filterExpr);
+      return new BigQueryFieldDesc(fieldDesc);
     }
     throw new RuntimeException("Unexpected filter type: " + filterExpr);
   }

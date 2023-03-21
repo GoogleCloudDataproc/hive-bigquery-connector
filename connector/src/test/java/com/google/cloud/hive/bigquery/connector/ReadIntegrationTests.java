@@ -743,4 +743,33 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
                 "CAST(tiny_int_val as FLOAT) = 4.2",
                 "CAST(tiny_int_val as DOUBLE) = 4.2"));
   }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Filter on a STRUCT field. */
+  @Test
+  public void testFilterStruct() {
+    initHive();
+    String tableName = "filterstruct";
+    createExternalTable(
+        tableName,
+        "idx int, `data` struct<address:struct<id:string>>",
+        "idx int64, `data` struct<address struct<id string>>");
+    runBqQuery(
+        String.format("INSERT INTO ${dataset}.%s values (1, struct(struct('aaa')));", tableName));
+    runBqQuery(
+        String.format("INSERT INTO ${dataset}.%s values (2, struct(struct('bbb')));", tableName));
+    runBqQuery(
+        String.format("INSERT INTO ${dataset}.%s values (3, struct(struct('ccc')));", tableName));
+    List<Object[]> rows =
+        runHiveQuery(
+            String.format(
+                "select * from %s where data.address.id <> 'bbb' order by idx", tableName));
+    assertArrayEquals(
+        new Object[] {
+          new Object[] {1, "{\"address\":{\"id\":\"aaa\"}}"},
+          new Object[] {3, "{\"address\":{\"id\":\"ccc\"}}"}
+        },
+        rows.toArray());
+  }
 }
