@@ -25,6 +25,15 @@ import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.gene
 import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.uploadConnectorJar;
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import org.junit.Test;
 import test.hivebqcon.com.google.cloud.dataproc.v1.Cluster;
 import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterConfig;
 import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterControllerClient;
@@ -40,15 +49,6 @@ import test.hivebqcon.com.google.cloud.dataproc.v1.JobStatus;
 import test.hivebqcon.com.google.cloud.dataproc.v1.NodeInitializationAction;
 import test.hivebqcon.com.google.cloud.dataproc.v1.PySparkJob;
 import test.hivebqcon.com.google.cloud.dataproc.v1.SoftwareConfig;
-import com.google.common.collect.ImmutableList;
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import org.junit.Test;
 
 public class DataprocAcceptanceTestBase {
 
