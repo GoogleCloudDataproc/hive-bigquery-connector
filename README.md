@@ -394,7 +394,12 @@ Please note there are a few caveats:
 
 ## Known issues and limitations
 
-* Ensure that the table exists in BigQuery and column names are always lowercase.
+* The `UPDATE`, `MERGE`, and `DELETE`, and `ALTER TABLE` statements are currently not supported.
+* The `PARTITIONED BY`, `CLUSTERED BY`, `INSERT INTO PARTITION`, and
+  `INSERT INTO PARTITION OVERWRITE` statements are currently not supported. Note, however, that
+  partitioning and clustering in BigQuery are supported via `TBLPROPERTIES`. See the corresponding
+  sections on [partitioning](#partitioning) and [clustering](#clustering).
+* CTAS (aka `CREATE TABLE AS SELECT`).
 * If a write job fails when using the Tez execution engine and the `indirect` write method, the
   temporary avro files might not be automatically cleaned up from the GCS bucket. The MR execution
   engine does not have this limitation. The temporary files are always cleaned up when the job is
@@ -403,12 +408,6 @@ Please note there are a few caveats:
   format for reading or the indirect method for writing. This is because Avro requires keys to be
   strings. If you use the Arrow format for reading (default) and the direct method for writing (also
   default), then there are no type limitations for the keys.
-* The `UPDATE`, `MERGE`, and `DELETE`, and `ALTER TABLE` statements are currently not supported.
-* The `PARTITIONED BY`, `CLUSTERED BY`, `INSERT INTO PARTITION`, and
-  `INSERT INTO PARTITION OVERWRITE` statements are not currently supported. Note, however, that
-  partitioning and clustering in BigQuery are supported via `TBLPROPERTIES`. See the corresponding
-  sections on [partitioning](#partitioning) and [clustering](#clustering).
-* CTAS (aka `CREATE TABLE AS SELECT`).
 
 ## Development
 
