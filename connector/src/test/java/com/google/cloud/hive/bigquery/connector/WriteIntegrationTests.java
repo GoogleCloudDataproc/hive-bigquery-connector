@@ -33,10 +33,6 @@ import shaded.hivebqcon.com.google.common.collect.Streams;
 public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
-  /** Insert data into a simple table. */
-  public void insert(String engine, String writeMethod) {
-    insert(engine, writeMethod, null);
-  }
 
   /** Insert data into a simple table. */
   public void insert(String engine, String writeMethod, String tempGcsPath) {
@@ -63,7 +59,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE)
   public void testInsertDirect(String engine) {
-    insert(engine, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
+    insert(engine, HiveBigQueryConfig.WRITE_METHOD_DIRECT, null);
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -119,6 +115,79 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     assertEquals(888L, rows.get(0).get(0).getLongValue());
     assertEquals("xyz", rows.get(0).get(1).getStringValue());
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Test "INSERT TABLE AS SELECT" (ITAS) */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testITAS(String engine, String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    String itasSource = "itas_source";
+    String itasDestination = "itas_destination";
+    createExternalTable(itasSource, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    createExternalTable(itasDestination, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    // Insert data into the BQ table using the BQ SDK
+    runBqQuery(
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES", itasSource),
+            "(1, 'hello'), (2, 'bonjour')"));
+    // Run ITAS query in Hive
+    runHiveQuery("INSERT INTO " + itasDestination + " SELECT * FROM " + itasSource);
+    // Make sure the data was written to BQ
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s` ORDER BY number", itasDestination));
+    assertEquals(2, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    assertEquals(1L, rows.get(0).get(0).getLongValue());
+    assertEquals("hello", rows.get(0).get(1).getStringValue());
+    assertEquals(2L, rows.get(1).get(0).getLongValue());
+    assertEquals("bonjour", rows.get(1).get(1).getStringValue());
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Test "INSERT OVERWRITE AS SELECT" */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testOverwriteITAS(String engine, String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    String itasOverwriteSource = "itas_overwrite_source";
+    String itasOverwriteDestination = "itas_overwrite_destination";
+    createExternalTable(itasOverwriteSource, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    createExternalTable(itasOverwriteDestination, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    // Insert data into the BQ tables using the BQ SDK
+    runBqQuery(
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES", itasOverwriteSource),
+            "(1, 'hello'), (2, 'bonjour')"));
+    runBqQuery(
+        String.join(
+            "\n",
+            String.format("INSERT `${dataset}.%s` VALUES", itasOverwriteDestination),
+            "(1, 'hola'), (2, 'gutentag')"));
+    // Run ITAS query in Hive
+    runHiveQuery(
+        "INSERT OVERWRITE TABLE "
+            + itasOverwriteDestination
+            + " SELECT * FROM "
+            + itasOverwriteSource);
+    // Make sure the data was written to BQ
+    TableResult result =
+        runBqQuery(
+            String.format(
+                "SELECT * FROM `${dataset}.%s` ORDER BY number", itasOverwriteDestination));
+    assertEquals(2, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    assertEquals(1L, rows.get(0).get(0).getLongValue());
+    assertEquals("hello", rows.get(0).get(1).getStringValue());
+    assertEquals(2L, rows.get(1).get(0).getLongValue());
+    assertEquals("bonjour", rows.get(1).get(1).getStringValue());
   }
 
   // ---------------------------------------------------------------------------------------------------
