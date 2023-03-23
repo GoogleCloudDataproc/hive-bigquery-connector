@@ -18,7 +18,6 @@ package com.google.cloud.hive.bigquery.connector.output.direct;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
@@ -60,7 +59,7 @@ public class DirectUtils {
             "%s_%s.%s",
             getTaskTempStreamFileNamePrefix(bigQueryTableId),
             taskAttemptID.getTaskID(),
-            Constants.STREAM_FILE_EXTENSION));
+            HiveBigQueryConfig.STREAM_FILE_EXTENSION));
   }
 
   /**
@@ -76,18 +75,18 @@ public class DirectUtils {
     HeaderProvider headerProvider = injector.getInstance(HeaderProvider.class);
     BigQueryCredentialsSupplier credentialsSupplier =
         injector.getInstance(BigQueryCredentialsSupplier.class);
-    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
     String tablePath =
         String.format(
             "projects/%s/datasets/%s/tables/%s",
             tableId.getProject(), tableId.getDataset(), tableId.getTable());
     BigQueryClientFactory writeClientFactory =
-        new BigQueryClientFactory(credentialsSupplier, headerProvider, config);
+        new BigQueryClientFactory(credentialsSupplier, headerProvider, opts);
     return new BigQueryDirectDataWriterHelper(
         writeClientFactory,
         tablePath,
         schema,
-        config.getBigQueryClientRetrySettings(),
-        config.getTraceId());
+        opts.getBigQueryClientRetrySettings(),
+        opts.getTraceId());
   }
 }

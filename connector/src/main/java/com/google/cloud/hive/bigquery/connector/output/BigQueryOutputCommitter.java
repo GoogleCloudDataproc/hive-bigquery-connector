@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
@@ -36,16 +35,14 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);
 
   public static void commit(Configuration conf, JobDetails jobDetails) throws IOException {
-    String writeMethod =
-        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
+    HiveBigQueryConfig opts = HiveBigQueryConfig.from(conf, jobDetails.getTableProperties());
+    String writeMethod = opts.getWriteMethod();
     // Pick the appropriate OutputCommitter (direct or indirect) based on the
     // configured write method
-    if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
+    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
       IndirectOutputCommitter.commitJob(conf, jobDetails);
-    } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
-      DirectOutputCommitter.commitJob(conf, jobDetails);
     } else {
-      throw new RuntimeException("Invalid write method setting: " + writeMethod);
+      DirectOutputCommitter.commitJob(conf, jobDetails);
     }
     FileSystemUtils.deleteWorkDirOnExit(conf, jobDetails.getHmsDbTableName());
   }
@@ -114,7 +111,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   }
 
   private Set<String> getOutputTables(JobConf jobConf) {
-    String outputTblsStr = jobConf.get(Constants.HIVE_OUTPUT_TABLES_KEY);
-    return Sets.newHashSet(Constants.TABLE_NAME_SPLITTER.split(outputTblsStr));
+    String outputTables = jobConf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
+    return Sets.newHashSet(HiveBigQueryConfig.TABLE_NAME_SPLITTER.split(outputTables));
   }
 }

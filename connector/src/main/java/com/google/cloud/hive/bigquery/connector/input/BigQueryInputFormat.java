@@ -17,11 +17,8 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.input.arrow.ArrowRecordReader;
 import com.google.cloud.hive.bigquery.connector.input.avro.AvroRecordReader;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;
@@ -50,14 +47,12 @@ public class BigQueryInputFormat
   @Override
   public RecordReader<NullWritable, ObjectWritable> getRecordReader(
       InputSplit inputSplit, JobConf jobConf, Reporter reporter) {
-    Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(jobConf));
-    DataFormat readDataFormat = injector.getInstance(HiveBigQueryConfig.class).getReadDataFormat();
+    DataFormat readDataFormat = HiveBigQueryConfig.from(jobConf).getReadDataFormat();
     if (readDataFormat.equals(DataFormat.ARROW)) {
       return new ArrowRecordReader((BigQueryInputSplit) inputSplit, jobConf);
-    } else if (readDataFormat.equals(DataFormat.AVRO)) {
+    } else {
       return new AvroRecordReader((BigQueryInputSplit) inputSplit, jobConf);
     }
-    throw new RuntimeException("Invalid readDataFormat: " + readDataFormat);
   }
 
   @Override

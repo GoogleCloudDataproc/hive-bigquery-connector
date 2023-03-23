@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.FormatOptions;
 import com.google.cloud.bigquery.JobInfo.WriteDisposition;
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
@@ -53,14 +52,14 @@ public class IndirectOutputCommitter {
             new Path(
                 IndirectUtils.getGcsTempDir(conf, jobDetails.getGcsTempPath()), hmsDbTableName),
             IndirectUtils.getTaskTempAvroFileNamePrefix(jobDetails.getTableId()),
-            Constants.LOAD_FILE_EXTENSION);
+            HiveBigQueryConfig.LOAD_FILE_EXTENSION);
     if (avroFiles.size() > 0) {
       Injector injector =
           Guice.createInjector(
               new BigQueryClientModule(),
               new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-      HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
+      HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
       FormatOptions formatOptions = FormatOptions.avro();
       WriteDisposition writeDisposition =
           jobDetails.isOverwrite()
@@ -70,7 +69,7 @@ public class IndirectOutputCommitter {
       try {
         // Load the Avro files into BigQuery
         bqClient.loadDataIntoTable(
-            config, avroFiles, formatOptions, writeDisposition, Optional.empty());
+            opts, avroFiles, formatOptions, writeDisposition, Optional.empty());
       } finally {
         // Delete all the Avro files from GCS
         IndirectUtils.deleteTblGcsTempDir(conf, jobDetails.getGcsTempPath(), hmsDbTableName);
