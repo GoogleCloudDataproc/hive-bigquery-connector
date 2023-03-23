@@ -530,7 +530,21 @@ The following environement variables must be set and **exported** first.
 To run the acceptance tests:
 
 ```sh
-./mvnw verify -Pacceptance
+./mvnw verify -Pdataproc21,acceptance
+```
+
+If you want to avoid rebuilding `shaded-dependencies` and `shaded-test-dependencies` when there is no changes in these
+modules, you can break it down into several steps, and only rerun the necessary steps:
+
+```sh
+# Install hive-bigquery-parent/pom.xml to Maven local repo
+mvn install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
+
+# Build and install shaded-dependencies and shaded-test-dependencies jars to Maven local repo
+mvn clean install -pl shaded-dependencies,shaded-test-dependencies -Pdataproc21 -DskipTests
+
+# Build and test connector
+mvn clean verify -pl connector -Pdataproc21,acceptance
 ```
 
 ##### Running the tests for different Hadoop versions
@@ -543,11 +557,13 @@ Before you can run the tests with Hadoop 3, you also must install Tez's latest (
 * Install Protobuf v2.5.0:
 
   If you're on MacOS, install these packages:
+
   ```sh
   brew install automake libtool wget
   ```
 
   Then compile Protobuf from source:
+
   ```sh
   cd ~
   wget https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.bz2
@@ -561,6 +577,7 @@ Before you can run the tests with Hadoop 3, you also must install Tez's latest (
   ```
 
 * Get the Tez source:
+
   ```sh
   cd ~
   git clone
@@ -570,6 +587,7 @@ Before you can run the tests with Hadoop 3, you also must install Tez's latest (
   ```
 
 * Compile and install Tez:
+
   ```sh
   export PATH=${HOME}/protobuf-2.5.0/bin:${PATH}
   mvn clean install \
