@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.acceptance;
+package com.google.cloud.hive.bigquery.connector.acceptance;
 
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_DIRECTORY;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.PROJECT_ID;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestConstants.REGION;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.createBqDataset;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.generateClusterName;
-import static com.google.cloud.hive.bigquery.acceptance.AcceptanceTestUtils.uploadConnectorJar;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_DIRECTORY;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.PROJECT_ID;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.REGION;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.createBqDataset;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.generateClusterName;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.uploadConnectorJar;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
