@@ -73,6 +73,10 @@ TBLPROPERTIES (
 When you drop a managed table using the `DROP TABLE` statement, the connector drops both the table
 metadata from the Hive Metastore and the BigQuery table (including all of its data).
 
+For Hive-3.x, create a managed table with `NOT NULL` column restraint will not create the BigQuery table
+with corresponding `NOT NULL` restraint. The `NOT NULL` restraint is still enforced by Hive at runtime.
+It is recommended to use external table if user needs to have the `NOT NULL` restraint on the BigQuery table.
+
 ### External tables
 
 When you create an external table using the `CREATE EXTERNAL TABLE` statement, the connector only
@@ -96,22 +100,45 @@ metadata from the Hive Metastore. The corresponding BigQuery table remains unaff
 
 ### Statistics For Hive Query Planning
 
-It is recommended to collect some [statistics](https://cwiki.apache.org/confluence/display/hive/statsdev)
-(e.g. the number of rows, raw data size, etc) to help Hive to optimize query plans and read
-parallelism, therefore improving performance. Follow these steps to collect statistics for a table:
+It is recommended to collect [statistics](https://cwiki.apache.org/confluence/display/hive/statsdev)
+(e.g. the number of rows, raw data size, etc) to help Hive to optimize query plan,
+therefore improving performance. Follow these steps to collect statistics for a table:
+(replace `<table_name>` with your table name)
 
-1. Run the following HiveQL query (Replace `<table_name>` with your table name):
+1. Check if Hive has reasonable statistics on `numRows` and `rawDataSize` for your table.
+   ```sql
+   DESCRIBE FORMATTED <table_name>;
+   ```
+   Example output:
+   ```
+   Table Parameters:
+       COLUMN_STATS_ACCURATE	{\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\",\"name\":\"true\"}}
+       numFiles            	0
+       numRows             	12345
+       rawDataSize         	67890
+       totalSize           	34567
+   ```
+2. if statstics `rawDataSize` or `numRows` is missing, run the following HiveQL query:
+   ```sql
+   ANALYZE TABLE <table_name> COMPUTE STATISTICS;
+   ```
+   repeate step 1 to see if `rawDataSize` and `numRows` are set after above command.
+
+
+3. If statistics `rawDataSize` or `numRows` is still missing after above step 2),
+   this means the Hive version does not support collecting statistics from BigQuery table yet,
+   to workaround it, continue with the following steps.
+
+   Collect column stats
    ```sql
    ANALYZE TABLE <table_name> COMPUTE STATISTICS FOR COLUMNS;
    ```
-   It is recommended to run this query the first time the table is created, and every time you
-   believe that the table's contents might have changed significantly and therefore that the
-   existing statistics might have become stale.
-2. Enable the following setting to activate column statistics usage for query planning:
+   repeate step 1 to see if `COLUMN_STATS_ACCURATE` is set true after above command.
+
+   Enable the following setting to activate column statistics usage for query planning:
    ```sql
    SET hive.stats.fetch.column.stats=true;
    ```
-   This will increase calls to the Hive Metastore. You can set it at query level as needed.
 
 ## Partitioning
 
