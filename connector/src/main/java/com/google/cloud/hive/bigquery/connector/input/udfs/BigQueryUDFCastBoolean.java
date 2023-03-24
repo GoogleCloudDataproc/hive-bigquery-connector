@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-public class BigQueryUDFToBoolean extends BigQueryUDFBase {
+public class BigQueryUDFCastBoolean extends BigQueryUDFBase {
   @Override
   public String getDisplayString(String[] children) {
     return String.format("CAST(%s AS BOOL)", children[0]);

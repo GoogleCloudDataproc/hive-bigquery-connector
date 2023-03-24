@@ -15,9 +15,10 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-public class BigQueryUDFToBytes extends BigQueryUDFBase {
+public class BigQueryUDFCastDecimal extends BigQueryUDFBase {
   @Override
   public String getDisplayString(String[] children) {
-    return String.format("CAST(%s AS BYTES)", children[0]);
+    // TODO: Use NUMERIC or BIGNUMERIC based on the value's precision and scale?
+    return String.format("CAST(%s AS BIGNUMERIC)", children[0]);
   }
 }

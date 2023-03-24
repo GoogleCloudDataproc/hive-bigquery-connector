@@ -17,6 +17,7 @@ package com.google.cloud.hive.bigquery.connector.input.udfs;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
@@ -25,6 +26,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
  * and operators.
  */
 public abstract class BigQueryUDFBase extends GenericUDF {
+
+  ExprNodeGenericFuncDesc expr;
 
   @Override
   public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
@@ -36,5 +39,9 @@ public abstract class BigQueryUDFBase extends GenericUDF {
   public Object evaluate(DeferredObject[] arguments) throws HiveException {
     // Ignore
     return null;
+  }
+
+  public void setExpr(ExprNodeGenericFuncDesc expr) {
+    this.expr = expr;
   }
 }

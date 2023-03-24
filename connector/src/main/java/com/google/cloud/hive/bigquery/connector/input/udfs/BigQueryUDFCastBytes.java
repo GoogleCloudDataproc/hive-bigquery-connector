@@ -15,9 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-public class BigQueryUDFToFloat64 extends BigQueryUDFBase {
+public class BigQueryUDFCastBytes extends BigQueryUDFBase {
   @Override
   public String getDisplayString(String[] children) {
-    return String.format("CAST(%s AS FLOAT64)", children[0]);
+    return String.format("CAST(%s AS BYTES)", children[0]);
   }
 }

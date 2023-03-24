@@ -420,6 +420,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
             + " where "
             + String.join(
                 "\n OR ",
+                "TO_DATE(str) > DATE'2023-03-24' and TO_DATE(ts) < DATE'2024-02-18'",
                 "DAYOFWEEK(ts) = 2 AND QUARTER(ts) = 1 AND WEEKOFYEAR(day) = 4",
                 "YEAR(ts) = 2013 AND MONTH(ts) = 2 AND DAY(ts) = 21 AND HOUR(ts) = 5 AND"
                     + " MINUTE(ts) = 33 AND SECOND(ts) = 17",

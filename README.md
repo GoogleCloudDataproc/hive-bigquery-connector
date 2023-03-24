@@ -288,6 +288,7 @@ are automatically converted:
 | Hive generic UDF | BigQuery function             | Notes                                                                                     |
 |------------------|-------------------------------|-------------------------------------------------------------------------------------------|
 | `%`              | `MOD`                         | BigQuery currently supports `MOD` only for the `INT64`, `NUMERIC`, and `BIGNUMERIC` types |
+| `TO_DATE`        | `DATE`                        |                                                                                           |
 | `DATE_ADD`       | `DATE_ADD`                    |                                                                                           |
 | `DATE_SUB`       | `DATE_SUB`                    |                                                                                           |
 | `DATEDIFF`       | `DATE_DIFF`                   |                                                                                           |

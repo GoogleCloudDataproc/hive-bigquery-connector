@@ -120,7 +120,7 @@ public class UDFTest {
   }
 
   @Test
-  public void testBoolean() {
+  public void testCastBoolean() {
     String expression =
         translateUDF(
             new GenericUDFBridge(
@@ -130,7 +130,7 @@ public class UDFTest {
   }
 
   @Test
-  public void testBytes() {
+  public void testCastBytes() {
     String expression =
         translateUDF(
             new GenericUDFToBinary(),
@@ -139,7 +139,7 @@ public class UDFTest {
   }
 
   @Test
-  public void testDate() {
+  public void testCastDate() {
     String expression =
         translateUDF(
             new GenericUDFToDate(),
@@ -148,7 +148,7 @@ public class UDFTest {
   }
 
   @Test
-  public void testDatetime() {
+  public void testCastDatetime() {
     String expression =
         translateUDF(
             new GenericUDFTimestamp(),
@@ -157,7 +157,7 @@ public class UDFTest {
   }
 
   @Test
-  public void testDecimal() {
+  public void testCastDecimal() {
     String expression =
         translateUDF(
             new GenericUDFToDecimal(),
@@ -166,7 +166,7 @@ public class UDFTest {
   }
 
   @Test
-  public void testFloat64() {
+  public void testCastFloat64() {
     Class[] udfs = new Class[] {UDFToFloat.class, UDFToDouble.class};
     for (Class udf : udfs) {
       String expression =
@@ -175,6 +175,45 @@ public class UDFTest {
               Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "99")));
       assertEquals("CAST(99 AS FLOAT64)", expression);
     }
+  }
+
+  @Test
+  public void testCastInt64() {
+    Class[] udfs =
+        new Class[] {UDFToByte.class, UDFToShort.class, UDFToInteger.class, UDFToLong.class};
+    for (Class udf : udfs) {
+      String expression =
+          translateUDF(
+              new GenericUDFBridge(udf.getSimpleName(), false, udf.getName()),
+              Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "99")));
+      assertEquals("CAST(99 AS INT64)", expression);
+    }
+  }
+
+  @Test
+  public void testCastString() {
+    GenericUDF[] udfs =
+        new GenericUDF[] {
+          new GenericUDFBridge(
+              UDFToString.class.getSimpleName(), false, UDFToString.class.getName()),
+          new GenericUDFToVarchar(),
+          new GenericUDFToChar(),
+        };
+    for (GenericUDF udf : udfs) {
+      String expression =
+          translateUDF(
+              udf, Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "99")));
+      assertEquals("CAST(99 AS STRING)", expression);
+    }
+  }
+
+  @Test
+  public void testCastTimestamp() {
+    String expression =
+        translateUDF(
+            new GenericUDFToTimestampLocalTZ(),
+            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "2010-10-10")));
+    assertEquals("CAST('2010-10-10' AS TIMESTAMP)", expression);
   }
 
   @Test
@@ -204,45 +243,6 @@ public class UDFTest {
                 new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abcd"),
                 new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "xyz")));
     assertEquals("IFNULL('abcd', 'xyz')", expression);
-  }
-
-  @Test
-  public void testInt64() {
-    Class[] udfs =
-        new Class[] {UDFToByte.class, UDFToShort.class, UDFToInteger.class, UDFToLong.class};
-    for (Class udf : udfs) {
-      String expression =
-          translateUDF(
-              new GenericUDFBridge(udf.getSimpleName(), false, udf.getName()),
-              Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "99")));
-      assertEquals("CAST(99 AS INT64)", expression);
-    }
-  }
-
-  @Test
-  public void testString() {
-    GenericUDF[] udfs =
-        new GenericUDF[] {
-          new GenericUDFBridge(
-              UDFToString.class.getSimpleName(), false, UDFToString.class.getName()),
-          new GenericUDFToVarchar(),
-          new GenericUDFToChar(),
-        };
-    for (GenericUDF udf : udfs) {
-      String expression =
-          translateUDF(
-              udf, Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.intTypeInfo, "99")));
-      assertEquals("CAST(99 AS STRING)", expression);
-    }
-  }
-
-  @Test
-  public void testTimestamp() {
-    String expression =
-        translateUDF(
-            new GenericUDFToTimestampLocalTZ(),
-            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "2010-10-10")));
-    assertEquals("CAST('2010-10-10' AS TIMESTAMP)", expression);
   }
 
   @Test
@@ -389,5 +389,20 @@ public class UDFTest {
             new GenericUDFOPNotFalse(),
             Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abc")));
     assertEquals("('abc' is not false)", expression);
+  }
+
+  @Test
+  public void testToDate() {
+    String expression =
+        translateUDF(
+            new GenericUDFDate(),
+            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "2010-10-10")));
+    assertEquals("DATE(TIMESTAMP('2010-10-10'))", expression);
+    expression =
+        translateUDF(
+            new GenericUDFDate(),
+            Arrays.asList(
+                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
+    assertEquals("DATE(DATETIME'2010-10-10')", expression);
   }
 }

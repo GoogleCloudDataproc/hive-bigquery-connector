@@ -15,9 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-public class BigQueryUDFToDatetime extends BigQueryUDFBase {
+public class BigQueryUDFCastTimestamp extends BigQueryUDFBase {
   @Override
   public String getDisplayString(String[] children) {
-    return String.format("CAST(%s AS DATETIME)", children[0]);
+    return String.format("CAST(%s AS TIMESTAMP)", children[0]);
   }
 }

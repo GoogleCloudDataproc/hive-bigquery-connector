@@ -113,7 +113,8 @@ public class BigQueryFilters {
   }
 
   /** Converts the Hive UDF to the corresponding BigQuery function */
-  protected static GenericUDF convertUDF(GenericUDF udf, Configuration conf) {
+  protected static GenericUDF convertUDF(ExprNodeGenericFuncDesc expr, Configuration conf) {
+    GenericUDF udf = expr.getGenericUDF();
     if (identicalUDFs.contains(udf.getUdfName())) {
       return udf;
     }
@@ -150,20 +151,22 @@ public class BigQueryFilters {
       return new BigQueryUDFMod();
     } else if (udf instanceof GenericUDFRegExp) {
       return new BigQueryUDFRegExpContains();
+    } else if (udf instanceof GenericUDFDate) {
+      return new BigQueryUDFDate();
     } else if (udf instanceof GenericUDFToDate) {
-      return new BigQueryUDFToDate();
+      return new BigQueryUDFCastDate();
     } else if (udf instanceof GenericUDFTimestamp) {
-      return new BigQueryUDFToDatetime();
+      return new BigQueryUDFCastDatetime();
     } else if (udf instanceof GenericUDFToTimestampLocalTZ) {
-      return new BigQueryUDFToTimestamp();
+      return new BigQueryUDFCastTimestamp();
     } else if (udf instanceof GenericUDFToBinary) {
-      return new BigQueryUDFToBytes();
+      return new BigQueryUDFCastBytes();
     } else if (udf instanceof GenericUDFToVarchar) {
-      return new BigQueryUDFToString();
+      return new BigQueryUDFCastString();
     } else if (udf instanceof GenericUDFToChar) {
-      return new BigQueryUDFToString();
+      return new BigQueryUDFCastString();
     } else if (udf instanceof GenericUDFToDecimal) {
-      return new BigQueryUDFToDecimal();
+      return new BigQueryUDFCastDecimal();
     } else if (udf instanceof GenericUDFBridge) {
       String fullClassName = ((GenericUDFBridge) udf).getUdfClassName();
       if (fullClassName.startsWith(hiveUDFPackage)) {
@@ -182,17 +185,17 @@ public class BigQueryFilters {
           case "UDFOPBitShiftRight":
             return new BigQueryUDFShiftRight();
           case "UDFToString":
-            return new BigQueryUDFToString();
+            return new BigQueryUDFCastString();
           case "UDFToLong":
           case "UDFToInteger":
           case "UDFToShort":
           case "UDFToByte":
-            return new BigQueryUDFToInt64();
+            return new BigQueryUDFCastInt64();
           case "UDFToBoolean":
-            return new BigQueryUDFToBoolean();
+            return new BigQueryUDFCastBoolean();
           case "UDFToFloat":
           case "UDFToDouble":
-            return new BigQueryUDFToFloat64();
+            return new BigQueryUDFCastFloat64();
         }
       }
     }
@@ -212,10 +215,13 @@ public class BigQueryFilters {
     // Check if it's a function
     if (filterExpr instanceof ExprNodeGenericFuncDesc) {
       ExprNodeGenericFuncDesc function = ((ExprNodeGenericFuncDesc) filterExpr);
-      GenericUDF udf = convertUDF(function.getGenericUDF(), conf);
+      GenericUDF udf = convertUDF(function, conf);
       if (udf == null) {
         // Unsupported UDF. Bail.
         return null;
+      }
+      if (udf instanceof BigQueryUDFBase) {
+        ((BigQueryUDFBase) udf).setExpr(function);
       }
       function.setGenericUDF(udf);
 
