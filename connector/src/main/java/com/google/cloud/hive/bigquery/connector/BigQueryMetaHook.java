@@ -379,9 +379,9 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       throw new RuntimeException(e);
     }
     // TODO: jobdetails should already have those, add checks on jobDetails and merge properties
-    jobDetails.setProject(opts.getProject());
-    jobDetails.setDataset(opts.getDataset());
-    String bqTableName = opts.getTable();
+    jobDetails.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
+    jobDetails.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
+    String bqTableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
     jobDetails.setTable(bqTableName);
     jobDetails.setOverwrite(overwrite);
 
