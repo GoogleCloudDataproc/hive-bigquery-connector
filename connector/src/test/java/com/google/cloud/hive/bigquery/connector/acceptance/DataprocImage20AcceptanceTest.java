@@ -18,16 +18,16 @@ package com.google.cloud.hive.bigquery.connector.acceptance;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
-public class DataprocImage21AcceptanceTest extends DataprocAcceptanceTestBase {
+public class DataprocImage20AcceptanceTest extends DataprocAcceptanceTestBase {
 
   private static AcceptanceTestContext context;
 
   @BeforeClass
   public static void setup() throws Exception {
-    context = DataprocAcceptanceTestBase.setup("2.1-debian11");
+    context = DataprocAcceptanceTestBase.setup("2.0-debian10");
   }
 
-  public DataprocImage21AcceptanceTest() {
+  public DataprocImage20AcceptanceTest() {
     super(context);
   }
 

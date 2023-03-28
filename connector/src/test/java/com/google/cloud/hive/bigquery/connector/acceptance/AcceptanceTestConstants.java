@@ -26,6 +26,7 @@ public class AcceptanceTestConstants {
       Preconditions.checkNotNull(
           System.getenv("GOOGLE_CLOUD_PROJECT"),
           "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
+
   public static final boolean CLEAN_UP_CLUSTER =
       Strings.isNullOrEmpty(System.getenv("CLEAN_UP_CLUSTER"))
           ? true
@@ -38,7 +39,11 @@ public class AcceptanceTestConstants {
       Strings.isNullOrEmpty(System.getenv("CLEAN_UP_GCS"))
           ? true
           : Boolean.parseBoolean(System.getenv("CLEAN_UP_GCS"));
+
   public static final String CONNECTOR_JAR_DIRECTORY = "target";
+  public static final String CONNECTOR_JAR_PREFIX = "hive-bigquery-connector";  
+  public static final String CONNECTOR_INIT_ACTION_PATH = "/acceptance/connectors.sh";
+
   public static final String MIN_BIG_NUMERIC =
       "-578960446186580977117854925043439539266.34992332820282019728792003956564819968";
   public static final String MAX_BIG_NUMERIC =

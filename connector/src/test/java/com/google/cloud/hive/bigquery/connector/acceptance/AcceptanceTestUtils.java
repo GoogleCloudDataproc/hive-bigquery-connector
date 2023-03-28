@@ -244,7 +244,6 @@ public class AcceptanceTestUtils {
 
   public static String generateTestId(
       String dataprocImageVersion,
-      String connectorJarPrefix,
       List<ClusterProperty> clusterProperties) {
     String clusterPropertiesMarkers =
         clusterProperties.isEmpty()
