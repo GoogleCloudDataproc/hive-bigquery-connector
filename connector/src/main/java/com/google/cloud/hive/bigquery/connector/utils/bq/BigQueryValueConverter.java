@@ -42,7 +42,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (ByteWritable) hiveValue;
       }
-      return (long) writable.get();
+      return new Long(writable.get());
     }
 
     if (objectInspector instanceof ShortObjectInspector) { // Small Int
@@ -52,7 +52,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (ShortWritable) hiveValue;
       }
-      return (long) writable.get();
+      return new Long(writable.get());
     }
 
     if (objectInspector instanceof IntObjectInspector) { // Regular Int
@@ -62,7 +62,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (IntWritable) hiveValue;
       }
-      return (long) writable.get();
+      return new Long(writable.get());
     }
 
     if (objectInspector instanceof LongObjectInspector) { // Big Int
@@ -72,7 +72,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (LongWritable) hiveValue;
       }
-      return writable.get();
+      return new Long(writable.get());
     }
 
     if (objectInspector instanceof TimestampObjectInspector) {
@@ -108,7 +108,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (DateWritableV2) hiveValue;
       }
-      return writable.getDays();
+      return new Integer(writable.getDays());
     }
 
     if (objectInspector instanceof FloatObjectInspector) {
@@ -118,7 +118,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (FloatWritable) hiveValue;
       }
-      return (double) writable.get();
+      return new Double(writable.get());
     }
 
     if (objectInspector instanceof DoubleObjectInspector) {
@@ -128,7 +128,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (DoubleWritable) hiveValue;
       }
-      return writable.get();
+      return new Double(writable.get());
     }
 
     if (objectInspector instanceof BooleanObjectInspector) {
@@ -138,7 +138,7 @@ public class BigQueryValueConverter {
       } else {
         writable = (BooleanWritable) hiveValue;
       }
-      return writable.get();
+      return new Boolean(writable.get());
     }
 
     if (objectInspector instanceof HiveCharObjectInspector

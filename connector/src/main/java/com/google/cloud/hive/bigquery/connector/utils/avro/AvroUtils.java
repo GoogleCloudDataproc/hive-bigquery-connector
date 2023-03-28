@@ -69,10 +69,14 @@ public class AvroUtils {
     if (fieldOi instanceof ListObjectInspector) {
       ListObjectInspector loi = (ListObjectInspector) fieldOi;
       ObjectInspector elementOi = loi.getListElementObjectInspector();
-      return Schema.createArray(getAvroSchema(elementOi, bigqueryField));
+      return Schema.createUnion(
+          Schema.createArray(getAvroSchema(elementOi, bigqueryField)),
+          Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof StructObjectInspector) {
-      return getAvroSchema((StructObjectInspector) fieldOi, bigqueryField.getSubFields());
+      return Schema.createUnion(
+          getAvroSchema((StructObjectInspector) fieldOi, bigqueryField.getSubFields()),
+          Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof MapObjectInspector) {
       // Convert the Map type into a list of key/value records
@@ -87,15 +91,13 @@ public class AvroUtils {
           Schema.createRecord(
               "map_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
       entrySchema.setFields(Arrays.asList(keyField, valueField));
-      return Schema.createArray(entrySchema);
+      return Schema.createUnion(Schema.createArray(entrySchema), Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof ByteObjectInspector
         || fieldOi instanceof ShortObjectInspector
-        || fieldOi instanceof IntObjectInspector) {
-      return Schema.create(Schema.Type.INT);
-    }
-    if (fieldOi instanceof LongObjectInspector) {
-      return Schema.create(Schema.Type.LONG);
+        || fieldOi instanceof IntObjectInspector
+        || (fieldOi instanceof LongObjectInspector)) {
+      return Schema.createUnion(Schema.create(Schema.Type.LONG), Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof TimestampObjectInspector) {
       Schema schema = Schema.create(Schema.Type.LONG);
@@ -111,34 +113,32 @@ public class AvroUtils {
                 bigqueryField.getName(),
                 fieldOi.getTypeName()));
       }
-      return schema;
+      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof TimestampLocalTZObjectInspector) {
       Schema schema = Schema.create(Schema.Type.LONG);
       schema.addProp("logicalType", "timestamp-micros");
-      return schema;
+      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof DateObjectInspector) {
       Schema schema = Schema.create(Schema.Type.INT);
       schema.addProp("logicalType", "date");
-      return schema;
+      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
     }
-    if (fieldOi instanceof FloatObjectInspector) {
-      return Schema.create(Schema.Type.DOUBLE);
-    }
-    if (fieldOi instanceof DoubleObjectInspector) {
-      return Schema.create(Schema.Type.DOUBLE);
+    if (fieldOi instanceof FloatObjectInspector || fieldOi instanceof DoubleObjectInspector) {
+      return Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof BooleanObjectInspector) {
-      return Schema.create(Schema.Type.BOOLEAN);
+      return Schema.createUnion(
+          Schema.create(Schema.Type.BOOLEAN), Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof BinaryObjectInspector) {
-      return Schema.create(Schema.Type.BYTES);
+      return Schema.createUnion(Schema.create(Schema.Type.BYTES), Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof HiveCharObjectInspector
         || fieldOi instanceof HiveVarcharObjectInspector
         || fieldOi instanceof StringObjectInspector) {
-      return Schema.create(Schema.Type.STRING);
+      return Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL));
     }
     if (fieldOi instanceof HiveDecimalObjectInspector) {
       HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) fieldOi;
@@ -146,7 +146,7 @@ public class AvroUtils {
       schema.addProp("logicalType", "decimal");
       schema.addProp("precision", hdoi.precision());
       schema.addProp("scale", hdoi.scale());
-      return schema;
+      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
     }
 
     String unsupportedCategory;

@@ -334,6 +334,59 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that we can write NULL values in all types of fields. */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testWriteAllTypesNull(String engine, String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    // Create the BQ table
+    createExternalTable(
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
+    // Insert data into the BQ table using Hive
+    // TODO: Figure out why Hive won't let us insert NULL values for some fields below
+    runHiveQuery(
+        String.join(
+            "\n",
+            "INSERT INTO " + ALL_TYPES_TABLE_NAME + " VALUES(",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "CAST ('' AS TIMESTAMPLOCALTZ),",
+            "NULL,",
+            "NULL,",
+            "NULL,",
+            "NAMED_STRUCT(",
+            "  'min', CAST(0.0 AS" + " DECIMAL(38,9)),",
+            "  'max', CAST(0.0 AS" + " DECIMAL(38,9)),",
+            "  'pi', CAST(0.0 AS DECIMAL(38,9)),",
+            "  'big_pi', CAST(0.0 AS" + " DECIMAL(38,9))",
+            "),",
+            "ARRAY(CAST (1 AS BIGINT)),",
+            "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
+            "NAMED_STRUCT('float_field', CAST(0.0 AS FLOAT), 'ts_field', CAST ('' AS TIMESTAMP)),",
+            "MAP('mykey', MAP('subkey', 0))",
+            ")"));
+    // Read the data using the BQ SDK
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", ALL_TYPES_TABLE_NAME));
+    // Verify we get the expected values
+    assertEquals(1, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    FieldValueList row = rows.get(0);
+    assertEquals(19, row.size()); // Number of columns
+    // TODO: Verify the returned values
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Test a write operation and multiple read operations in the same query. */
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD)
