@@ -243,20 +243,26 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         .getSd()
         .setOutputFormat("com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat");
 
-    if (MetaStoreUtils.isExternalTable(table)) {
-      // Unset stats
-      StatsSetupConst.setStatsStateForCreateTable(
-          table.getParameters(), null, StatsSetupConst.FALSE);
-      return;
-    }
-
-    // If it's a managed table, generate the BigQuery schema
     Injector injector =
         Guice.createInjector(
             new BigQueryClientModule(),
             new HiveBigQueryConnectorModule(conf, table.getParameters()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+    if (MetaStoreUtils.isExternalTable(table)) {
+      if (bqClient.tableExists(opts.getTableId())) {
+        Map<String, String> basicStats =
+            BigQueryUtils.getBasicStatistics(bqClient, opts.getTableId());
+        basicStats.put(StatsSetupConst.COLUMN_STATS_ACCURATE, "{\"BASIC_STATS\":\"true\"}");
+        table.getParameters().putAll(basicStats);
+      } else {
+        StatsSetupConst.setStatsStateForCreateTable(
+            table.getParameters(), null, StatsSetupConst.FALSE);
+      }
+      return;
+    }
+
+    // For managed table
     if (bqClient.tableExists(opts.getTableId())) {
       throw new MetaException("BigQuery table already exists: " + opts.getTableId());
     }
@@ -329,8 +335,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       if (jobDetailsFilePath.getFileSystem(conf).exists(jobDetailsFilePath)) {
         // Before we have a better way to handle CTAS in Tez, throw error
         if (HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE)
-            .toLowerCase()
-            .equals("tez")) {
+            .equalsIgnoreCase("tez")) {
           throw new MetaException("CTAS currently not supported in Tez mode for BigQuery table.");
         }
         JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);

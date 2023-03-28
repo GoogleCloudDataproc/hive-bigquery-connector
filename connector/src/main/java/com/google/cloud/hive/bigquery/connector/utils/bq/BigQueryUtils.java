@@ -20,11 +20,16 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.http.HttpTransportOptions;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.api.Table;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryProxyTransporterBuilder;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import shaded.hivebqcon.com.google.gson.Gson;
 import shaded.hivebqcon.com.google.gson.JsonArray;
 import shaded.hivebqcon.com.google.gson.JsonElement;
@@ -98,5 +103,21 @@ public class BigQueryUtils {
 
     options.setTransportOptions(httpTransportOptionsBuilder.build());
     return options.build().getService();
+  }
+
+  public static Map<String, String> getBasicStatistics(BigQueryClient bqClient, TableId tableId) {
+    Map<String, String> stats = new HashMap<>();
+    TableInfo tableInfo = bqClient.getTable(tableId);
+    if (tableInfo == null) {
+      throw new RuntimeException(
+          "Table '" + BigQueryUtil.friendlyTableName(tableId) + "' not found");
+    }
+    String numBytes = tableInfo.getNumBytes().toString();
+    stats.put(StatsSetupConst.TOTAL_SIZE, numBytes);
+    stats.put(StatsSetupConst.RAW_DATA_SIZE, numBytes);
+    stats.put(StatsSetupConst.ROW_COUNT, tableInfo.getNumRows().toString());
+
+    stats.put(StatsSetupConst.NUM_FILES, "0");
+    return stats;
   }
 }

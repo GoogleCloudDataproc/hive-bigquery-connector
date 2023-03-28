@@ -16,11 +16,15 @@
 package com.google.cloud.hive.bigquery.connector;
 
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -36,12 +40,15 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorizationProvider;
 import org.apache.hadoop.hive.ql.security.authorization.HiveAuthorizationProvider;
+import org.apache.hadoop.hive.ql.stats.Partish;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputFormat;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
 @SuppressWarnings({"rawtypes", "deprecated"})
@@ -171,5 +178,25 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public void configureTableJobProperties(TableDesc tableDesc, Map<String, String> map) {
     // Deprecated
+  }
+
+  /*
+  The following API may not be available in Hive-3, check running Hive if they are available.
+  */
+  // @Override
+  public boolean canProvideBasicStatistics() {
+    return true;
+  }
+
+  // @Override
+  public Map<String, String> getBasicStatistics(Partish partish) {
+    org.apache.hadoop.hive.ql.metadata.Table hmsTable = partish.getTable();
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(),
+            new HiveBigQueryConnectorModule(conf, hmsTable.getParameters()));
+    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
+    return BigQueryUtils.getBasicStatistics(bqClient, config.getTableId());
   }
 }
