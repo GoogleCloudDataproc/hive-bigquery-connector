@@ -18,7 +18,9 @@ package com.google.cloud.hive.bigquery.connector.acceptance;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_BQ;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_CLUSTER;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_GCS;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_INIT_ACTION_PATH;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_DIRECTORY;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_PREFIX;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.PROJECT_ID;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.REGION;
@@ -35,6 +37,7 @@ import com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.C
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -70,12 +73,16 @@ public class DataprocAcceptanceTestBase {
     this.context = context;
   }
 
+  protected static AcceptanceTestContext setup(String dataprocImageVersion)
+      throws Exception {
+    return setup(dataprocImageVersion, Collections.emptyList());
+  }
+
   protected static AcceptanceTestContext setup(
       String dataprocImageVersion,
-      String connectorJarPrefix,
       List<ClusterProperty> clusterProperties)
       throws Exception {
-    String testId = generateTestId(dataprocImageVersion, connectorJarPrefix, clusterProperties);
+    String testId = generateTestId(dataprocImageVersion, clusterProperties);
     String clusterName = generateClusterName(testId);
     String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
     String connectorJarUri = testBaseGcsDir + "/connector.jar";
@@ -87,9 +94,9 @@ public class DataprocAcceptanceTestBase {
     String bqDataset = "hivebq_test_dataset_" + testId.replace("-", "_");
     String bqTable = "hivebq_test_table_" + testId.replace("-", "_");
 
-    uploadConnectorJar(CONNECTOR_JAR_DIRECTORY, connectorJarPrefix, connectorJarUri);
+    uploadConnectorJar(CONNECTOR_JAR_DIRECTORY, CONNECTOR_JAR_PREFIX, connectorJarUri);
 
-    uploadConnectorInitAction("/acceptance/connectors.sh", connectorInitActionUri);
+    uploadConnectorInitAction(CONNECTOR_INIT_ACTION_PATH, connectorInitActionUri);
 
     createBqDataset(bqProject, bqDataset);
 
@@ -104,6 +111,7 @@ public class DataprocAcceptanceTestBase {
     AcceptanceTestContext testContext =
         new AcceptanceTestContext(
             testId,
+            dataprocImageVersion,
             clusterName,
             testBaseGcsDir,
             connectorJarUri,

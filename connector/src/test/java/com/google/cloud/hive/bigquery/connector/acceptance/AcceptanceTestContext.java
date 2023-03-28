@@ -17,6 +17,7 @@ package com.google.cloud.hive.bigquery.connector.acceptance;
 
 public class AcceptanceTestContext {
   final String testId;
+  final String dataprocImageVersion;
   final String clusterId;
   final String testBaseGcsDir;
   final String connectorJarUri;
@@ -27,6 +28,7 @@ public class AcceptanceTestContext {
 
   public AcceptanceTestContext(
       String testId,
+      String dataprocImageVersion,
       String clusterId,
       String testBaseGcsDir,
       String connectorJarUri,
@@ -35,6 +37,7 @@ public class AcceptanceTestContext {
       String bqDataset,
       String bqTable) {
     this.testId = testId;
+    this.dataprocImageVersion = dataprocImageVersion;
     this.clusterId = clusterId;
     this.testBaseGcsDir = testBaseGcsDir;
     this.connectorJarUri = connectorJarUri;
@@ -56,6 +59,7 @@ public class AcceptanceTestContext {
   public String toString() {
     return new StringBuilder()
         .append("testId: " + testId + "\n")
+        .append("dataprocImageVersion: " + dataprocImageVersion + "\n")
         .append("clusterId: " + clusterId + "\n")
         .append("testBaseGcsDir: " + testBaseGcsDir + "\n")
         .append("connectorJarUri: " + connectorJarUri + "\n")
