@@ -15,6 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_BQ;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_CLUSTER;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_GCS;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_DIRECTORY;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.PROJECT_ID;
@@ -22,12 +25,16 @@ import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTest
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.createBqDataset;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.generateClusterName;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.generateTestId;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.readGcsFile;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.uploadConnectorInitAction;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.uploadConnectorJar;
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.ClusterProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +47,7 @@ import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterControllerClient;
 import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterControllerSettings;
 import test.hivebqcon.com.google.cloud.dataproc.v1.DiskConfig;
 import test.hivebqcon.com.google.cloud.dataproc.v1.GceClusterConfig;
+import test.hivebqcon.com.google.cloud.dataproc.v1.HiveJob;
 import test.hivebqcon.com.google.cloud.dataproc.v1.InstanceGroupConfig;
 import test.hivebqcon.com.google.cloud.dataproc.v1.Job;
 import test.hivebqcon.com.google.cloud.dataproc.v1.JobControllerClient;
@@ -47,7 +55,6 @@ import test.hivebqcon.com.google.cloud.dataproc.v1.JobControllerSettings;
 import test.hivebqcon.com.google.cloud.dataproc.v1.JobPlacement;
 import test.hivebqcon.com.google.cloud.dataproc.v1.JobStatus;
 import test.hivebqcon.com.google.cloud.dataproc.v1.NodeInitializationAction;
-import test.hivebqcon.com.google.cloud.dataproc.v1.PySparkJob;
 import test.hivebqcon.com.google.cloud.dataproc.v1.SoftwareConfig;
 
 public class DataprocAcceptanceTestBase {
@@ -58,16 +65,9 @@ public class DataprocAcceptanceTestBase {
       ImmutableList.<ClusterProperty>builder().add(DISABLE_CONSCRYPT).build();
 
   private AcceptanceTestContext context;
-  private boolean sparkStreamingSupported;
 
   protected DataprocAcceptanceTestBase(AcceptanceTestContext context) {
-    this(context, true);
-  }
-
-  protected DataprocAcceptanceTestBase(
-      AcceptanceTestContext context, boolean sparkStreamingSupported) {
     this.context = context;
-    this.sparkStreamingSupported = sparkStreamingSupported;
   }
 
   protected static AcceptanceTestContext setup(
@@ -75,61 +75,95 @@ public class DataprocAcceptanceTestBase {
       String connectorJarPrefix,
       List<ClusterProperty> clusterProperties)
       throws Exception {
-    String clusterPropertiesMarkers =
-        clusterProperties.isEmpty()
-            ? ""
-            : clusterProperties.stream()
-                .map(ClusterProperty::getMarker)
-                .collect(Collectors.joining("-", "-", ""));
-    String testId =
-        String.format(
-            "%s-%s%s%s",
-            System.currentTimeMillis(),
-            dataprocImageVersion.charAt(0),
-            dataprocImageVersion.charAt(2),
-            clusterPropertiesMarkers);
+    String testId = generateTestId(dataprocImageVersion, connectorJarPrefix, clusterProperties);
+    String clusterName = generateClusterName(testId);
+    String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
+    String connectorJarUri = testBaseGcsDir + "/connector.jar";
+    String connectorInitActionUri = testBaseGcsDir + "/connectors.sh";
     Map<String, String> properties =
         clusterProperties.stream()
             .collect(Collectors.toMap(ClusterProperty::getKey, ClusterProperty::getValue));
-    String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
-    String connectorJarUri = testBaseGcsDir + "/connector.jar";
+    String bqProject = PROJECT_ID;
+    String bqDataset = "hivebq_test_dataset_" + testId.replace("-", "_");
+    String bqTable = "hivebq_test_table_" + testId.replace("-", "_");
+
     uploadConnectorJar(CONNECTOR_JAR_DIRECTORY, connectorJarPrefix, connectorJarUri);
 
-    String clusterName =
-        createClusterIfNeeded(dataprocImageVersion, testId, properties, connectorJarUri);
-    AcceptanceTestContext acceptanceTestContext =
-        new AcceptanceTestContext(testId, clusterName, testBaseGcsDir, connectorJarUri);
-    createBqDataset(acceptanceTestContext.bqDataset);
-    return acceptanceTestContext;
+    uploadConnectorInitAction("/acceptance/connectors.sh", connectorInitActionUri);
+
+    createBqDataset(bqProject, bqDataset);
+
+    createClusterIfNeeded(
+        clusterName,
+        dataprocImageVersion,
+        testId,
+        properties,
+        connectorJarUri,
+        connectorInitActionUri);
+
+    AcceptanceTestContext testContext =
+        new AcceptanceTestContext(
+            testId,
+            clusterName,
+            testBaseGcsDir,
+            connectorJarUri,
+            connectorInitActionUri,
+            bqProject,
+            bqDataset,
+            bqTable);
+    System.out.print(testContext);
+
+    return testContext;
   }
 
   protected static void tearDown(AcceptanceTestContext context) throws Exception {
-    if (context != null) {
-      terminateCluster(context.clusterId);
+    if (context == null) {
+      System.out.println("Context is not initialized, skip cleanup.");
+      return;
+    }
+
+    if (CLEAN_UP_CLUSTER) {
+      deleteCluster(context.clusterId);
+    } else {
+      System.out.println("Skip deleting cluster: " + context.clusterId);
+    }
+
+    if (CLEAN_UP_GCS) {
       AcceptanceTestUtils.deleteGcsDir(context.testBaseGcsDir);
+    } else {
+      System.out.println("Skip deleting GCS dir: " + context.testBaseGcsDir);
+    }
+
+    if (CLEAN_UP_BQ) {
       deleteBqDatasetAndTables(context.bqDataset);
+    } else {
+      System.out.println("Skip deleting BQ dataset: " + context.bqDataset);
     }
   }
 
-  protected static String createClusterIfNeeded(
+  @FunctionalInterface
+  private interface ThrowingConsumer<T> {
+    void accept(T t) throws Exception;
+  }
+
+  protected static void createClusterIfNeeded(
+      String clusterName,
       String dataprocImageVersion,
       String testId,
       Map<String, String> properties,
-      String connectorJarUri)
+      String connectorJarUri,
+      String connectorInitActionUri)
       throws Exception {
-    String clusterName = generateClusterName(testId);
-    cluster(
-        client ->
-            client
-                .createClusterAsync(
-                    PROJECT_ID,
-                    REGION,
-                    createCluster(clusterName, dataprocImageVersion, properties, connectorJarUri))
-                .get());
-    return clusterName;
+    Cluster clusterSpec =
+        createClusterSpec(
+            clusterName, dataprocImageVersion, properties, connectorJarUri, connectorInitActionUri);
+    System.out.println("Cluster spec:\n" + clusterSpec);
+    System.out.println("Creating cluster " + clusterName + " ...");
+    cluster(client -> client.createClusterAsync(PROJECT_ID, REGION, clusterSpec).get());
   }
 
-  protected static void terminateCluster(String clusterName) throws Exception {
+  protected static void deleteCluster(String clusterName) throws Exception {
+    System.out.println("Deleting cluster " + clusterName + " ...");
     cluster(client -> client.deleteClusterAsync(PROJECT_ID, REGION, clusterName).get());
   }
 
@@ -141,11 +175,12 @@ public class DataprocAcceptanceTestBase {
     }
   }
 
-  private static Cluster createCluster(
+  private static Cluster createClusterSpec(
       String clusterName,
       String dataprocImageVersion,
       Map<String, String> properties,
-      String connectorJarUri) {
+      String connectorJarUri,
+      String connectorInitActionUri) {
     return Cluster.newBuilder()
         .setClusterName(clusterName)
         .setProjectId(PROJECT_ID)
@@ -153,15 +188,12 @@ public class DataprocAcceptanceTestBase {
             ClusterConfig.newBuilder()
                 .addInitializationActions(
                     NodeInitializationAction.newBuilder()
-                        .setExecutableFile(
-                            String.format(
-                                "gs://goog-dataproc-initialization-actions-%s/connectors/connectors.sh",
-                                REGION)))
+                        .setExecutableFile(String.format(connectorInitActionUri, REGION)))
                 .setGceClusterConfig(
                     GceClusterConfig.newBuilder()
                         .setNetworkUri("default")
                         .setZoneUri(REGION + "-a")
-                        .putMetadata("spark-bigquery-connector-url", connectorJarUri))
+                        .putMetadata("hive-bigquery-connector-url", connectorJarUri))
                 .setMasterConfig(
                     InstanceGroupConfig.newBuilder()
                         .setNumInstances(1)
@@ -187,48 +219,41 @@ public class DataprocAcceptanceTestBase {
         .build();
   }
 
-  private Job createAndRunPythonJob(
-      String testName, String pythonFile, String pythonZipUri, List<String> args, long duration)
+  private Job createAndRunHiveJob(
+      String testName, String queryFile, String outputDirUri, Duration timeout) throws Exception {
+    Job job = createHiveJob(testName, queryFile, outputDirUri);
+    System.out.print("Running job:\n" + job);
+    return runAndWait(testName, job, timeout);
+  }
+
+  private Job createHiveJob(String testName, String queryFile, String outputTableDirUri)
       throws Exception {
-    AcceptanceTestUtils.uploadToGcs(
-        getClass().getResourceAsStream("/acceptance/" + pythonFile),
-        context.getScriptUri(testName),
-        "text/x-python");
-
-    Job job =
-        Job.newBuilder()
-            .setPlacement(JobPlacement.newBuilder().setClusterName(context.clusterId))
-            .setPysparkJob(createPySparkJobBuilder(testName, pythonZipUri, args))
+    String queryFileUri = context.getFileUri(testName, queryFile);
+    AcceptanceTestUtils.uploadResourceToGcs("/acceptance/" + queryFile, queryFileUri, "text/x-sql");
+    ImmutableMap<String, String> scriptVariables =
+        ImmutableMap.<String, String>builder()
+            .put("BQ_PROJECT", context.bqProject)
+            .put("BQ_DATASET", context.bqDataset)
+            .put("BQ_TABLE", context.bqTable)
+            .put("HIVE_TEST_TABLE", testName.replaceAll("-", "_") + "_table")
+            .put("HIVE_OUTPUT_TABLE", testName.replaceAll("-", "_") + "_output")
+            .put("HIVE_OUTPUT_DIR_URI", outputTableDirUri)
             .build();
-
-    return runAndWait(job, Duration.ofSeconds(duration));
+    HiveJob.Builder hiveJobBuilder =
+        HiveJob.newBuilder().setQueryFileUri(queryFileUri).putAllScriptVariables(scriptVariables);
+    return Job.newBuilder()
+        .setPlacement(JobPlacement.newBuilder().setClusterName(context.clusterId))
+        .setHiveJob(hiveJobBuilder)
+        .build();
   }
 
-  private PySparkJob.Builder createPySparkJobBuilder(
-      String testName, String pythonZipUri, List<String> args) {
-    PySparkJob.Builder builder =
-        PySparkJob.newBuilder()
-            .setMainPythonFileUri(context.getScriptUri(testName))
-            .addJarFileUris(context.connectorJarUri);
-
-    if (pythonZipUri != null && pythonZipUri.length() != 0) {
-      builder.addPythonFileUris(pythonZipUri);
-      builder.addFileUris(pythonZipUri);
-    }
-
-    if (args != null && args.size() != 0) {
-      builder.addAllArgs(args);
-    }
-
-    return builder;
-  }
-
-  private Job runAndWait(Job job, Duration timeout) throws Exception {
+  private Job runAndWait(String testName, Job job, Duration timeout) throws Exception {
     try (JobControllerClient jobControllerClient =
         JobControllerClient.create(
             JobControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT).build())) {
       Job request = jobControllerClient.submitJob(PROJECT_ID, REGION, job);
       String jobId = request.getReference().getJobId();
+      System.err.println(String.format("%s job ID: %s", testName, jobId));
       CompletableFuture<Job> finishedJobFuture =
           CompletableFuture.supplyAsync(
               () -> waitForJobCompletion(jobControllerClient, PROJECT_ID, REGION, jobId));
@@ -258,51 +283,29 @@ public class DataprocAcceptanceTestBase {
     }
   }
 
-  @FunctionalInterface
-  private interface ThrowingConsumer<T> {
-    void accept(T t) throws Exception;
+  void verifyJobSuceeded(Job job) throws Exception {
+    String driverOutput =
+        AcceptanceTestUtils.readGcsFile(job.getDriverControlFilesUri() + "driveroutput.000000000");
+    System.out.println("Driver output: " + driverOutput);
+    System.out.println("Job status: " + job.getStatus().getState());
+    assertThat(job.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
   }
 
-  protected static class ClusterProperty {
-    private String key;
-    private String value;
-    private String marker;
-
-    private ClusterProperty(String key, String value, String marker) {
-      this.key = key;
-      this.value = value;
-      this.marker = marker;
-    }
-
-    protected static ClusterProperty of(String key, String value, String marker) {
-      return new ClusterProperty(key, value, marker);
-    }
-
-    public String getKey() {
-      return key;
-    }
-
-    public String getValue() {
-      return value;
-    }
-
-    public String getMarker() {
-      return marker;
-    }
+  void verifyJobOutput(String outputDirUri, String expectedOutput) throws Exception {
+    String output = readGcsFile(outputDirUri, "_0");
+    assertThat(output.trim()).isEqualTo(expectedOutput);
   }
 
   @Test
-  public void testRead() throws Exception {
-    String testName = "test-read";
+  public void testHiveBq_CreateWriteReadTable_Success() throws Exception {
+    String testName = "test-hivebq-cwr";
+    String outputDirUri = context.getOutputDirUri(testName);
+
     Job result =
-        createAndRunPythonJob(
-            testName,
-            "read_shakespeare.py",
-            null,
-            Arrays.asList(context.getResultsDirUri(testName)),
-            120);
-    assertThat(result.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
-    String output = AcceptanceTestUtils.getCsv(context.getResultsDirUri(testName));
-    assertThat(output.trim()).isEqualTo("spark,10");
+        createAndRunHiveJob(
+            testName, "create_write_read_hivebq_table.sql", outputDirUri, Duration.ofSeconds(120));
+
+    verifyJobSuceeded(result);
+    verifyJobOutput(outputDirUri, "345,world");
   }
 }

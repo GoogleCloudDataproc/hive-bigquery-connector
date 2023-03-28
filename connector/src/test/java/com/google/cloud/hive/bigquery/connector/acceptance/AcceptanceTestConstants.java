@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
 import com.google.common.base.Preconditions;
+import org.apache.parquet.Strings;
 
 public class AcceptanceTestConstants {
 
@@ -25,18 +26,23 @@ public class AcceptanceTestConstants {
       Preconditions.checkNotNull(
           System.getenv("GOOGLE_CLOUD_PROJECT"),
           "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
-  public static final String SERVERLESS_NETWORK_URI =
-      Preconditions.checkNotNull(
-          System.getenv("SERVERLESS_NETWORK_URI"),
-          "Please set the 'SERVERLESS_NETWORK_URI' environment variable");
+  public static final boolean CLEAN_UP_CLUSTER =
+      Strings.isNullOrEmpty(System.getenv("CLEAN_UP_CLUSTER"))
+          ? true
+          : Boolean.parseBoolean(System.getenv("CLEAN_UP_CLUSTER"));
+  public static final boolean CLEAN_UP_BQ =
+      Strings.isNullOrEmpty(System.getenv("CLEAN_UP_BQ"))
+          ? true
+          : Boolean.parseBoolean(System.getenv("CLEAN_UP_BQ"));
+  public static final boolean CLEAN_UP_GCS =
+      Strings.isNullOrEmpty(System.getenv("CLEAN_UP_GCS"))
+          ? true
+          : Boolean.parseBoolean(System.getenv("CLEAN_UP_GCS"));
   public static final String CONNECTOR_JAR_DIRECTORY = "target";
-
   public static final String MIN_BIG_NUMERIC =
       "-578960446186580977117854925043439539266.34992332820282019728792003956564819968";
-
   public static final String MAX_BIG_NUMERIC =
       "578960446186580977117854925043439539266.34992332820282019728792003956564819967";
-
   public static final String BIGNUMERIC_TABLE_QUERY_TEMPLATE =
       "create table %s.%s (\n"
           + "    min bignumeric,\n"
@@ -50,6 +56,5 @@ public class AcceptanceTestConstants {
           + "    cast(\""
           + MAX_BIG_NUMERIC
           + "\" as bignumeric) as max";
-
   protected static final long SERVERLESS_BATCH_TIMEOUT_IN_SECONDS = 600;
 }

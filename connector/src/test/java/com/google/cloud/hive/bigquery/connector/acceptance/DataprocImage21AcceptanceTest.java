@@ -24,7 +24,7 @@ public class DataprocImage21AcceptanceTest extends DataprocAcceptanceTestBase {
   private static AcceptanceTestContext context;
 
   public DataprocImage21AcceptanceTest() {
-    super(context, false);
+    super(context);
   }
 
   @BeforeClass

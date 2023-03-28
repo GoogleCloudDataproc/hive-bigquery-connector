@@ -23,9 +23,11 @@ import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.storage.*;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import java.io.*;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -34,11 +36,43 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
+import java.text.SimpleDateFormat;
 import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public class AcceptanceTestUtils {
+
+  protected static class ClusterProperty {
+    private String key;
+    private String value;
+    private String marker;
+
+    private ClusterProperty(String key, String value, String marker) {
+      this.key = key;
+      this.value = value;
+      this.marker = marker;
+    }
+
+    protected static ClusterProperty of(String key, String value, String marker) {
+      return new ClusterProperty(key, value, marker);
+    }
+
+    public String getKey() {
+      return key;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    public String getMarker() {
+      return marker;
+    }
+  }
 
   // must be set in order to run the acceptance test
   static final String BUCKET = System.getenv("ACCEPTANCE_TEST_BUCKET");
@@ -93,6 +127,12 @@ public class AcceptanceTestUtils {
     }
   }
 
+  public static BlobId uploadResourceToGcs(
+      String resourcePath, String destinationUri, String contentType) throws Exception {
+    return AcceptanceTestUtils.uploadToGcs(
+        AcceptanceTestUtils.class.getResourceAsStream(resourcePath), destinationUri, contentType);
+  }
+
   public static BlobId uploadToGcs(InputStream source, String destinationUri, String contentType)
       throws Exception {
     try {
@@ -107,7 +147,14 @@ public class AcceptanceTestUtils {
       throws Exception {
     URI uri = new URI(destinationUri);
     BlobId blobId = BlobId.of(uri.getAuthority(), uri.getPath().substring(1));
-    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(contentType).build();
+    // Preserve POSIX file modified timestamp as GCS metadata, otherwise YARN localization might
+    // throws exceptions of
+    // "Resource file:/... changed on src filesystem" due to different timestamps on worker nodes.
+    ImmutableMap<String, String> customMetadata =
+        ImmutableMap.<String, String>of(
+            "goog-reserved-file-mtime", String.valueOf(System.currentTimeMillis()));
+    BlobInfo blobInfo =
+        BlobInfo.newBuilder(blobId).setContentType(contentType).setMetadata(customMetadata).build();
     try (WriteChannel writer = storage.writer(blobInfo)) {
       writer.write(content);
     } catch (IOException e) {
@@ -117,27 +164,37 @@ public class AcceptanceTestUtils {
   }
 
   public static String createTestBaseGcsDir(String testId) {
-    return String.format("gs://%s/tests/%s", BUCKET, testId);
+    return String.format("gs://%s/hivebq-tests/%s", BUCKET, testId);
   }
 
-  public static String getCsv(String resultsDirUri) throws Exception {
-    URI uri = new URI(resultsDirUri);
-    Blob csvBlob =
-        StreamSupport.stream(
-                storage
-                    .list(
-                        uri.getAuthority(),
-                        Storage.BlobListOption.prefix(uri.getPath().substring(1)))
-                    .iterateAll()
-                    .spliterator(),
-                false)
-            .filter(blob -> blob.getName().endsWith("csv"))
-            .findFirst()
-            .get();
-    return new String(storage.readAllBytes(csvBlob.getBlobId()), StandardCharsets.UTF_8);
+  public static Blob getBlob(String gcsDirUri, String fileSuffix) throws URISyntaxException {
+    URI uri = new URI(gcsDirUri);
+    return StreamSupport.stream(
+            storage
+                .list(uri.getAuthority(), Storage.BlobListOption.prefix(uri.getPath().substring(1)))
+                .iterateAll()
+                .spliterator(),
+            false)
+        .filter(b -> b.getName().endsWith(fileSuffix))
+        .findFirst()
+        .get();
+  }
+
+  public static String readGcsFile(String fileUri) throws Exception {
+    String tmp = fileUri.replace("gs://", "");
+    int index = tmp.indexOf("/");
+    String bucketName = tmp.substring(0, index);
+    String filePath = tmp.substring(index + 1);
+    return new String(storage.readAllBytes(bucketName, filePath), StandardCharsets.UTF_8);
+  }
+
+  public static String readGcsFile(String outputDirUri, String fileSuffix) throws Exception {
+    Blob blob = getBlob(outputDirUri, fileSuffix);
+    return new String(storage.readAllBytes(blob.getBlobId()), StandardCharsets.UTF_8);
   }
 
   public static void deleteGcsDir(String testBaseGcsDir) throws Exception {
+    System.out.println("Deleting " + testBaseGcsDir + " ...");
     URI uri = new URI(testBaseGcsDir);
     BlobId[] blobIds =
         StreamSupport.stream(
@@ -155,8 +212,8 @@ public class AcceptanceTestUtils {
     }
   }
 
-  public static void createBqDataset(String dataset) {
-    DatasetId datasetId = DatasetId.of(dataset);
+  public static void createBqDataset(String projectId, String dataset) {
+    DatasetId datasetId = DatasetId.of(projectId, dataset);
     bq.create(DatasetInfo.of(datasetId));
   }
 
@@ -169,6 +226,7 @@ public class AcceptanceTestUtils {
   }
 
   public static void deleteBqDatasetAndTables(String dataset) {
+    System.out.println("Deleting BQ dataset " + dataset + " ...");
     bq.delete(DatasetId.of(dataset), DatasetDeleteOption.deleteContents());
   }
 
@@ -179,7 +237,33 @@ public class AcceptanceTestUtils {
     AcceptanceTestUtils.copyToGcs(assemblyJar, connectorJarUri, "application/java-archive");
   }
 
+  static void uploadConnectorInitAction(String resourcePath, String gcsUri) throws Exception {
+    AcceptanceTestUtils.uploadToGcs(
+        DataprocAcceptanceTestBase.class.getResourceAsStream(resourcePath), gcsUri, "text/x-bash");
+  }
+
+  public static String generateTestId(
+      String dataprocImageVersion,
+      String connectorJarPrefix,
+      List<ClusterProperty> clusterProperties) {
+    String clusterPropertiesMarkers =
+        clusterProperties.isEmpty()
+            ? ""
+            : clusterProperties.stream()
+                .map(ClusterProperty::getMarker)
+                .collect(Collectors.joining("-", "-", ""));
+    String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+    String testId =
+        String.format(
+            "%s-%s%s%s",
+            timestamp,
+            dataprocImageVersion.charAt(0),
+            dataprocImageVersion.charAt(2),
+            clusterPropertiesMarkers);
+    return testId;
+  }
+
   public static String generateClusterName(String testId) {
-    return String.format("sbc-acceptance-%s", testId);
+    return String.format("hivebq-ac-%s", testId);
   }
 }

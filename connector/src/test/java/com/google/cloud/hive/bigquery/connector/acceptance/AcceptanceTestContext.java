@@ -16,31 +16,53 @@
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
 public class AcceptanceTestContext {
-
   final String testId;
   final String clusterId;
-  final String connectorJarUri;
   final String testBaseGcsDir;
+  final String connectorJarUri;
+  final String connectorInitActionUri;
+  final String bqProject;
   final String bqDataset;
   final String bqTable;
-  final String bqStreamTable;
 
   public AcceptanceTestContext(
-      String testId, String clusterId, String testBaseGcsDir, String connectorJarUri) {
+      String testId,
+      String clusterId,
+      String testBaseGcsDir,
+      String connectorJarUri,
+      String connectorInitActionUri,
+      String bqProject,
+      String bqDataset,
+      String bqTable) {
     this.testId = testId;
     this.clusterId = clusterId;
     this.testBaseGcsDir = testBaseGcsDir;
     this.connectorJarUri = connectorJarUri;
-    this.bqDataset = "hive_bq_test_dataset_" + testId.replace("-", "_");
-    this.bqTable = "hive_bq_test_table_" + testId.replace("-", "_");
-    this.bqStreamTable = "hive_bq_write_stream_test_table_" + testId.replace("-", "_");
+    this.connectorInitActionUri = connectorInitActionUri;
+    this.bqProject = bqProject;
+    this.bqDataset = bqDataset;
+    this.bqTable = bqTable;
   }
 
-  public String getScriptUri(String testName) {
-    return testBaseGcsDir + "/" + testName + "/script.py";
+  public String getFileUri(String testName, String filename) {
+    return testBaseGcsDir + "/" + testName + "/" + filename;
   }
 
-  public String getResultsDirUri(String testName) {
-    return testBaseGcsDir + "/" + testName + "/results";
+  public String getOutputDirUri(String testName) {
+    return testBaseGcsDir + "/" + testName + "/output";
+  }
+
+  @Override
+  public String toString() {
+    return new StringBuilder()
+        .append("testId: " + testId + "\n")
+        .append("clusterId: " + clusterId + "\n")
+        .append("testBaseGcsDir: " + testBaseGcsDir + "\n")
+        .append("connectorJarUri: " + connectorJarUri + "\n")
+        .append("connectorInitActionUri: " + connectorInitActionUri + "\n")
+        .append("projectId: " + bqProject + "\n")
+        .append("bqDataset: " + bqDataset + "\n")
+        .append("bqTable: " + bqTable + "\n")
+        .toString();
   }
 }
