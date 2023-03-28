@@ -276,7 +276,7 @@ Add links to Hive & BQ types doc.
 | `BIGINT`           | 8-byte signed integer                                                                             | `INT64`         |                                                                                                                                                  |
 | `FLOAT`            | 4-byte single precision floating point number                                                     | `FLOAT64`       |                                                                                                                                                  |
 | `DOUBLE`           | 8-byte double precision floating point number                                                     | `FLOAT64`       |                                                                                                                                                  |
-| `DECIMAL`          | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                      | `DECIMAL`       | Alias of `NUMERIC`                                                                                                                               |
+| `DECIMAL`          | Alias of `NUMERIC`. Precision: 38. Scale: 38                                                      | `DECIMAL`       | Alias of `NUMERIC`. Precision: 38. Scale: 9.                                                                                                     |
 | `DATE`             | Format: `YYYY-MM-DD`                                                                              | `DATE`          | Format: `YYYY-[M]M-[D]D`. Supported range: 0001-01-01 to 9999-12-31                                                                              |
 | `TIMESTAMP`        | Timezone-less timestamp stored as an offset from the UNIX epoch                                   | `DATETIME`      | A date and time, as they might be displayed on a watch, independent of time zone.                                                                |
 | `TIMESTAMPLOCALTZ` | Timezoned timestamp stored as an offset from the UNIX epoch                                       | `TIMESTAMP`     | Absolute point in time, independent of any time zone or convention such as Daylight Savings Time                                                 |
@@ -436,6 +436,10 @@ Please note there are a few caveats:
   format for reading or the indirect method for writing. This is because Avro requires keys to be
   strings. If you use the Arrow format for reading (default) and the direct method for writing (also
   default), then there are no type limitations for the keys.
+* Currently, the connector maps Hive's `DECIMAL`/`NUMERIC` type, which as a precision of 38 and
+  scale of 38, to BigQuery's `DECIMAL`/`NUMERIC` type, which as a precision of 38 and scale of 9.
+  So you may currently only use values scale of up to 9. This limitation will be lifted in future
+  versions.
 
 ## Development
 
