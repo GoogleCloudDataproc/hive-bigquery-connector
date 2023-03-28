@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.udfs.*;
 import java.util.ArrayList;
@@ -259,10 +258,14 @@ public class BigQueryFilters {
     // Check if it's a column
     if (filterExpr instanceof ExprNodeColumnDesc) {
       ExprNodeColumnDesc columnDesc = ((ExprNodeColumnDesc) filterExpr);
-      if (columnDesc.getColumn().equalsIgnoreCase(Constants.PARTITION_TIME_PSEUDO_COLUMN)) {
-        columnDesc.setColumn(Constants.PARTITION_TIME_PSEUDO_COLUMN);
-      } else if (columnDesc.getColumn().equalsIgnoreCase(Constants.PARTITION_DATE_PSEUDO_COLUMN)) {
-        columnDesc.setColumn(Constants.PARTITION_DATE_PSEUDO_COLUMN);
+      if (columnDesc
+          .getColumn()
+          .equalsIgnoreCase(HiveBigQueryConfig.PARTITION_TIME_PSEUDO_COLUMN)) {
+        columnDesc.setColumn(HiveBigQueryConfig.PARTITION_TIME_PSEUDO_COLUMN);
+      } else if (columnDesc
+          .getColumn()
+          .equalsIgnoreCase(HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN)) {
+        columnDesc.setColumn(HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN);
       }
       return columnDesc;
     }

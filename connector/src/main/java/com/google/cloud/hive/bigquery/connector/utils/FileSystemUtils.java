@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils;
 
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.FileNotFoundException;
@@ -27,6 +26,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -85,7 +85,7 @@ public class FileSystemUtils {
     if (parentPath == null) {
       // TODO: Make sure `${hadoop.tmp.dir}` is a sensible default for creating the
       //  job's work dir in
-      parentPath = conf.get(Constants.HADOOP_TMP_DIR_KEY);
+      parentPath = conf.get(CommonConfigurationKeys.HADOOP_TMP_DIR);
     }
     return new Path(
         String.format(
@@ -104,7 +104,7 @@ public class FileSystemUtils {
   public static Path getJobDetailsFilePath(Configuration conf, String hmsDbTableName) {
     Path workDir = getWorkDir(conf);
     Path tblWorkPath = new Path(workDir, hmsDbTableName);
-    return new Path(tblWorkPath, Constants.JOB_DETAILS_FILE);
+    return new Path(tblWorkPath, HiveBigQueryConfig.JOB_DETAILS_FILE);
   }
 
   /** Utility to read a file from disk. */

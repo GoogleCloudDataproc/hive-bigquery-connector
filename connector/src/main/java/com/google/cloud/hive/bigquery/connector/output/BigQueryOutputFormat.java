@@ -45,14 +45,11 @@ public class BigQueryOutputFormat
       FileSystem fileSystem, JobConf jobConf, String hmsDbTableName, Progressable progressable)
       throws IOException {
     JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
-    String writeMethod =
-        jobConf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT);
-    if (HiveBigQueryConfig.WRITE_METHOD_INDIRECT.equals(writeMethod)) {
+    HiveBigQueryConfig opts = HiveBigQueryConfig.from(jobConf, jobDetails.getTableProperties());
+    if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
       return new IndirectAvroRecordWriter(jobConf, jobDetails);
-    } else if (HiveBigQueryConfig.WRITE_METHOD_DIRECT.equals(writeMethod)) {
-      return new DirectRecordWriter(jobConf, jobDetails);
     } else {
-      throw new RuntimeException("Invalid write mode: " + writeMethod);
+      return new DirectRecordWriter(jobConf, jobDetails);
     }
   }
 

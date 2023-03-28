@@ -45,6 +45,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
@@ -65,6 +66,24 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryMetaHook.class);
 
+  public static final List<PrimitiveObjectInspector.PrimitiveCategory> SUPPORTED_HIVE_PRIMITIVES =
+      ImmutableList.of(
+          PrimitiveObjectInspector.PrimitiveCategory.BYTE, // Tiny Int
+          PrimitiveObjectInspector.PrimitiveCategory.SHORT, // Small Int
+          PrimitiveObjectInspector.PrimitiveCategory.INT, // Regular Int
+          PrimitiveObjectInspector.PrimitiveCategory.LONG, // Big Int
+          PrimitiveObjectInspector.PrimitiveCategory.FLOAT,
+          PrimitiveObjectInspector.PrimitiveCategory.DOUBLE,
+          PrimitiveObjectInspector.PrimitiveCategory.DATE,
+          PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,
+          PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMPLOCALTZ,
+          PrimitiveObjectInspector.PrimitiveCategory.BINARY,
+          PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN,
+          PrimitiveObjectInspector.PrimitiveCategory.CHAR,
+          PrimitiveObjectInspector.PrimitiveCategory.VARCHAR,
+          PrimitiveObjectInspector.PrimitiveCategory.STRING,
+          PrimitiveObjectInspector.PrimitiveCategory.DECIMAL);
+
   Configuration conf;
 
   public BigQueryMetaHook(Configuration conf) {
@@ -73,19 +92,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   private static String getDefaultProject() {
     return BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
-  }
-
-  private boolean isIndirectWrite() throws MetaException {
-    String writeMethod =
-        conf.get(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_DIRECT)
-            .toLowerCase();
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      return true;
-    }
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      return false;
-    }
-    throw new MetaException("Invalid write method " + writeMethod);
   }
 
   /** Validates that the given TypeInfo is supported. */
@@ -104,7 +110,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       validateTypeInfo(mapValueTypeInfo);
     } else if (typeInfo.getCategory() == Category.PRIMITIVE) {
       PrimitiveCategory primitiveCategory = ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory();
-      if (!Constants.SUPPORTED_HIVE_PRIMITIVES.contains(primitiveCategory)) {
+      if (!SUPPORTED_HIVE_PRIMITIVES.contains(primitiveCategory)) {
         throw new MetaException("Unsupported Hive type: " + typeInfo.getTypeName());
       }
     } else {
@@ -149,7 +155,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   }
 
   private void configJobDetailsForIndirectWrite(
-      JobDetails jobDetails, Schema bigQuerySchema, Injector injector) throws MetaException {
+      HiveBigQueryConfig opts, JobDetails jobDetails, Schema bigQuerySchema, Injector injector)
+      throws MetaException {
     // Convert BigQuery schema to Avro schema
     StructObjectInspector rowObjectInspector =
         BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
@@ -157,7 +164,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         AvroUtils.getAvroSchema(rowObjectInspector, bigQuerySchema.getFields());
     jobDetails.setAvroSchema(avroSchema);
     // Set GCS path to store the temporary Avro files
-    String tempGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
+    String tempGcsPath = opts.getTempGcsPath();
     jobDetails.setGcsTempPath(tempGcsPath);
     if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
       throw new MetaException(
@@ -289,20 +296,20 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       } else {
         // This is an ingestion-time partition table, so we add the BigQuery
         // pseudo columns to the Hive MetaStore schema.
-        assertDoesNotContainColumn(table, Constants.PARTITION_TIME_PSEUDO_COLUMN);
+        assertDoesNotContainColumn(table, HiveBigQueryConfig.PARTITION_TIME_PSEUDO_COLUMN);
         table
             .getSd()
             .addToCols(
                 new FieldSchema(
-                    Constants.PARTITION_TIME_PSEUDO_COLUMN,
+                    HiveBigQueryConfig.PARTITION_TIME_PSEUDO_COLUMN,
                     "timestamp",
                     "Ingestion time pseudo column"));
-        assertDoesNotContainColumn(table, Constants.PARTITION_DATE_PSEUDO_COLUMN);
+        assertDoesNotContainColumn(table, HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN);
         table
             .getSd()
             .addToCols(
                 new FieldSchema(
-                    Constants.PARTITION_DATE_PSEUDO_COLUMN,
+                    HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN,
                     "date",
                     "Ingestion time pseudo column"));
       }
@@ -324,10 +331,12 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     String hmsDbTableName = HiveUtils.getDbTableName(table);
     LOG.info("Created BigQuery table {} for {}", opts.getTableId(), hmsDbTableName);
-    String tables = conf.get(Constants.HIVE_CREATE_TABLES_KEY);
+    String tables = conf.get(HiveBigQueryConfig.CREATE_TABLES_KEY);
     tables =
-        tables == null ? hmsDbTableName : tables + Constants.TABLE_NAME_SEPARATOR + hmsDbTableName;
-    conf.set(Constants.HIVE_CREATE_TABLES_KEY, tables);
+        tables == null
+            ? hmsDbTableName
+            : tables + HiveBigQueryConfig.TABLE_NAME_SEPARATOR + hmsDbTableName;
+    conf.set(HiveBigQueryConfig.CREATE_TABLES_KEY, tables);
 
     try {
       Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, hmsDbTableName);
@@ -341,8 +350,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
         jobDetails.setBigquerySchema(tableSchema);
 
-        if (isIndirectWrite()) {
-          configJobDetailsForIndirectWrite(jobDetails, tableSchema, injector);
+        if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+          configJobDetailsForIndirectWrite(opts, jobDetails, tableSchema, injector);
         }
         JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
       }
@@ -363,6 +372,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         Guice.createInjector(
             new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
 
     // Load the job details file from HDFS
     JobDetails jobDetails;
@@ -373,7 +383,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    // To-Do: jobdetails should already have those, add checks on jobDetails and merge properties
+    // TODO: jobdetails should already have those, add checks on jobDetails and merge properties
     jobDetails.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
     jobDetails.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
     String bqTableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
@@ -388,8 +398,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     Schema bigQuerySchema = bqTableInfo.getDefinition().getSchema();
     jobDetails.setBigquerySchema(bigQuerySchema);
 
-    boolean isDirectWrite = !isIndirectWrite();
-    if (isDirectWrite) {
+    if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
       // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
       // write method. In this case, we will stream-write to a temporary table
       // and then finally overwrite the final destination table with the temporary
@@ -422,7 +431,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
           AvroUtils.getAvroSchema(rowObjectInspector, bigQuerySchema.getFields());
       jobDetails.setAvroSchema(avroSchema);
       // Set GCS path to store the temporary Avro files
-      String tempGcsPath = conf.get(HiveBigQueryConfig.TEMP_GCS_PATH_KEY);
+      String tempGcsPath = opts.getTempGcsPath();
       jobDetails.setGcsTempPath(tempGcsPath);
       if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
         throw new MetaException(

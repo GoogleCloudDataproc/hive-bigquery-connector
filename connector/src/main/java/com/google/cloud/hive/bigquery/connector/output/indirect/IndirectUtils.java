@@ -16,7 +16,6 @@
 package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.cloud.storage.Storage;
@@ -121,6 +120,6 @@ public class IndirectUtils {
             "%s_%s.%s",
             getTaskTempAvroFileNamePrefix(tableId),
             taskAttemptID.getTaskID(),
-            Constants.LOAD_FILE_EXTENSION));
+            HiveBigQueryConfig.LOAD_FILE_EXTENSION));
   }
 }

@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.util.List;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
@@ -34,6 +33,8 @@ import shaded.hivebqcon.com.google.protobuf.Descriptors;
 public class ProtoSchemaConverter {
 
   public static final String RESERVED_NESTED_TYPE_NAME = "STRUCT";
+  // The maximum nesting depth of a BigQuery RECORD:
+  public static final int MAX_BIGQUERY_NESTED_DEPTH = 15;
 
   private static final ImmutableMap<PrimitiveCategory, DescriptorProtos.FieldDescriptorProto.Type>
       hiveToProtoTypes =
@@ -80,8 +81,7 @@ public class ProtoSchemaConverter {
       List<? extends StructField> fields,
       int depth) {
     Preconditions.checkArgument(
-        depth < Constants.MAX_BIGQUERY_NESTED_DEPTH,
-        "Hive Schema exceeds BigQuery maximum nesting depth.");
+        depth < MAX_BIGQUERY_NESTED_DEPTH, "Hive Schema exceeds BigQuery maximum nesting depth.");
     int messageNumber = 1;
     for (StructField field : fields) {
       String fieldName = field.getFieldName();

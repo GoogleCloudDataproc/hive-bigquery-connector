@@ -117,19 +117,22 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
     if (engine.equals("mr")) {
-      if (conf.get(Constants.THIS_IS_AN_OUTPUT_JOB, "false").equals("true")) {
+      if (conf.get(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "false").equals("true")) {
         // Only set the OutputCommitter class if we're dealing with an actual output job,
         // i.e. where data gets written to BigQuery. Otherwise, the "mr" engine will call
         // the OutputCommitter.commitJob() method even for some queries
         // (e.g. "select count(*)") that aren't actually supposed to output data.
-        jobConf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
+        jobConf.set(
+            HiveBigQueryConfig.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
       }
     }
     String hmsDbTableName = tableDesc.getProperties().getProperty("name");
-    String tables = jobConf.get(Constants.HIVE_OUTPUT_TABLES_KEY);
+    String tables = jobConf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
     tables =
-        tables == null ? hmsDbTableName : tables + Constants.TABLE_NAME_SEPARATOR + hmsDbTableName;
-    jobConf.set(Constants.HIVE_OUTPUT_TABLES_KEY, tables);
+        tables == null
+            ? hmsDbTableName
+            : tables + HiveBigQueryConfig.TABLE_NAME_SEPARATOR + hmsDbTableName;
+    jobConf.set(HiveBigQueryConfig.OUTPUT_TABLES_KEY, tables);
     setGCSAccessTokenProvider(jobConf);
   }
 
@@ -148,11 +151,12 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
     // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
-    conf.set(Constants.THIS_IS_AN_OUTPUT_JOB, "true");
+    conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
 
     if (HiveUtils.enableCommitterInTez(conf)) {
       // This version Hive enables tez committer HIVE-24629
-      conf.set(Constants.HADOOP_COMMITTER_CLASS_KEY, BigQueryNoJobCommitter.class.getName());
+      conf.set(
+          HiveBigQueryConfig.HADOOP_COMMITTER_CLASS_KEY, BigQueryNoJobCommitter.class.getName());
     }
     JobDetails jobDetails = new JobDetails();
     Properties tableProperties = tableDesc.getProperties();

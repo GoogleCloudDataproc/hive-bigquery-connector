@@ -16,7 +16,6 @@
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.cloud.bigquery.Schema;
-import com.google.cloud.hive.bigquery.connector.Constants;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
@@ -51,7 +50,7 @@ public class DirectOutputCommitter {
             conf,
             new Path(FileSystemUtils.getWorkDir(conf), hmsDbTableName),
             DirectUtils.getTaskTempStreamFileNamePrefix(jobDetails.getTableId()),
-            Constants.STREAM_FILE_EXTENSION);
+            HiveBigQueryConfig.STREAM_FILE_EXTENSION);
     if (streamFiles.size() <= 0) {
       LOG.info("Nothing to commit, found 0 stream files.");
       return;
@@ -77,7 +76,7 @@ public class DirectOutputCommitter {
             new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
-    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
 
     // Retrieve the BigQuery schema
     Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
@@ -90,7 +89,7 @@ public class DirectOutputCommitter {
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
             bigQuerySchema,
-            config.getEnableModeCheckForSchemaFields());
+            opts.getEnableModeCheckForSchemaFields());
     writerContext.commit(streamNames);
   }
 
