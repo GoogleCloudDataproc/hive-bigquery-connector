@@ -305,15 +305,28 @@ public class DataprocAcceptanceTestBase {
   }
 
   @Test
-  public void testHiveBq_CreateWriteReadTable_Success() throws Exception {
-    String testName = "test-hivebq-cwr";
+  public void testHiveBq_managedTable_createWriteReadDrop_success() throws Exception {
+    String testName = "test-hivebq-managed";
     String outputDirUri = context.getOutputDirUri(testName);
 
     Job result =
         createAndRunHiveJob(
-            testName, "create_write_read_hivebq_table.sql", outputDirUri, Duration.ofSeconds(120));
+            testName, "create_write_read_drop_managed_table.sql", outputDirUri, Duration.ofSeconds(120));
 
     verifyJobSuceeded(result);
     verifyJobOutput(outputDirUri, "345,world");
+  }
+
+  @Test
+  public void testHiveBq_externalTable_createReadDrop_success() throws Exception {
+    String testName = "test-hivebq-external";
+    String outputDirUri = context.getOutputDirUri(testName);
+
+    Job result =
+        createAndRunHiveJob(
+            testName, "create_read_drop_external_table.sql", outputDirUri, Duration.ofSeconds(120));
+
+    verifyJobSuceeded(result);
+    verifyJobOutput(outputDirUri, "king,1191");
   }
 }
