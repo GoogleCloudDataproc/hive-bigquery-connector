@@ -33,9 +33,11 @@ import shaded.hivebqcon.com.google.gson.*;
  * stages of the job.
  */
 public class JobDetails {
-  private String project;
-  private String dataset;
-  private String table;
+  // private String project;
+  // private String dataset;
+  // private String table;
+  private TableId tableId;
+  private TableId finalTableId;
   private boolean overwrite;
   private String finalTable; // Only used by the 'direct' write method
   private String gcsTempPath; // Only used by the 'indirect' write method
@@ -47,28 +49,20 @@ public class JobDetails {
 
   public JobDetails() {}
 
-  public String getProject() {
-    return project;
-  }
-
-  public void setProject(String project) {
-    this.project = project;
-  }
-
-  public String getDataset() {
-    return dataset;
-  }
-
-  public void setDataset(String dataset) {
-    this.dataset = dataset;
+  public void setTableId(TableId tableId) {
+    this.tableId = tableId;
   }
 
   public TableId getTableId() {
-    return TableId.of(project, dataset, table);
+    return this.tableId;
   }
 
-  public void setTable(String table) {
-    this.table = table;
+  public void setFinalTableId(TableId finalTableId) {
+    this.finalTableId = finalTableId;
+  }
+
+  public TableId getFinalTableId() {
+    return this.finalTableId;
   }
 
   public boolean isOverwrite() {
@@ -77,17 +71,6 @@ public class JobDetails {
 
   public void setOverwrite(boolean overwrite) {
     this.overwrite = overwrite;
-  }
-
-  public TableId getFinalTableId() {
-    if (finalTable == null) {
-      return null;
-    }
-    return TableId.of(project, dataset, finalTable);
-  }
-
-  public void setFinalTable(String finalTable) {
-    this.finalTable = finalTable;
   }
 
   public String getGcsTempPath() {

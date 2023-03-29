@@ -44,7 +44,7 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
     assertTrue(
         exception
             .getMessage()
-            .contains("The following table property(ies) must be provided: bq.dataset, bq.table"));
+            .contains("bq.table needs to be set in format of project.dataset.table"));
   }
 
   // ---------------------------------------------------------------------------------------------------

@@ -191,20 +191,18 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     // Make sure the specified types are supported
     validateHiveTypes(table.getSd().getCols());
 
-    // Check all mandatory table properties
-    ImmutableList<String> mandatory =
-        ImmutableList.of(HiveBigQueryConfig.DATASET_KEY, HiveBigQueryConfig.TABLE_KEY);
-    List<String> missingProperties = new ArrayList<>();
-    for (String property : mandatory) {
-      if (Strings.isNullOrEmpty(table.getParameters().get(property))) {
-        missingProperties.add(property);
-      }
+    // To-Do: remove before GA.
+    if (table.getParameters().containsKey("bq.dataset")) {
+      HiveBigQueryConfig.purgeOldTableParams(table.getParameters());
     }
-    if (missingProperties.size() > 0) {
-      throw new MetaException(
-          "The following table property(ies) must be provided: "
-              + String.join(", ", missingProperties));
-    }
+
+    TableId tableId = getTableId(table);
+    table
+        .getParameters()
+        .put(
+            HiveBigQueryConfig.TABLE_KEY,
+            String.format(
+                "%s.%s.%s", tableId.getProject(), tableId.getDataset(), tableId.getTable()));
 
     if (table.getPartitionKeysSize() > 0) {
       throw new MetaException(
@@ -233,16 +231,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
         .put(
             serdeConstants.SERIALIZATION_LIB,
             "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
-
-    // Set the project property to the credentials project if not explicitly provided
-    table
-        .getParameters()
-        .put(
-            HiveBigQueryConfig.PROJECT_KEY,
-            table
-                .getParameters()
-                .getOrDefault(HiveBigQueryConfig.PROJECT_KEY, getDefaultProject()));
-
     table
         .getSd()
         .setInputFormat("com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat");
@@ -257,9 +245,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
     if (MetaStoreUtils.isExternalTable(table)) {
-      if (bqClient.tableExists(opts.getTableId())) {
-        Map<String, String> basicStats =
-            BigQueryUtils.getBasicStatistics(bqClient, opts.getTableId());
+      if (bqClient.tableExists(tableId)) {
+        Map<String, String> basicStats = BigQueryUtils.getBasicStatistics(bqClient, tableId);
         basicStats.put(StatsSetupConst.COLUMN_STATS_ACCURATE, "{\"BASIC_STATS\":\"true\"}");
         table.getParameters().putAll(basicStats);
       } else {
@@ -270,8 +257,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     }
 
     // For managed table
-    if (bqClient.tableExists(opts.getTableId())) {
-      throw new MetaException("BigQuery table already exists: " + opts.getTableId());
+    if (bqClient.tableExists(tableId)) {
+      throw new MetaException("BigQuery table already exists: " + tableId);
     }
 
     Schema tableSchema = BigQuerySchemaConverter.toBigQuerySchema(table.getSd());
@@ -324,13 +311,13 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
     StandardTableDefinition tableDefinition = tableDefBuilder.build();
     TableInfo bigQueryTableInfo =
-        TableInfo.newBuilder(opts.getTableId(), tableDefinition)
+        TableInfo.newBuilder(tableId, tableDefinition)
             .setDescription(table.getParameters().get("comment"))
             .build();
     createBigQueryTable(table, bigQueryTableInfo);
 
     String hmsDbTableName = HiveUtils.getDbTableName(table);
-    LOG.info("Created BigQuery table {} for {}", opts.getTableId(), hmsDbTableName);
+    LOG.info("Created BigQuery table {} for {}", tableId, hmsDbTableName);
     String tables = conf.get(HiveBigQueryConfig.CREATE_TABLES_KEY);
     tables =
         tables == null
@@ -368,6 +355,8 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   /** Called before insert query. */
   public void preInsertTable(Table table, boolean overwrite) throws MetaException {
     Map<String, String> tableParameters = table.getParameters();
+    // To-Do: remove this purge after enough time given for transition.
+    HiveBigQueryConfig.purgeOldTableParams(table.getParameters());
     Injector injector =
         Guice.createInjector(
             new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));
@@ -383,19 +372,19 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    // TODO: jobdetails should already have those, add checks on jobDetails and merge properties
-    jobDetails.setProject(tableParameters.get(HiveBigQueryConfig.PROJECT_KEY));
-    jobDetails.setDataset(tableParameters.get(HiveBigQueryConfig.DATASET_KEY));
-    String bqTableName = tableParameters.get(HiveBigQueryConfig.TABLE_KEY);
-    jobDetails.setTable(bqTableName);
-    jobDetails.setOverwrite(overwrite);
 
-    // Retrieve the BigQuery schema of the final destination table
+    TableId destTableId =
+        HiveBigQueryConfig.getTableId(tableParameters.get(HiveBigQueryConfig.TABLE_KEY));
     TableInfo bqTableInfo = bqClient.getTable(jobDetails.getTableId());
     if (bqTableInfo == null) {
       throw new MetaException("BigQuery table does not exist: " + jobDetails.getTableId());
     }
     Schema bigQuerySchema = bqTableInfo.getDefinition().getSchema();
+
+    if (jobDetails.getTableId() == null) {
+      jobDetails.setTableId(destTableId);
+    }
+    jobDetails.setOverwrite(overwrite);
     jobDetails.setBigquerySchema(bigQuerySchema);
 
     if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
@@ -409,19 +398,19 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       // `IndirectOutputCommitter` class).
       if (overwrite) {
         // Set the final destination table as the job's original table
-        jobDetails.setFinalTable(bqTableName);
+        jobDetails.setFinalTableId(destTableId);
         // Create a temporary table with the same schema
         // TODO: It'd be useful to add a description to the table explaining that it was
         //  created as a temporary table for a Hive query.
         TableInfo tempTableInfo =
             bqClient.createTempTable(
                 TableId.of(
-                    jobDetails.getProject(),
-                    jobDetails.getDataset(),
-                    bqTableName + "-" + HiveUtils.getHiveId(conf) + "-"),
+                    destTableId.getProject(),
+                    destTableId.getDataset(),
+                    destTableId.getTable() + "-" + HiveUtils.getHiveId(conf) + "-"),
                 bigQuerySchema);
         // Set the temp table as the job's output table
-        jobDetails.setTable(tempTableInfo.getTableId().getTable());
+        jobDetails.setTableId(tempTableInfo.getTableId());
       }
     } else {
       // Convert BigQuery schema to Avro schema
@@ -480,6 +469,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   @Override
   public void commitDropTable(Table table, boolean deleteData) throws MetaException {
+    HiveBigQueryConfig.purgeOldTableParams(table.getParameters());
     if (!MetaStoreUtils.isExternalTable(table) && deleteData) {
       // This is a managed table, so let's delete the table in BigQuery
       Injector injector =
@@ -505,5 +495,18 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   @Override
   public void rollbackDropTable(Table table) throws MetaException {
     // Do nothing
+  }
+
+  private TableId getTableId(Table table) throws MetaException {
+    String bqTable = table.getParameters().get(HiveBigQueryConfig.TABLE_KEY);
+    if (bqTable == null) {
+      throw new MetaException("bq.table needs to be set in format of project.dataset.table.");
+    }
+    if (bqTable.split("\\.").length < 2) {
+      throw new MetaException(
+          "Need to provide bq.table in format of project.dataset.table, if project is missing will"
+              + " use default project.");
+    }
+    return HiveBigQueryConfig.getTableId(bqTable);
   }
 }

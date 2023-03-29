@@ -8,9 +8,7 @@ CREATE EXTERNAL TABLE shakespeare (
     corpus_date BIGINT)
 STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
-    'bq.project'='bigquery-public-data',
-    'bq.dataset'='samples',
-    'bq.table'='shakespeare'
+    'bq.table'='bigquery-public-data.samples.shakespeare'
 );
 
 -- Perform word count, write the result to the output table.

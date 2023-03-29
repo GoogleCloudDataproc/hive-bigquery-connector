@@ -153,9 +153,7 @@ public class IntegrationTestsBase {
             comment != null ? "COMMENT \"" + comment + "\"" : "",
             "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
             "TBLPROPERTIES (",
-            "  'bq.project'='${project}',",
-            "  'bq.dataset'='${dataset}',",
-            "  'bq.table'='" + tableName + "'",
+            "  'bq.table'='${project}.${dataset}." + tableName + "'",
             properties != null ? "," + properties : "",
             ")"));
   }
@@ -176,9 +174,7 @@ public class IntegrationTestsBase {
             comment != null ? "COMMENT \"" + comment + "\"" : "",
             "STORED BY" + " 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'",
             "TBLPROPERTIES (",
-            "  'bq.project'='${project}',",
-            "  'bq.dataset'='${dataset}',",
-            "  'bq.table'='" + bqTableName + "'",
+            "  'bq.table'='${project}.${dataset}." + bqTableName + "'",
             properties != null ? "," + properties : "",
             ")"));
   }

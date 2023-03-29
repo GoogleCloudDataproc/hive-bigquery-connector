@@ -18,6 +18,7 @@ package com.google.cloud.hive.bigquery.connector.config;
 import static shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
 
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
@@ -46,8 +47,6 @@ public class HiveBigQueryConfig
   private static final long serialVersionUID = 1L;
 
   // Config keys
-  public static final String PROJECT_KEY = "bq.project";
-  public static final String DATASET_KEY = "bq.dataset";
   public static final String TABLE_KEY = "bq.table";
   public static final String WRITE_METHOD_KEY = "bq.write.method";
   public static final String TEMP_GCS_PATH_KEY = "bq.temp.gcs.path";
@@ -94,9 +93,6 @@ public class HiveBigQueryConfig
   public static final String PARTITION_TIME_PSEUDO_COLUMN = "_PARTITIONTIME";
   public static final String PARTITION_DATE_PSEUDO_COLUMN = "_PARTITIONDATE";
 
-  String project;
-  String dataset;
-  String table;
   TableId tableId;
   Optional<String> columnNameDelimiter;
   Optional<String> traceId = empty();
@@ -207,12 +203,20 @@ public class HiveBigQueryConfig
         Optional.fromNullable(conf.get(CREATE_DISPOSITION_KEY))
             .transform(String::toUpperCase)
             .transform(JobInfo.CreateDisposition::valueOf);
-    opts.project = getAnyOption(PROJECT_KEY, conf, tableParameters).orNull();
-    opts.dataset = getAnyOption(DATASET_KEY, conf, tableParameters).orNull();
-    opts.table = getAnyOption(TABLE_KEY, conf, tableParameters).orNull();
-    if (opts.project != null && opts.dataset != null && opts.table != null) {
-      opts.tableId = TableId.of(opts.project, opts.dataset, opts.table);
+
+    // temporary special treatment of TABLE_KEY before completely remove bq.project and bq.dataset
+    HiveBigQueryConfig.purgeOldTableParams(tableParameters);
+    if (tableParameters != null && tableParameters.containsKey(TABLE_KEY)) {
+      opts.tableId = getTableId(tableParameters.get(TABLE_KEY));
+    } else if (conf.get("bq.dataset") != null) {
+      String bqTable =
+          String.format(
+              "%s.%s.%s", conf.get("bq.project"), conf.get("bq.dataset"), conf.get("bq.table"));
+      opts.tableId = getTableId(bqTable);
+    } else if (conf.get(TABLE_KEY) != null) {
+      opts.tableId = getTableId(conf.get(TABLE_KEY));
     }
+
     opts.writeMethod =
         getAnyOption(WRITE_METHOD_KEY, conf, tableParameters).or(WRITE_METHOD_DIRECT).toLowerCase();
     if (!opts.writeMethod.equals(WRITE_METHOD_DIRECT)
@@ -290,18 +294,6 @@ public class HiveBigQueryConfig
   @Override
   public TableId getTableId() {
     return tableId;
-  }
-
-  public String getProject() {
-    return project;
-  }
-
-  public String getDataset() {
-    return dataset;
-  }
-
-  public String getTable() {
-    return table;
   }
 
   public String getColumnNameDelimiter() {
@@ -513,5 +505,41 @@ public class HiveBigQueryConfig
         .setArrowCompressionCodec(arrowCompressionCodec)
         .setTraceId(traceId.toJavaUtil())
         .build();
+  }
+
+  public static TableId getTableId(String bqTable) {
+    String[] tokens = bqTable.split("\\.");
+    int len = tokens.length;
+    if (tokens.length == 2) {
+      String defaultProject =
+          BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
+      return TableId.of(defaultProject, tokens[0], tokens[1]);
+    } else {
+      return TableId.of(
+          bqTable.substring(
+              0, bqTable.length() - tokens[len - 2].length() - tokens[len - 1].length() - 2),
+          tokens[len - 2],
+          tokens[len - 1]);
+    }
+  }
+
+  /*
+  This is used to purge old bq.project, bq.dataset, if they exist update bq.table
+  To-Do: remove this after enough time given, before GA.
+   */
+  public static void purgeOldTableParams(Map<String, String> params) {
+    if (params == null || !params.containsKey(TABLE_KEY)) {
+      return;
+    }
+    String[] tokens = params.get(TABLE_KEY).split("\\.");
+    if (tokens.length < 2) {
+      String bqTable = params.get("bq.dataset") + "." + params.get(TABLE_KEY);
+      if (params.containsKey("bq.project")) {
+        bqTable = params.get("bq.project") + "." + bqTable;
+      }
+      params.put(TABLE_KEY, bqTable);
+    }
+    params.remove("bq.project");
+    params.remove("bq.dataset");
   }
 }

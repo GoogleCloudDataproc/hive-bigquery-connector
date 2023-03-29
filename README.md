@@ -64,9 +64,7 @@ Here's an example:
 CREATE TABLE mytable (word_count BIGINT, word STRING)
 STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
-    'bq.project'='myproject',
-    'bq.dataset'='mydataset',
-    'bq.table'='mytable'
+    'bq.table'='myproject.mydataset.mytable'
 );
 ```
 
@@ -89,9 +87,7 @@ Here's an example:
 CREATE EXTERNAL TABLE mytable (word_count BIGINT, word STRING)
 STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
-    'bq.project'='myproject',
-    'bq.dataset'='mydataset',
-    'bq.table'='mytable'
+    'bq.table'='myproject.mydataset.mytable'
 );
 ```
 
@@ -167,9 +163,7 @@ Here's an example:
 CREATE TABLE mytable (int_val BIGINT, ts TIMESTAMP)
 STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
-    'bq.project'='myproject',
-    'bq.dataset'='mydataset',
-    'bq.table'='mytable',
+    'bq.table'='myproject.mydataset.mytable',
     'bq.time.partition.field'='ts',
     'bq.time.partition.type'='MONTH'
 );
@@ -200,9 +194,7 @@ Here's an example:
 CREATE TABLE mytable (int_val BIGINT)
 STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
-    'bq.project'='myproject',
-    'bq.dataset'='mydataset',
-    'bq.table'='mytable',
+    'bq.table'='myproject.mydataset.mytable',
     'bq.time.partition.type'='DAY'
 );
 ```
@@ -223,9 +215,7 @@ Here's an example:
 CREATE TABLE mytable (int_val BIGINT, text STRING, purchase_date DATE)
 STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
-    'bq.project'='myproject',
-    'bq.dataset'='mydataset',
-    'bq.table'='mytable',
+    'bq.table'='myproject.mydataset.mytable',
     'bq.clustered.fields'='int_val,text'
 );
 ```
@@ -239,9 +229,7 @@ You can use the following properties in the `TBLPROPERTIES` clause when you crea
 
 | Property                           | Description                                                                                                                                                                                                                                                       |
 |------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bq.dataset`                       | Always required. BigQuery dataset name (Optional if the hive database name matches the BQ dataset name)                                                                                                                                                           |
-| `bq.table`                         | Always required. BigQuery table name (Optional if hive the table name matches the BQ table name)                                                                                                                                                                  |
-| `bq.project`                       | Always required. Your project id                                                                                                                                                                                                                                  |
+| `bq.table`                         | Always required. BigQuery table name in the format of project.dataset.table                                                                                                                                                                                       |
 | `bq.time.partition.type`           | Time partitioning granularity. Possible values: `HOUR`, `DAY`, `MONTH`, `YEAR`                                                                                                                                                                                    |
 | `bq.time.partition.field`          | Name of a `DATE` or `TIMESTAMP` column to partition the table by                                                                                                                                                                                                  |
 | `bq.time.partition.expiration.ms`  | Partition [expiration time](https://cloud.google.com/bigquery/docs/managing-partitioned-tables#partition-expiration) in milliseconds                                                                                                                              |
