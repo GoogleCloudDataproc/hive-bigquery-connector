@@ -73,15 +73,12 @@ public class DataprocAcceptanceTestBase {
     this.context = context;
   }
 
-  protected static AcceptanceTestContext setup(String dataprocImageVersion)
-      throws Exception {
+  protected static AcceptanceTestContext setup(String dataprocImageVersion) throws Exception {
     return setup(dataprocImageVersion, Collections.emptyList());
   }
 
   protected static AcceptanceTestContext setup(
-      String dataprocImageVersion,
-      List<ClusterProperty> clusterProperties)
-      throws Exception {
+      String dataprocImageVersion, List<ClusterProperty> clusterProperties) throws Exception {
     String testId = generateTestId(dataprocImageVersion, clusterProperties);
     String clusterName = generateClusterName(testId);
     String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
@@ -311,7 +308,10 @@ public class DataprocAcceptanceTestBase {
 
     Job result =
         createAndRunHiveJob(
-            testName, "create_write_read_drop_managed_table.sql", outputDirUri, Duration.ofSeconds(120));
+            testName,
+            "create_write_read_drop_managed_table.sql",
+            outputDirUri,
+            Duration.ofSeconds(120));
 
     verifyJobSuceeded(result);
     verifyJobOutput(outputDirUri, "345,world");

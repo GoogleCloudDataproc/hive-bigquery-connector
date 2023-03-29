@@ -243,8 +243,7 @@ public class AcceptanceTestUtils {
   }
 
   public static String generateTestId(
-      String dataprocImageVersion,
-      List<ClusterProperty> clusterProperties) {
+      String dataprocImageVersion, List<ClusterProperty> clusterProperties) {
     String clusterPropertiesMarkers =
         clusterProperties.isEmpty()
             ? ""

@@ -170,11 +170,10 @@ public class HiveBigQueryConfig
 
   private static Optional<String> getAnyOption(
       String key, Configuration conf, Map<String, String> tableParameters) {
-    String value = conf.get(key);
-    if (value == null && tableParameters != null) {
-      value = tableParameters.get(key);
+    if (tableParameters != null && tableParameters.containsKey(key)) {
+      return Optional.fromNullable(tableParameters.get(key));
     }
-    return Optional.fromNullable(value);
+    return Optional.fromNullable(conf.get(key));
   }
 
   public static Map<String, String> convertPropertiesToMap(Properties properties) {

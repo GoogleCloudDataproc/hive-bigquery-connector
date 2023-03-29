@@ -41,7 +41,7 @@ public class AcceptanceTestConstants {
           : Boolean.parseBoolean(System.getenv("CLEAN_UP_GCS"));
 
   public static final String CONNECTOR_JAR_DIRECTORY = "target";
-  public static final String CONNECTOR_JAR_PREFIX = "hive-bigquery-connector";  
+  public static final String CONNECTOR_JAR_PREFIX = "hive-bigquery-connector";
   public static final String CONNECTOR_INIT_ACTION_PATH = "/acceptance/connectors.sh";
 
   public static final String MIN_BIG_NUMERIC =
