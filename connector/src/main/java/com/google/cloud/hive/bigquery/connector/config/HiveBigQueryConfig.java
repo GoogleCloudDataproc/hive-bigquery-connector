@@ -542,4 +542,22 @@ public class HiveBigQueryConfig
     params.remove("bq.project");
     params.remove("bq.dataset");
   }
+
+  /*
+  Remove before GA release.
+   */
+  public static void supportOldTableProperties(Properties properties) {
+    if (properties == null) {
+      return;
+    }
+    if (properties.containsKey("bq.dataset")) {
+      String bqTable = properties.get("bq.dataset") + "." + properties.get(TABLE_KEY);
+      if (properties.containsKey("bq.project")) {
+        bqTable = properties.get("bq.project") + "." + bqTable;
+      }
+      properties.replace(TABLE_KEY, bqTable);
+    }
+    properties.remove("bq.project");
+    properties.remove("bq.dataset");
+  }
 }

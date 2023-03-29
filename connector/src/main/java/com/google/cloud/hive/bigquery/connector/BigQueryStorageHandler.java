@@ -150,6 +150,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
+    HiveBigQueryConfig.supportOldTableProperties(tableDesc.getProperties());
     // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
     conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
 

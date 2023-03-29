@@ -207,9 +207,7 @@ public class BigQueryFilters {
     }
   }
 
-  /**
-   * Translates the given filter expression (from a WHERE clause) to be compatible with BigQuery.
-   */
+  /** Translates the given filter expression to be compatible with BigQuery. */
   public static ExprNodeDesc translateFilters(ExprNodeDesc filterExpr, Configuration conf) {
     // Check if it's a function
     if (filterExpr instanceof ExprNodeGenericFuncDesc) {

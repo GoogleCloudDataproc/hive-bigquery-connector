@@ -203,8 +203,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       selectedFields.add(HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN);
     }
 
-    // If a WHERE clause with filters is present, translate the filter values to
-    // be compatible with BigQuery
+    // If possible, translate filters to be compatible with BigQuery
     String serializedFilterExpr = jobConf.get(TableScanDesc.FILTER_EXPR_CONF_STR);
     ExprNodeGenericFuncDesc filterExpr;
     Optional<String> filter = Optional.empty();
@@ -236,7 +235,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     ReadSession readSession = readSessionResponse.getReadSession();
 
     Path warehouseLocation = new Path(jobConf.get("location"));
-    // To-Do: replace when ReadStream has size estimation.
+    // To-Do: replace when each ReadStream has size estimation.
     long totalSize = readSession.getEstimatedTotalBytesScanned();
     int streamsCount = readSession.getStreamsCount();
     long hiveSplitSize = getHiveSplitLength(jobConf, totalSize, streamsCount, numSplits);
