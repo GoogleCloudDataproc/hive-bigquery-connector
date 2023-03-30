@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector;
 
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.*;
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
@@ -88,10 +87,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   public BigQueryMetaHook(Configuration conf) {
     this.conf = conf;
-  }
-
-  private static String getDefaultProject() {
-    return BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
   }
 
   /** Validates that the given TypeInfo is supported. */
@@ -353,10 +348,11 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   }
 
   /** Called before insert query. */
+  @Override
   public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-    Map<String, String> tableParameters = table.getParameters();
-    // To-Do: remove this purge after enough time given for transition.
     HiveBigQueryConfig.purgeOldTableParams(table.getParameters());
+
+    Map<String, String> tableParameters = table.getParameters();
     Injector injector =
         Guice.createInjector(
             new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));

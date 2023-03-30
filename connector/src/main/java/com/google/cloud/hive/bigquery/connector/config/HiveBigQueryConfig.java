@@ -519,8 +519,7 @@ public class HiveBigQueryConfig
   }
 
   /*
-  This is used to purge old bq.project, bq.dataset, if they exist update bq.table
-  To-Do: remove this after enough time given, before GA.
+  Remove before GA release.
    */
   public static void purgeOldTableParams(Map<String, String> params) {
     if (params == null || !params.containsKey(TABLE_KEY)) {

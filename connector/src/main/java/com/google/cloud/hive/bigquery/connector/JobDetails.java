@@ -33,13 +33,9 @@ import shaded.hivebqcon.com.google.gson.*;
  * stages of the job.
  */
 public class JobDetails {
-  // private String project;
-  // private String dataset;
-  // private String table;
   private TableId tableId;
   private TableId finalTableId;
   private boolean overwrite;
-  private String finalTable; // Only used by the 'direct' write method
   private String gcsTempPath; // Only used by the 'indirect' write method
   private Properties hmsTableProperties;
   private transient Schema bigquerySchema;
@@ -83,10 +79,6 @@ public class JobDetails {
 
   public String getHmsDbTableName() {
     return this.hmsTableProperties.getProperty("name");
-  }
-
-  public String getJobGcsTempPath() {
-    return gcsTempPath + "/" + getHmsDbTableName();
   }
 
   public Properties getTableProperties() {
