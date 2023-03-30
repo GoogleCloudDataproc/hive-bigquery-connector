@@ -166,10 +166,12 @@ public class HiveBigQueryConfig
 
   private static Optional<String> getAnyOption(
       String key, Configuration conf, Map<String, String> tableParameters) {
-    if (tableParameters != null && tableParameters.containsKey(key)) {
-      return Optional.fromNullable(tableParameters.get(key));
+    // TO-DO: here we choose conf value over table value, any issue?
+    String value = conf.get(key);
+    if (value == null && tableParameters != null) {
+      value = tableParameters.get(key);
     }
-    return Optional.fromNullable(conf.get(key));
+    return Optional.fromNullable(value);
   }
 
   public static Map<String, String> convertPropertiesToMap(Properties properties) {
@@ -193,6 +195,7 @@ public class HiveBigQueryConfig
   }
 
   public static HiveBigQueryConfig from(Configuration conf, Map<String, String> tableParameters) {
+    HiveBigQueryConfig.purgeOldTableParams(tableParameters);
     HiveBigQueryConfig opts = new HiveBigQueryConfig();
     opts.columnNameDelimiter =
         Optional.fromNullable(conf.get(serdeConstants.COLUMN_NAME_DELIMITER))
@@ -204,17 +207,9 @@ public class HiveBigQueryConfig
             .transform(String::toUpperCase)
             .transform(JobInfo.CreateDisposition::valueOf);
 
-    // temporary special treatment of TABLE_KEY before completely remove bq.project and bq.dataset
-    HiveBigQueryConfig.purgeOldTableParams(tableParameters);
-    if (tableParameters != null && tableParameters.containsKey(TABLE_KEY)) {
-      opts.tableId = getTableId(tableParameters.get(TABLE_KEY));
-    } else if (conf.get("bq.dataset") != null) {
-      String bqTable =
-          String.format(
-              "%s.%s.%s", conf.get("bq.project"), conf.get("bq.dataset"), conf.get("bq.table"));
-      opts.tableId = getTableId(bqTable);
-    } else if (conf.get(TABLE_KEY) != null) {
-      opts.tableId = getTableId(conf.get(TABLE_KEY));
+    Optional<String> bqTable = getAnyOption(TABLE_KEY, conf, tableParameters);
+    if (bqTable.isPresent()) {
+      opts.tableId = getTableId(bqTable.get());
     }
 
     opts.writeMethod =
