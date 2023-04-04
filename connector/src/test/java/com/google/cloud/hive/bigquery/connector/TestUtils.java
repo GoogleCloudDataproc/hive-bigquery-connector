@@ -50,7 +50,7 @@ public class TestUtils {
 
   // The BigLake bucket and connection must be created before running the tests.
   // Also, the connection's service account must be given permission to access the bucket.
-  public static final String BIGLAKE_CONNECTION = "hive-integration-tests";
+  public static final String BIGLAKE_CONNECTION_NAME_ENV_VAR = "BIGLAKE_CONNECTION";
   public static final String BIGLAKE_BUCKET_NAME_ENV_VAR = "BIGLAKE_BUCKET";
 
   public static String BIGQUERY_TEST_TABLE_DDL = String.join("\n", "number INT64,", "text STRING");
@@ -184,6 +184,15 @@ public class TestUtils {
 
   public static String getProject() {
     return getBigqueryClient().getProjectId();
+  }
+
+  /**
+   * The BigLake connection must be created prior to running the test, then its name must be set in an
+   * environment variable, so we can retrieve it here during the test execution.
+   */
+  public static String getBigLakeConnection() {
+    return System.getenv()
+        .getOrDefault(BIGLAKE_CONNECTION_NAME_ENV_VAR, "hive-integration-tests");
   }
 
   /**
