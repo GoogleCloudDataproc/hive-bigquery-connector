@@ -133,7 +133,7 @@ public class IntegrationTestsBase {
     params.put("project", getProject());
     params.put("dataset", dataset);
     params.put("location", LOCATION);
-    params.put("connection", BIGLAKE_CONNECTION);
+    params.put("connection", getBigLakeConnection());
     params.put("test_bucket", "gs://" + testBucketName);
     return StrSubstitutor.replace(queryTemplate, params, "${", "}");
   }

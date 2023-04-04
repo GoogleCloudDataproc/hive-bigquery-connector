@@ -469,19 +469,11 @@ gcloud services enable \
 
 Define environment variables:
 
-the following values must NOT be changed as they are harcoded in the tests
-
-```sh
-export BIGLAKE_CONNECTION=hive-integration-tests
-```
-
-
-the following values can be changed
-
 ```sh
 export PROJECT=my-gcp-project
 export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
+export BIGLAKE_CONNECTION=hive-integration-tests
 export BIGLAKE_BUCKET=${USER}-biglake-test
 export INDIRECT_WRITE_BUCKET=${USER}-hive-bq-tmp
 ```
@@ -489,7 +481,12 @@ export INDIRECT_WRITE_BUCKET=${USER}-hive-bq-tmp
 Create the test BigLake connection if not created yet:
 
 ```sh
-bq mk --connection --location="${BIGLAKE_LOCATION}" --connection_type=CLOUD_RESOURCE "${BIGLAKE_CONNECTION}"
+bq mk \
+  --connection \
+  --project_id="${PROJECT}" \
+  --location="${BIGLAKE_LOCATION}" \
+  --connection_type=CLOUD_RESOURCE \
+  "${BIGLAKE_CONNECTION}"
 ```
 
 Create the bucket to host BigLake datasets if not created yet:
@@ -501,7 +498,8 @@ gsutil mb -l "${BIGLAKE_REGION}" "gs://${BIGLAKE_BUCKET}"
 Give the BigLake connection's service account access to the bucket:
 
 ```sh
-export BIGLAKE_SA=$(bq show --connection --format json "${PROJECT}.${BIGLAKE_LOCATION}.${BIGLAKE_CONNECTION}" | jq -r .cloudResource.serviceAccountId)
+export BIGLAKE_SA=$(bq show --connection --format json "${PROJECT}.${BIGLAKE_LOCATION}.${BIGLAKE_CONNECTION}" \
+  | jq -r .cloudResource.serviceAccountId)
 
 gsutil iam ch serviceAccount:${BIGLAKE_SA}:objectViewer gs://${BIGLAKE_BUCKET}
 ```
