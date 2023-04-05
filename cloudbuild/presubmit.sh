@@ -21,13 +21,19 @@ if [ -z "${CODECOV_TOKEN}" ]; then
   exit 1
 fi
 
+
+readonly ACTION=$1
+
 readonly PROFILES="dataproc21"
 readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository"
-readonly STEP=$1
+
+export INDIRECT_WRITE_BUCKET=dataproc-integ-tests
+export BIGLAKE_BUCKET=dataproc-integ-tests
+export BIGLAKE_CONNECTION=projects/cloud-dataproc-ci/locations/us/connections/hive-integration-tests
 
 cd /workspace
 
-case $STEP in
+case "$ACTION" in
   # Download maven and all the dependencies
   build)
     $MVN install -P"${PROFILES}" -DskipTests
@@ -40,7 +46,7 @@ case $STEP in
     # needs to be packaged first to allow the unit tests to run.
     $MVN package jacoco:report jacoco:report-aggregate -P"${PROFILES}",coverage
     # Upload test coverage report to Codecov
-    bash <(curl -s https://codecov.io/bash) -K -F "${STEP}"
+    bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
     exit
     ;;
 
@@ -49,12 +55,12 @@ case $STEP in
     $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate \
       -P"${PROFILES}",coverage,integration
     # Upload test coverage report to Codecov
-    bash <(curl -s https://codecov.io/bash) -K -F "${STEP}"
+    bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
     exit
     ;;
 
   *)
-    echo "Unknown step $STEP"
+    echo "Unknown action: $ACTION"
     exit 1
     ;;
 esac
