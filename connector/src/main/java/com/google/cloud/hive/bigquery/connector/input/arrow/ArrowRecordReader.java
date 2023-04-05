@@ -56,9 +56,14 @@ public class ArrowRecordReader
     Object[] row = new Object[columnNames.size()];
     for (int i = 0; i < numColumnsInSchemaRoot; i++) {
       FieldVector fieldVector = schemaRoot.getVector(i);
-      int colIndex = columnNames.indexOf(fieldVector.getName());
+      String fieldName = fieldVector.getName();
+      int colIndex = columnNames.indexOf(fieldName);
+      if (colIndex == -1) {
+        throw new RuntimeException(
+            "Unable to find column " + fieldName + " in columns " + columnNames);
+      }
       ObjectInspector fieldObjectInspector =
-          rowObjectInspector.getStructFieldRef(fieldVector.getName()).getFieldObjectInspector();
+          rowObjectInspector.getStructFieldRef(fieldName).getFieldObjectInspector();
       row[colIndex] = ArrowSerializer.serialize(fieldVector, fieldObjectInspector, rowId);
     }
     numRowsLeftInBatch--;

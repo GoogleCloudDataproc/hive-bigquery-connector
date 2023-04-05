@@ -178,6 +178,8 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
                 checkNotNull(jobConf.get(serdeConstants.LIST_COLUMNS)).split(columnNameDelimiter)));
     // Remove the virtual columns
     columnNames.removeAll(new HashSet<>(VirtualColumn.VIRTUAL_COLUMN_NAMES));
+    // BigQuery column names are case insensitive, hive colum names are lower cased
+    columnNames.replaceAll(String::toLowerCase);
 
     Set<String> selectedFields;
     String engine = HiveConf.getVar(jobConf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
