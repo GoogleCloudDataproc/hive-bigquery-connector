@@ -60,7 +60,7 @@ public class ArrowRecordReader
       int colIndex = columnNames.indexOf(fieldName);
       if (colIndex == -1) {
         throw new RuntimeException(
-            "Unable to find colum " + fieldName + " in columns " + columnNames);
+            "Unable to find column " + fieldName + " in columns " + columnNames);
       }
       ObjectInspector fieldObjectInspector =
           rowObjectInspector.getStructFieldRef(fieldName).getFieldObjectInspector();
