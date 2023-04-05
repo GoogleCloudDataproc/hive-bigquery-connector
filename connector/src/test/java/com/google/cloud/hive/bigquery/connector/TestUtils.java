@@ -187,12 +187,11 @@ public class TestUtils {
   }
 
   /**
-   * The BigLake connection must be created prior to running the test, then its name must be set in an
-   * environment variable, so we can retrieve it here during the test execution.
+   * The BigLake connection must be created prior to running the test, then its name must be set in
+   * an environment variable, so we can retrieve it here during the test execution.
    */
   public static String getBigLakeConnection() {
-    return System.getenv()
-        .getOrDefault(BIGLAKE_CONNECTION_NAME_ENV_VAR, "hive-integration-tests");
+    return System.getenv().getOrDefault(BIGLAKE_CONNECTION_NAME_ENV_VAR, "hive-integration-tests");
   }
 
   /**

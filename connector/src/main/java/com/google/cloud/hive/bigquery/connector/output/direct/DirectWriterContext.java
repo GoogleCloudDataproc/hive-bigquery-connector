@@ -23,6 +23,7 @@ import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
@@ -96,15 +97,19 @@ public class DirectWriterContext {
   public void commit(List<String> streamNames) {
     BatchCommitWriteStreamsRequest.Builder batchCommitWriteStreamsRequest =
         BatchCommitWriteStreamsRequest.newBuilder().setParent(tablePathForBigQueryStorage);
-    for (String streamName : streamNames) {
-      batchCommitWriteStreamsRequest.addWriteStreams(streamName);
-    }
+    batchCommitWriteStreamsRequest.addAllWriteStreams(streamNames);
     BatchCommitWriteStreamsResponse batchCommitWriteStreamsResponse =
         writeClient.batchCommitWriteStreams(batchCommitWriteStreamsRequest.build());
 
+    // v1 does not have better error message, update when use v2
     if (!batchCommitWriteStreamsResponse.hasCommitTime()) {
+      String streamErrors =
+          batchCommitWriteStreamsResponse.getStreamErrorsList().stream()
+              .map(se -> se.getErrorMessage())
+              .collect(Collectors.joining(":"));
       throw new BigQueryConnectorException(
-          "BigQuery writer failed to batch commit its BigQuery write-streams");
+          "BigQuery writer failed to batch commit its BigQuery write-streams with StreamErrors: "
+              + streamErrors);
     }
 
     LOG.info(
