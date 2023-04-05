@@ -16,7 +16,7 @@ steps:
 # 3. Run unit tests
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'unit-tests'
-  waitFor: ['init']
+  waitFor: ['build']
   entrypoint: 'bash'
   args: ['/workspace/cloudbuild/presubmit.sh', 'unittest']
   env:
