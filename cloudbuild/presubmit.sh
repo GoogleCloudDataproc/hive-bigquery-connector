@@ -29,7 +29,7 @@ readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.rep
 
 export INDIRECT_WRITE_BUCKET=dataproc-integ-tests
 export BIGLAKE_BUCKET=dataproc-integ-tests
-export BIGLAKE_CONNECTION=projects/cloud-dataproc-ci/locations/us/connections/hive-integration-tests
+export BIGLAKE_CONNECTION=hive-integration-tests
 
 cd /workspace
 
