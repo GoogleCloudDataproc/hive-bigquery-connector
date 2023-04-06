@@ -42,15 +42,13 @@ case "$ACTION" in
 
   # Run unit tests
   unittest)
-    # Here we run `package` instead of `test` because the `shaded-dependencies` module
-    # needs to be packaged first to allow the unit tests to run.
-    $MVN package jacoco:report jacoco:report-aggregate -P"${PROFILES}",coverage
+    $MVN surefire:test jacoco:report jacoco:report-aggregate -P"${PROFILES}",coverage
     # Upload test coverage report to Codecov
     bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
     exit
     ;;
 
-  # Run unit tests
+  # Run integration tests
   integrationtest)
     $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate \
       -P"${PROFILES}",coverage,integration
