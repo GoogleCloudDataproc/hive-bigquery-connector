@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_BQ;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_CLUSTER;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CLEAN_UP_GCS;
@@ -311,7 +312,7 @@ public class DataprocAcceptanceTestBase {
             testName,
             "create_write_read_drop_managed_table.sql",
             outputDirUri,
-            Duration.ofSeconds(120));
+            Duration.ofSeconds(ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS));
 
     verifyJobSuceeded(result);
     verifyJobOutput(outputDirUri, "345,world");
@@ -324,7 +325,7 @@ public class DataprocAcceptanceTestBase {
 
     Job result =
         createAndRunHiveJob(
-            testName, "create_read_drop_external_table.sql", outputDirUri, Duration.ofSeconds(120));
+            testName, "create_read_drop_external_table.sql", outputDirUri, Duration.ofSeconds(ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS));
 
     verifyJobSuceeded(result);
     verifyJobOutput(outputDirUri, "king,1191");
