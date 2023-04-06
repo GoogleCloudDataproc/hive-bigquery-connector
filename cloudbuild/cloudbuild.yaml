@@ -4,19 +4,19 @@ steps:
   id: 'docker-build'
   args: ['build', '--tag=gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit', '-f', 'cloudbuild/Dockerfile', '.']
 
-# 2. Fetch maven and dependencies
+# 2. Build the connector and download dependencies without running tests.
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
-  id: 'init'
+  id: 'build'
   waitFor: ['docker-build']
   entrypoint: 'bash'
-  args: ['/workspace/cloudbuild/presubmit.sh', 'init']
+  args: ['/workspace/cloudbuild/presubmit.sh', 'build']
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
 # 3. Run unit tests
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'unit-tests'
-  waitFor: ['init']
+  waitFor: ['build']
   entrypoint: 'bash'
   args: ['/workspace/cloudbuild/presubmit.sh', 'unittest']
   env:

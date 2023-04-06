@@ -68,25 +68,25 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE)
   public void testInsertIndirect(String engine) {
-    String tempGcsDir = "temp/indirect-test";
-    String tempGcsPath = "gs://" + testBucketName + "/" + tempGcsDir;
+    String testGcsDir = this.tempGcsDir + (this.tempGcsDir.endsWith("/") ? "" : "/") + "indirect-test";
+    String testGcsPath = "gs://" + testBucketName + "/" + testGcsDir;
 
-    // Check that the bucket is empty
-    List<Blob> blobs = getBlobs(testBucketName, tempGcsDir);
+    // Check that the dir is empty
+    List<Blob> blobs = getBlobs(testBucketName, testGcsDir);
     assertEquals(0, blobs.size(), "Unexpected blobs: " + blobs);
 
     // Insert data using Hive
-    insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT, tempGcsPath);
+    insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT, testGcsPath);
 
     // Check that the blob was created by the job.
     // Note: The blobs are still present here during the test execution because the
     // Hive/Hadoop session is still on, but in production those files would be
     // automatically be cleaned up at the end of the job.
-    blobs = getBlobs(testBucketName, tempGcsDir);
+    blobs = getBlobs(testBucketName, testGcsDir);
     assertEquals(1, blobs.size(), "Actual blobs: " + blobs);
     String blobName = blobs.get(0).getName();
     assertTrue(
-        blobName.startsWith(tempGcsDir) && blobName.endsWith(".avro"),
+        blobName.startsWith(testGcsDir) && blobName.endsWith(".avro"),
         "Unexpected blob name: " + blobName);
   }
 

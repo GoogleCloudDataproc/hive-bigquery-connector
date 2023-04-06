@@ -21,15 +21,22 @@ if [ -z "${CODECOV_TOKEN}" ]; then
   exit 1
 fi
 
-readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository --projects shaded-dependencies,connector"
-readonly STEP=$1
+
+readonly ACTION=$1
+
+readonly PROFILES="dataproc21"
+readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository"
+
+export INDIRECT_WRITE_BUCKET=dataproc-integ-tests
+export BIGLAKE_BUCKET=dataproc-integ-tests
+export BIGLAKE_CONNECTION=hive-integration-tests
 
 cd /workspace
 
-case $STEP in
+case "$ACTION" in
   # Download maven and all the dependencies
-  init)
-    $MVN install -DskipTests
+  build)
+    $MVN install -P"${PROFILES}" -DskipTests
     exit
     ;;
 
@@ -37,22 +44,23 @@ case $STEP in
   unittest)
     # Here we run `package` instead of `test` because the `shaded-dependencies` module
     # needs to be packaged first to allow the unit tests to run.
-    $MVN package jacoco:report jacoco:report-aggregate -Pcoverage
+    $MVN package jacoco:report jacoco:report-aggregate -P"${PROFILES}",coverage
     # Upload test coverage report to Codecov
-    bash <(curl -s https://codecov.io/bash) -K -F "${STEP}"
+    bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
     exit
     ;;
 
   # Run unit tests
   integrationtest)
-    $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate -Pcoverage,integration
+    $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate \
+      -P"${PROFILES}",coverage,integration
     # Upload test coverage report to Codecov
-    bash <(curl -s https://codecov.io/bash) -K -F "${STEP}"
+    bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
     exit
     ;;
 
   *)
-    echo "Unknown step $STEP"
+    echo "Unknown action: $ACTION"
     exit 1
     ;;
 esac

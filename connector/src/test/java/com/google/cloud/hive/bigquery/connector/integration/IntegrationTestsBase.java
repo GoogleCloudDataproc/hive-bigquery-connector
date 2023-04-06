@@ -76,8 +76,6 @@ public class IntegrationTestsBase {
       }
     }
 
-    emptyBucket(testBucketName);
-
     // Upload datasets to the BigLake bucket.
     uploadBlob(
         getBigLakeBucket(), "test.csv", "a,b,c\n1,2,3\n4,5,6".getBytes(StandardCharsets.UTF_8));
@@ -110,6 +108,9 @@ public class IntegrationTestsBase {
     hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "true");
     // Enable vectorize mode
     hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
+
+    String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+    this.tempGcsDir = "temp/" + timestamp;
   }
 
   @AfterEach
@@ -122,8 +123,6 @@ public class IntegrationTestsBase {
 
   @AfterAll
   static void tearDownAll() {
-    emptyBucket(testBucketName);
-
     // Cleanup the test BQ dataset
     deleteBqDatasetAndTables(dataset);
   }
@@ -240,8 +239,7 @@ public class IntegrationTestsBase {
   }
 
   public void initHive(String engine, String readDataFormat) {
-    String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-    String tempGcsPath = "gs://" + testBucketName + "/temp/" + timestamp;
+    String tempGcsPath = "gs://" + testBucketName + "/" + tempGcsDir;
     initHive(engine, readDataFormat, tempGcsPath);
   }
 
