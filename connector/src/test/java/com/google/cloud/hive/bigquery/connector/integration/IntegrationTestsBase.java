@@ -110,7 +110,7 @@ public class IntegrationTestsBase {
     // Enable vectorize mode
     hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
     hive.setHiveConfValue(
-        MetastoreConf.ConfVars.SERDES_USING_METASTORE_FOR_SCHEMA.getVarname(),
+        MetastoreConf.ConfVars.SERDES_USING_METASTORE_FOR_SCHEMA.getHiveName(),
         MetastoreConf.ConfVars.SERDES_USING_METASTORE_FOR_SCHEMA.getDefaultVal()
             + ","
             + "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
