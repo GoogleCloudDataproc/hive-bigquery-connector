@@ -68,7 +68,8 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE)
   public void testInsertIndirect(String engine) {
-    String testGcsDir = this.tempGcsDir + (this.tempGcsDir.endsWith("/") ? "" : "/") + "indirect-test";
+    String testGcsDir =
+        this.tempGcsDir + (this.tempGcsDir.endsWith("/") ? "" : "/") + "indirect-test";
     String testGcsPath = "gs://" + testBucketName + "/" + testGcsDir;
 
     // Check that the dir is empty
