@@ -325,7 +325,10 @@ public class DataprocAcceptanceTestBase {
 
     Job result =
         createAndRunHiveJob(
-            testName, "create_read_drop_external_table.sql", outputDirUri, Duration.ofSeconds(ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS));
+            testName,
+            "create_read_drop_external_table.sql",
+            outputDirUri,
+            Duration.ofSeconds(ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS));
 
     verifyJobSuceeded(result);
     verifyJobOutput(outputDirUri, "king,1191");

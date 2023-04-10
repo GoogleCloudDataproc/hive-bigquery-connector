@@ -9,11 +9,20 @@ steps:
   id: 'build'
   waitFor: ['docker-build']
   entrypoint: 'bash'
+  args: ['/workspace/cloudbuild/presubmit.sh', 'check']
+  env:
+    - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
+
+# 3. Build the connector and download dependencies without running tests.
+- name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
+  id: 'build'
+  waitFor: ['docker-build']
+  entrypoint: 'bash'
   args: ['/workspace/cloudbuild/presubmit.sh', 'build']
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 3. Run unit tests
+# 4. Run unit tests
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'unit-tests'
   waitFor: ['build']
@@ -21,7 +30,7 @@ steps:
   args: ['/workspace/cloudbuild/presubmit.sh', 'unittest']
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
-# 3. Run integration tests
+# 5. Run integration tests
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'integration-tests'
   waitFor: ['unit-tests']

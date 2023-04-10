@@ -34,6 +34,18 @@ export BIGLAKE_CONNECTION=hive-integration-tests
 cd /workspace
 
 case "$ACTION" in
+  # Java code style check
+  check)
+    ./mvnw spotless:check
+    exit
+    ;;
+
+  # Download maven and all the dependencies
+  build)
+    $MVN install -P"${PROFILES}" -DskipTests
+    exit
+    ;;
+
   # Download maven and all the dependencies
   build)
     $MVN install -P"${PROFILES}" -DskipTests
