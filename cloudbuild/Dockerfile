@@ -1,2 +1,2 @@
 # This Dockerfile creates an image for running presubmit tests.
-FROM openjdk:11
+FROM openjdk:8
