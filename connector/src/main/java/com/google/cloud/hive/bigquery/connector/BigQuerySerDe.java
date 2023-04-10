@@ -102,6 +102,7 @@ public class BigQuerySerDe extends AbstractSerDe {
 
   @Override
   public boolean shouldStoreFieldsInMetastore(Map<String, String> tableParams) {
+    // schema is accurate in table's StorageDescriptor
     return true;
   }
 }
