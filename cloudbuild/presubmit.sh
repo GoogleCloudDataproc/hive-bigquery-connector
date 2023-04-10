@@ -46,12 +46,6 @@ case "$ACTION" in
     exit
     ;;
 
-  # Download maven and all the dependencies
-  build)
-    $MVN install -P"${PROFILES}" -DskipTests
-    exit
-    ;;
-
   # Run unit tests
   unittest)
     $MVN surefire:test jacoco:report jacoco:report-aggregate -P"${PROFILES}",coverage
