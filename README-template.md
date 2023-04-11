@@ -537,12 +537,12 @@ You must use Java version 8, as it's the version that Hive itself uses. Make sur
 
 Acceptance tests create Dataproc clusters with the connector and run jobs to verify it.
 
-The following environement variables must be set and **exported** first.
+The following environment variables must be set and **exported** first.
 
 * `GOOGLE_APPLICATION_CREDENTIALS` - the full path to a credentials JSON, either a service account or the result of a
   `gcloud auth login` run
 * `GOOGLE_CLOUD_PROJECT` - The Google cloud platform project used to test the connector
-* `TEMPORARY_GCS_BUCKET` - The GCS bucked used to test writing to BigQuery during the integration tests
+* `TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the integration tests
 * `ACCEPTANCE_TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the acceptance tests
 
 To run the acceptance tests:
