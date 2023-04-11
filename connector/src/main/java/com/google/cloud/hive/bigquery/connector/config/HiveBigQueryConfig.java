@@ -22,6 +22,8 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.QueryJobConfiguration.Priority;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions.CompressionCodec;
@@ -60,7 +62,9 @@ public class HiveBigQueryConfig
   public static final String CREDENTIALS_FILE_KEY = "bq.credentials.file";
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
   public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY =
-      "bq.access.access.token.provider.fqcn";
+      "bq.access.token.provider.fqcn";
+  public static final String ACCESS_TOKEN_PROVIDER_CONFIG_KEY =
+      "bq.access.token.provider.config";
   public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
   public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
   public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
@@ -73,6 +77,8 @@ public class HiveBigQueryConfig
   public static final String OUTPUT_TABLES_KEY = "bq.output.tables";
   public static final String CREATE_TABLES_KEY = "bq.create.tables";
   public static final String HADOOP_COMMITTER_CLASS_KEY = "mapred.output.committer.class";
+  public static final String FLOW_CONTROL_WINDOW_BYTES_KEY = "bq.flow.control.window.bytes";
+  public static final String QUERY_JOB_PRIORITY_KEY = "bq.query.job.priority";
 
   public static final int DEFAULT_CACHE_EXPIRATION_IN_MINUTES = 15;
   private static final int DEFAULT_BIGQUERY_CLIENT_CONNECT_TIMEOUT = 60 * 1000;
@@ -101,7 +107,8 @@ public class HiveBigQueryConfig
   Optional<String> credentialsKey = empty();
   Optional<String> credentialsFile = empty();
   Optional<String> accessToken = empty();
-  Optional<String> accessTokenProviderFQCN;
+  Optional<String> accessTokenProviderFQCN = empty();
+  Optional<String> accessTokenProviderConfig = empty();
 
   // Reading parameters
   DataFormat readDataFormat; // ARROW or AVRO
@@ -136,6 +143,15 @@ public class HiveBigQueryConfig
   Optional<Boolean> partitionRequireFilter = empty();
   Optional<String[]> clusteredFields = empty();
 
+  // Parallelism
+  Integer maxParallelism = null;
+  Integer preferredMinParallelism = null;
+
+  // Misc
+  private Optional<Integer> flowControlWindowBytes = empty();
+  public static final Priority DEFAULT_JOB_PRIORITY = Priority.INTERACTIVE;
+  private QueryJobConfiguration.Priority queryJobPriority = DEFAULT_JOB_PRIORITY;
+
   // Options currently not implemented:
   HiveBigQueryProxyConfig proxyConfig;
   boolean enableModeCheckForSchemaFields = true;
@@ -145,8 +161,6 @@ public class HiveBigQueryConfig
   String parentProjectId;
   boolean useParentProjectForMetadataOperations;
   int maxReadRowsRetries = 3;
-  Integer maxParallelism = null;
-  Integer preferredMinParallelism = null;
   private Optional<String> encodedCreateReadSessionRequest = empty();
   private Optional<String> bigQueryStorageGrpcEndpoint = empty();
   private Optional<String> bigQueryHttpEndpoint = empty();
@@ -156,9 +170,7 @@ public class HiveBigQueryConfig
   public static final int MIN_BUFFERED_RESPONSES_PER_STREAM = 1;
   private int numStreamsPerPartition = MIN_STREAMS_PER_PARTITION;
   public static final int MIN_STREAMS_PER_PARTITION = 1;
-  private CompressionCodec arrowCompressionCodec = DEFAULT_ARROW_COMPRESSION_CODEC;
-  static final CompressionCodec DEFAULT_ARROW_COMPRESSION_CODEC =
-      CompressionCodec.COMPRESSION_UNSPECIFIED;
+  private CompressionCodec arrowCompressionCodec = CompressionCodec.COMPRESSION_UNSPECIFIED;
 
   HiveBigQueryConfig() {
     // empty
@@ -264,6 +276,8 @@ public class HiveBigQueryConfig
     opts.accessToken = getAnyOption(ACCESS_TOKEN_KEY, conf, tableParameters);
     opts.accessTokenProviderFQCN =
         getAnyOption(ACCESS_TOKEN_PROVIDER_FQCN_KEY, conf, tableParameters);
+    opts.accessTokenProviderConfig =
+        getAnyOption(ACCESS_TOKEN_PROVIDER_CONFIG_KEY, conf, tableParameters);
 
     // Partitioning and clustering
     opts.partitionType =
@@ -279,6 +293,17 @@ public class HiveBigQueryConfig
             .transform(Boolean::valueOf);
     opts.clusteredFields =
         getAnyOption(CLUSTERED_FIELDS_KEY, conf, tableParameters).transform(s -> s.split(","));
+
+    // Misc
+    opts.flowControlWindowBytes =
+        getAnyOption(FLOW_CONTROL_WINDOW_BYTES_KEY, conf, tableParameters)
+            .transform(Integer::valueOf);
+    opts.queryJobPriority =
+        getAnyOption(QUERY_JOB_PRIORITY_KEY, conf, tableParameters)
+            .transform(String::toUpperCase)
+            .transform(Priority::valueOf)
+            .or(DEFAULT_JOB_PRIORITY);
+
     return opts;
   }
 
@@ -356,6 +381,11 @@ public class HiveBigQueryConfig
   @Override
   public java.util.Optional<String> getAccessTokenProviderFQCN() {
     return accessTokenProviderFQCN.toJavaUtil();
+  }
+
+  @Override
+  public java.util.Optional<String> getAccessTokenProviderConfig() {
+    return accessTokenProviderConfig.toJavaUtil();
   }
 
   @Override
@@ -454,6 +484,16 @@ public class HiveBigQueryConfig
   @Override
   public java.util.Optional<Long> getCreateReadSessionTimeoutInSeconds() {
     return createReadSessionTimeoutInSeconds.toJavaUtil();
+  }
+
+  @Override
+  public java.util.Optional<Integer> getFlowControlWindowBytes() {
+    return flowControlWindowBytes.toJavaUtil();
+  }
+
+  @Override
+  public Priority getQueryJobPriority() {
+    return queryJobPriority;
   }
 
   public OptionalInt getMaxParallelism() {

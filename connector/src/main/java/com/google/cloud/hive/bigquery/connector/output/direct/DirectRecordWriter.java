@@ -98,7 +98,6 @@ public class DirectRecordWriter
       FSDataOutputStream streamRefFile = filePath.getFileSystem(jobConf).create(filePath);
       streamRefFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
       streamRefFile.close();
-      streamWriter.close();
     }
   }
 
