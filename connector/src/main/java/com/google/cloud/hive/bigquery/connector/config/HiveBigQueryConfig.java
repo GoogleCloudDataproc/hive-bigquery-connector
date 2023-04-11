@@ -297,7 +297,7 @@ public class HiveBigQueryConfig
     // Misc
     opts.flowControlWindowBytes =
         getAnyOption(FLOW_CONTROL_WINDOW_BYTES_KEY, conf, tableParameters)
-            .transform(Integer::valueOf);
+            .transform(Integer::parseInt);
     opts.queryJobPriority =
         getAnyOption(QUERY_JOB_PRIORITY_KEY, conf, tableParameters)
             .transform(String::toUpperCase)
