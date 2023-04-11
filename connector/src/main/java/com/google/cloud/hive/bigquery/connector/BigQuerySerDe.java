@@ -99,4 +99,10 @@ public class BigQuerySerDe extends AbstractSerDe {
   public Object deserialize(Writable writable) throws SerDeException {
     return ((ObjectWritable) writable).get();
   }
+
+  @Override
+  public boolean shouldStoreFieldsInMetastore(Map<String, String> tableParams) {
+    // schema is accurate in table's StorageDescriptor
+    return true;
+  }
 }

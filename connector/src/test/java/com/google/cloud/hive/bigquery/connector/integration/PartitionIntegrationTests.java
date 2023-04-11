@@ -70,14 +70,11 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     List<Object[]> rows =
         hive.executeStatement("DESCRIBE " + INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Verify that the partition pseudo columns were added.
-    // Note: There is apparently a bug in Hive where the DESCRIBE command
-    // returns "from deserializer" for the comment (i.e. description) of
-    // every column.
     assertArrayEquals(
         new Object[] {
-          new Object[] {"int_val", "bigint", "from deserializer"},
-          new Object[] {"_partitiontime", "timestamp", "from deserializer"},
-          new Object[] {"_partitiondate", "date", "from deserializer"}
+          new Object[] {"int_val", "bigint", ""},
+          new Object[] {"_partitiontime", "timestamp", "Ingestion time pseudo column"},
+          new Object[] {"_partitiondate", "date", "Ingestion time pseudo column"}
         },
         rows.toArray());
   }
