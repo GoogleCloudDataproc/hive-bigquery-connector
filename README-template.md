@@ -475,10 +475,9 @@ export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
 export BIGLAKE_CONNECTION=hive-integration-tests
 export BIGLAKE_BUCKET=${USER}-biglake-test
-export INDIRECT_WRITE_BUCKET=${USER}-hive-bq-tmp
 ```
 
-Create the test BigLake connection if not created yet:
+Create the test BigLake connection:
 
 ```sh
 bq mk \
@@ -489,7 +488,7 @@ bq mk \
   "${BIGLAKE_CONNECTION}"
 ```
 
-Create the bucket to host BigLake datasets if not created yet:
+Create the bucket to host BigLake datasets:
 
 ```sh
 gsutil mb -l "${BIGLAKE_REGION}" "gs://${BIGLAKE_BUCKET}"
