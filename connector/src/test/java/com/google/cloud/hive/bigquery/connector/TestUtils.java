@@ -46,12 +46,12 @@ public class TestUtils {
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
-  public static final String HIVE_TEST_BUCKET_NAME_ENV_VAR = "INDIRECT_WRITE_BUCKET";
+  public static final String TEST_BUCKET_ENV_VAR = "TEST_BUCKET";
 
   // The BigLake bucket and connection must be created before running the tests.
   // Also, the connection's service account must be given permission to access the bucket.
-  public static final String BIGLAKE_CONNECTION_NAME_ENV_VAR = "BIGLAKE_CONNECTION";
-  public static final String BIGLAKE_BUCKET_NAME_ENV_VAR = "BIGLAKE_BUCKET";
+  public static final String BIGLAKE_CONNECTION_ENV_VAR = "BIGLAKE_CONNECTION";
+  public static final String BIGLAKE_BUCKET_ENV_VAR = "BIGLAKE_BUCKET";
 
   public static String BIGQUERY_TEST_TABLE_DDL = String.join("\n", "number INT64,", "text STRING");
 
@@ -191,7 +191,7 @@ public class TestUtils {
    * an environment variable, so we can retrieve it here during the test execution.
    */
   public static String getBigLakeConnection() {
-    return System.getenv().getOrDefault(BIGLAKE_CONNECTION_NAME_ENV_VAR, "hive-integration-tests");
+    return System.getenv().getOrDefault(BIGLAKE_CONNECTION_ENV_VAR, "hive-integration-tests");
   }
 
   /**
@@ -199,8 +199,7 @@ public class TestUtils {
    * environment variable, so we can retrieve it here during the test execution.
    */
   public static String getBigLakeBucket() {
-    return System.getenv()
-        .getOrDefault(BIGLAKE_BUCKET_NAME_ENV_VAR, getProject() + "-biglake-tests");
+    return System.getenv().getOrDefault(BIGLAKE_BUCKET_ENV_VAR, getProject() + "-biglake-tests");
   }
 
   /**
@@ -208,8 +207,7 @@ public class TestUtils {
    * write method. This bucket is created automatically when running the tests.
    */
   public static String getTestBucket() {
-    return System.getenv()
-        .getOrDefault(HIVE_TEST_BUCKET_NAME_ENV_VAR, getProject() + "-hive-tests");
+    return System.getenv().getOrDefault(TEST_BUCKET_ENV_VAR, getProject() + "-integration-tests");
   }
 
   public static void createBqDataset(String dataset) {
