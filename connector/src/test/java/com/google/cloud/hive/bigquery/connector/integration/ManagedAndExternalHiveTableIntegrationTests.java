@@ -80,7 +80,7 @@ public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTest
                     false,
                     null,
                     null));
-    assertTrue(bqException.getMessage().contains("Invalid table ID"));
+    assertTrue(bqException.getMessage().contains("Invalid Table ID"));
 
     // Verify that table is not created in Hive.
     Throwable hiveException =

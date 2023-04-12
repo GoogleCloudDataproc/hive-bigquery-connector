@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import shaded.hivebqcon.com.google.common.base.Strings;
 import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
@@ -370,7 +371,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     }
 
     TableId destTableId =
-        HiveBigQueryConfig.getTableId(tableParameters.get(HiveBigQueryConfig.TABLE_KEY));
+        BigQueryUtil.parseTableId(tableParameters.get(HiveBigQueryConfig.TABLE_KEY));
     TableInfo bqTableInfo = bqClient.getTable(jobDetails.getTableId());
     if (bqTableInfo == null) {
       throw new MetaException("BigQuery table does not exist: " + jobDetails.getTableId());
@@ -503,6 +504,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
           "Need to provide bq.table in format of project.dataset.table, if project is missing will"
               + " use default project.");
     }
-    return HiveBigQueryConfig.getTableId(bqTable);
+    return BigQueryUtil.parseTableId(bqTable);
   }
 }

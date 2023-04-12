@@ -49,6 +49,7 @@ import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputFormat;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
 import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
 @SuppressWarnings({"rawtypes", "deprecated"})
@@ -164,7 +165,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     Properties tableProperties = tableDesc.getProperties();
     jobDetails.setTableProperties(tableProperties);
     jobDetails.setTableId(
-        HiveBigQueryConfig.getTableId(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY)));
+        BigQueryUtil.parseTableId(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY)));
     Path jobDetailsFilePath =
         FileSystemUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
