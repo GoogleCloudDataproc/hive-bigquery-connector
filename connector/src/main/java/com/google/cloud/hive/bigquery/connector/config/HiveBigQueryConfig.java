@@ -18,7 +18,6 @@ package com.google.cloud.hive.bigquery.connector.config;
 import static shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
 
 import com.google.api.gax.retrying.RetrySettings;
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
@@ -196,6 +195,7 @@ public class HiveBigQueryConfig
 
   public static HiveBigQueryConfig from(Configuration conf, Map<String, String> tableParameters) {
     HiveBigQueryConfig.purgeOldTableParams(tableParameters);
+    HiveBigQueryConfig.purgeOldConfParams(conf);
     HiveBigQueryConfig opts = new HiveBigQueryConfig();
     opts.columnNameDelimiter =
         Optional.fromNullable(conf.get(serdeConstants.COLUMN_NAME_DELIMITER))
@@ -209,7 +209,8 @@ public class HiveBigQueryConfig
 
     Optional<String> bqTable = getAnyOption(TABLE_KEY, conf, tableParameters);
     if (bqTable.isPresent()) {
-      opts.tableId = getTableId(bqTable.get());
+      opts.tableId = BigQueryUtil.parseTableId(bqTable.get());
+      // opts.tableId = getTableId(bqTable.get());
     }
 
     opts.writeMethod =
@@ -502,25 +503,22 @@ public class HiveBigQueryConfig
         .build();
   }
 
-  public static TableId getTableId(String bqTable) {
-    String[] tokens = bqTable.split("\\.");
-    int len = tokens.length;
-    if (tokens.length == 2) {
-      String defaultProject =
-          BigQueryOptions.getDefaultInstance().getService().getOptions().getProjectId();
-      return TableId.of(defaultProject, tokens[0], tokens[1]);
-    } else {
-      return TableId.of(
-          bqTable.substring(
-              0, bqTable.length() - tokens[len - 2].length() - tokens[len - 1].length() - 2),
-          tokens[len - 2],
-          tokens[len - 1]);
-    }
-  }
-
   /*
   Remove before GA release.
    */
+  public static void purgeOldConfParams(Configuration conf) {
+    if (conf.get("bq.dataset") == null || conf.get("bq.table") == null) {
+      return;
+    }
+    String bqTable = conf.get("bq.dataset") + "." + conf.get("bq.table");
+    if (conf.get("bq.project") != null && !conf.get("bq.project").isEmpty()) {
+      bqTable = conf.get("bq.project") + "." + bqTable;
+    }
+    conf.set("bq.table", bqTable);
+    conf.unset("bq.project");
+    conf.unset("bq.dataset");
+  }
+
   public static void purgeOldTableParams(Map<String, String> params) {
     if (params == null || !params.containsKey(TABLE_KEY)) {
       return;
