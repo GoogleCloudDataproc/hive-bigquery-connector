@@ -27,6 +27,33 @@
     <description>Parent project for all the Hive BigQuery Connector artifacts
     </description>
 
+    <url>https://github.com/GoogleCloudDataproc/hive-bigquery-connector</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <organization>Google Inc.</organization>
+            <organizationUrl>https://www.google.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>
+            scm:git:git@github.com:GoogleCloudDataproc/hive-bigquery-connector.git
+        </connection>
+        <developerConnection>
+            scm:git:git@github.com:GoogleCloudDataproc/hive-bigquery-connector.git
+        </developerConnection>
+        <url>git@github.com:GoogleCloudDataproc/hive-bigquery-connector.git</url>
+    </scm>
+
     <properties>
         <revision>2.0.0-SNAPSHOT</revision>
         <nexus.remote.skip>false</nexus.remote.skip>
