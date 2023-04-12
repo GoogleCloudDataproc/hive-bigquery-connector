@@ -27,6 +27,14 @@
 
   <artifactId>shaded-test-dependencies</artifactId>
 
+  <licenses>
+      <license>
+          <name>Apache License, Version 2.0</name>
+          <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+          <distribution>repo</distribution>
+      </license>
+  </licenses>
+
   <!--
   This module's sole purpose is to shade some libraries used for test (e.g. Dataproc java client) to avoid conflicts
   with packages in the connector (e.g., protobuf) .

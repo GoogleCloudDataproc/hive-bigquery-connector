@@ -27,6 +27,14 @@
 
   <artifactId>shaded-dependencies</artifactId>
 
+  <licenses>
+      <license>
+          <name>Apache License, Version 2.0</name>
+          <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+          <distribution>repo</distribution>
+      </license>
+  </licenses>
+
   <!--
   This module's sole purpose is to shade some libraries (e.g. Guava) to avoid conflicts with other versions that are
   used by other tools, like Hadoop and Hive. The reason why we shade those libraries in a separate module instead of
