@@ -62,7 +62,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (word_count BIGINT, word STRING)
-STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+    STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable'
 );
@@ -475,10 +475,9 @@ export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
 export BIGLAKE_CONNECTION=hive-integration-tests
 export BIGLAKE_BUCKET=${USER}-biglake-test
-export INDIRECT_WRITE_BUCKET=${USER}-hive-bq-tmp
 ```
 
-Create the test BigLake connection if not created yet:
+Create the test BigLake connection:
 
 ```sh
 bq mk \
@@ -489,7 +488,7 @@ bq mk \
   "${BIGLAKE_CONNECTION}"
 ```
 
-Create the bucket to host BigLake datasets if not created yet:
+Create the bucket to host BigLake datasets:
 
 ```sh
 gsutil mb -l "${BIGLAKE_REGION}" "gs://${BIGLAKE_BUCKET}"
@@ -513,22 +512,22 @@ You must use Java version 8, as it's the version that Hive itself uses. Make sur
 
 * To run the integration tests:
   ```sh
-  ./mvnw verify -Pintegration
+  ./mvnw verify -Pdataproc21,integration
   ```
 
 * To run a single integration test class:
   ```sh
-  ./mvnw verify -Pintegration -Dit.test="BigLakeIntegrationTests"
+  ./mvnw verify -Pdataproc21,integration -Dit.test="BigLakeIntegrationTests"
   ```
 
 * To run a specific integration test method:
   ```sh
-  ./mvnw verify -Pintegration -Dit.test="BigLakeIntegrationTests#testReadBigLakeTable"
+  ./mvnw verify -Pdataproc21,integration -Dit.test="BigLakeIntegrationTests#testReadBigLakeTable"
   ```
 
 * To debug the tests, add the `-Dmaven.failsafe.debug` property:
   ```sh
-  ./mvnw verify -Pintegration -Dmaven.failsafe.debug
+  ./mvnw verify -Pdataproc21,integration -Dmaven.failsafe.debug
   ```
   ... then run a remote debugger in IntelliJ at port `5005`. Read more about debugging with FailSafe
   here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
@@ -537,12 +536,12 @@ You must use Java version 8, as it's the version that Hive itself uses. Make sur
 
 Acceptance tests create Dataproc clusters with the connector and run jobs to verify it.
 
-The following environement variables must be set and **exported** first.
+The following environment variables must be set and **exported** first.
 
 * `GOOGLE_APPLICATION_CREDENTIALS` - the full path to a credentials JSON, either a service account or the result of a
   `gcloud auth login` run
 * `GOOGLE_CLOUD_PROJECT` - The Google cloud platform project used to test the connector
-* `TEMPORARY_GCS_BUCKET` - The GCS bucked used to test writing to BigQuery during the integration tests
+* `TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the integration tests
 * `ACCEPTANCE_TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the acceptance tests
 
 To run the acceptance tests:
