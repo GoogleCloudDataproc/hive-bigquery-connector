@@ -61,10 +61,8 @@ public class HiveBigQueryConfig
   public static final String CREDENTIALS_KEY_KEY = "bq.credentials.key";
   public static final String CREDENTIALS_FILE_KEY = "bq.credentials.file";
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
-  public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY =
-      "bq.access.token.provider.fqcn";
-  public static final String ACCESS_TOKEN_PROVIDER_CONFIG_KEY =
-      "bq.access.token.provider.config";
+  public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY = "bq.access.token.provider.fqcn";
+  public static final String ACCESS_TOKEN_PROVIDER_CONFIG_KEY = "bq.access.token.provider.config";
   public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
   public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
   public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
