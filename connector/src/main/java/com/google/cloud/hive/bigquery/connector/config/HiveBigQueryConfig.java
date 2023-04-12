@@ -220,7 +220,6 @@ public class HiveBigQueryConfig
     Optional<String> bqTable = getAnyOption(TABLE_KEY, conf, tableParameters);
     if (bqTable.isPresent()) {
       opts.tableId = BigQueryUtil.parseTableId(bqTable.get());
-      // opts.tableId = getTableId(bqTable.get());
     }
 
     opts.writeMethod =
