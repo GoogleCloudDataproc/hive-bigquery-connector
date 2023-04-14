@@ -21,10 +21,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.cloud.bigquery.Clustering;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TimePartitioning;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
-import com.google.common.collect.ImmutableList;
 
 public class PartitionIntegrationTests extends IntegrationTestsBase {
 

@@ -19,6 +19,7 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -35,7 +36,6 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
-import com.google.protobuf.ByteString;
 
 /**
  * Reads Avro-formatted records returned by the BigQuery Storage Read API responses and serializes

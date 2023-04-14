@@ -23,12 +23,12 @@ import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.Blob;
+import com.google.common.collect.Streams;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import com.google.common.collect.Streams;
 
 public class WriteIntegrationTests extends IntegrationTestsBase {
 

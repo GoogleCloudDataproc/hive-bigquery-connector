@@ -15,6 +15,8 @@
  */
 package com.google.cloud.hive.bigquery.connector.config;
 
+import com.google.cloud.bigquery.connector.common.BigQueryConfig;
+import com.google.cloud.bigquery.connector.common.UserAgentProvider;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -24,8 +26,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
-import com.google.cloud.bigquery.connector.common.BigQueryConfig;
-import com.google.cloud.bigquery.connector.common.UserAgentProvider;
 
 /**
  * Class used to retrieve some bigquery-connector-common objects (e.g. the BigQuery client) when

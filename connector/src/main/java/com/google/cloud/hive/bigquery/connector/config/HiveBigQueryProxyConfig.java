@@ -17,12 +17,12 @@ package com.google.cloud.hive.bigquery.connector.config;
 
 import static com.google.common.base.Optional.absent;
 
-import java.io.Serializable;
-import java.net.URI;
-import org.apache.hadoop.conf.Configuration;
 import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
+import java.io.Serializable;
+import java.net.URI;
+import org.apache.hadoop.conf.Configuration;
 
 /**
  * Class required to use the bigquery-connector-common library. It currently does not do anything.

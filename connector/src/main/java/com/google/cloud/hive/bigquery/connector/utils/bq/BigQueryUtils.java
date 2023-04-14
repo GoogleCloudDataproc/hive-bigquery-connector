@@ -17,23 +17,23 @@ package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.*;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
+import com.google.cloud.bigquery.connector.common.BigQueryProxyTransporterBuilder;
+import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.http.HttpTransportOptions;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.api.Table;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
-import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
-import com.google.cloud.bigquery.connector.common.BigQueryProxyTransporterBuilder;
-import com.google.cloud.bigquery.connector.common.BigQueryUtil;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
 public class BigQueryUtils {
 

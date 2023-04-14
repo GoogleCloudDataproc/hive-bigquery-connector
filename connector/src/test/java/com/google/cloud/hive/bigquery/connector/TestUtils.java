@@ -16,9 +16,13 @@
 package com.google.cloud.hive.bigquery.connector;
 
 import com.google.cloud.bigquery.*;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.storage.*;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.common.collect.Lists;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.util.HashMap;
@@ -28,10 +32,6 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.cloud.bigquery.connector.common.BigQueryClient;
-import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
-import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
-import com.google.common.collect.Lists;
 
 public class TestUtils {
 
