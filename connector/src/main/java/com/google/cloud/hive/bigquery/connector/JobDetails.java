@@ -25,7 +25,7 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
-import shaded.hivebqcon.com.google.gson.*;
+import com.google.gson.*;
 
 /**
  * Helper class that contains some information about the job. That information is persisted as a

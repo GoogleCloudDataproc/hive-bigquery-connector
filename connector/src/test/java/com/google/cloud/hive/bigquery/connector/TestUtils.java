@@ -28,10 +28,10 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
-import shaded.hivebqcon.com.google.common.collect.Lists;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import com.google.common.collect.Lists;
 
 public class TestUtils {
 

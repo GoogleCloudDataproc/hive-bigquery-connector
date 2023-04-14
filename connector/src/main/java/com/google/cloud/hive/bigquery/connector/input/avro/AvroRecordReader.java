@@ -35,7 +35,7 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
-import shaded.hivebqcon.com.google.protobuf.ByteString;
+import com.google.protobuf.ByteString;
 
 /**
  * Reads Avro-formatted records returned by the BigQuery Storage Read API responses and serializes

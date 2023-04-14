@@ -29,7 +29,7 @@ import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import shaded.hivebqcon.com.google.common.collect.Sets;
+import com.google.common.collect.Sets;
 
 public class BigQueryOutputCommitter extends OutputCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);

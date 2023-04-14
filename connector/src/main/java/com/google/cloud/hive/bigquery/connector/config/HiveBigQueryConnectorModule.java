@@ -24,8 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryConfig;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.UserAgentProvider;
+import com.google.cloud.bigquery.connector.common.BigQueryConfig;
+import com.google.cloud.bigquery.connector.common.UserAgentProvider;
 
 /**
  * Class used to retrieve some bigquery-connector-common objects (e.g. the BigQuery client) when

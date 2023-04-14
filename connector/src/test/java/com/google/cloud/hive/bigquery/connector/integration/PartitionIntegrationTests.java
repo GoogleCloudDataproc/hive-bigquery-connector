@@ -24,7 +24,7 @@ import com.google.cloud.bigquery.TimePartitioning;
 import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
-import shaded.hivebqcon.com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList;
 
 public class PartitionIntegrationTests extends IntegrationTestsBase {
 

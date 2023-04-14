@@ -51,12 +51,12 @@ import org.apache.hadoop.hive.serde2.typeinfo.*;
 import org.apache.hadoop.mapred.JobContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil;
-import shaded.hivebqcon.com.google.common.base.Strings;
-import shaded.hivebqcon.com.google.common.collect.ImmutableList;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import com.google.cloud.bigquery.connector.common.BigQueryUtil;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Class {@link BigQueryMetaHook} can be used to validate and perform different actions during the

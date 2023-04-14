@@ -43,42 +43,10 @@
   -->
 
   <dependencies>
-
     <dependency>
-      <groupId>com.google.cloud.spark</groupId>
-      <artifactId>bigquery-connector-common</artifactId>
-      <version>${bigquery-connector-common.version}</version>
-      <exclusions>
-        <!--exclusion>
-          <groupId>com.google.inject</groupId>
-          <artifactId>guice</artifactId>
-        </exclusion-->
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-storage</artifactId>
-      <version>${google-cloud-storage.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro</artifactId>
-      <version>${avro.version}</version>
-    </dependency>
-
-    <!-- add jackson-databind explicitly to override the older version introduced by avro for CVE fixes. -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>31.1-jre</version>
     </dependency>
 
   </dependencies>

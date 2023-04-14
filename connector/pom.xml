@@ -40,6 +40,16 @@
   <dependencies>
 
     <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.spark</groupId>
+      <artifactId>bigquery-connector-common</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.cloud.hive</groupId>
       <artifactId>shaded-dependencies</artifactId>
       <version>${project.parent.version}</version>

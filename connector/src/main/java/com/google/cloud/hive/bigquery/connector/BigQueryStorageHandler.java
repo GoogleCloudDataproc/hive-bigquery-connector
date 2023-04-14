@@ -47,9 +47,9 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputFormat;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
 @SuppressWarnings({"rawtypes", "deprecated"})

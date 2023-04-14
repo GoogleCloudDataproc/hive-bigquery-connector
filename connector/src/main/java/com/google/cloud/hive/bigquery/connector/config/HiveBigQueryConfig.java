@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.config;
 
-import static shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
+import static com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.JobInfo;
@@ -34,11 +34,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.threeten.bp.Duration;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.*;
-import shaded.hivebqcon.com.google.common.base.Optional;
-import shaded.hivebqcon.com.google.common.base.Splitter;
-import shaded.hivebqcon.com.google.common.collect.ImmutableList;
-import shaded.hivebqcon.com.google.common.collect.ImmutableMap;
+import com.google.cloud.bigquery.connector.common.*;
+import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 /** Main config class to interact with the bigquery-common-connector. */
 @SuppressWarnings("unchecked")

@@ -26,11 +26,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryConnectorException;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil;
-import shaded.hivebqcon.com.google.common.base.Preconditions;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
+import com.google.cloud.bigquery.connector.common.BigQueryConnectorException;
+import com.google.cloud.bigquery.connector.common.BigQueryUtil;
+import com.google.common.base.Preconditions;
 
 public class DirectWriterContext {
 

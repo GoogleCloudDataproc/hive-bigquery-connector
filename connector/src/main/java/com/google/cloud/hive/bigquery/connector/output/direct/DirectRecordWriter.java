@@ -31,9 +31,9 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TaskAttemptID;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper;
-import shaded.hivebqcon.com.google.protobuf.Descriptors;
-import shaded.hivebqcon.com.google.protobuf.DynamicMessage;
+import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
 
 /**
  * Writes records to a given BQ stream. Each task runs its own instance of this writer class, i.e.
