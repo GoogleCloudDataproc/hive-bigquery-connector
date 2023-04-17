@@ -383,6 +383,7 @@
                   <pattern>com.google</pattern>
                   <shadedPattern>com.google.cloud.hive.bigquery.repackaged.com.google</shadedPattern>
                   <excludes>
+                    <exclude>com.google.cloud.hadoop.**</exclude>
                     <exclude>com.google.cloud.hive.bigquery.**</exclude>
                   </excludes>
                 </relocation>
