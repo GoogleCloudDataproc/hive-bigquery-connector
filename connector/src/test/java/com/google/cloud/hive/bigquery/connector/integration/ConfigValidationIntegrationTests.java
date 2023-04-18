@@ -76,22 +76,13 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingBucketPermissions() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive(
-        getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, "gs://random-bucket-abcdef-12345");
+    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, NON_EXISTING_PATH);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(
             RuntimeException.class,
             () -> runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
-    // TODO: Look into why we don't always get the same message back
-    String message1 =
-        "Cannot write to table 'test'. Does not have write access to the following GCS path, or"
-            + " bucket does not exist: gs://random-bucket-abcdef-12345)";
-    String message2 =
-        "Cannot write to table 'test'. The service account does not have IAM permissions to write"
-            + " to the following GCS path, or bucket does not exist:"
-            + " gs://random-bucket-abcdef-12345";
-    assertTrue(
-        exception.getMessage().contains(message1) || exception.getMessage().contains(message2));
+    String message = "bucket does not exist: " + NON_EXISTING_PATH;
+    assertTrue(exception.getMessage().contains(message));
   }
 }
