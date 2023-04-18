@@ -419,7 +419,8 @@ Please note there are a few caveats:
   `INSERT INTO PARTITION OVERWRITE` statements are currently not supported. Note, however, that
   partitioning and clustering in BigQuery are supported via `TBLPROPERTIES`. See the corresponding
   sections on [partitioning](#partitioning) and [clustering](#clustering).
-* CTAS (aka `CREATE TABLE AS SELECT`) is currently not supported.
+* CTAS (aka `CREATE TABLE AS SELECT`) and CTLT (`CREATE TABLE LIKE TABLE`) statements are currently
+  not supported.
 * If a write job fails when using the Tez execution engine and the `indirect` write method, the
   temporary avro files might not be automatically cleaned up from the GCS bucket. The MR execution
   engine does not have this limitation. The temporary files are always cleaned up when the job is
