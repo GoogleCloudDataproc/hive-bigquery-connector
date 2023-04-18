@@ -62,7 +62,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (word_count BIGINT, word STRING)
-    STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable'
 );
@@ -199,6 +199,8 @@ TBLPROPERTIES (
 );
 ```
 
+Note: Ingestion time partitioning is currently supported only for read operations.
+
 Check out the official BigQuery documentation about [Ingestion time partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#ingestion_time)
 to learn more.
 
@@ -324,6 +326,8 @@ are automatically converted:
 | `WEEKOFYEAR`     | `EXTRACT(WEEK FROM ...)`      |                                                                                           |
 | `QUARTER`        | `EXTRACT(QUARTER FROM ...)`   |                                                                                           |
 
+Note: [Custom Hive UDFs](https://cwiki.apache.org/confluence/display/hive/hiveplugins) (aka Hive plugins) are currently not supported.
+
 ## Parallelism
 
 ### Parallel reads
@@ -415,7 +419,8 @@ Please note there are a few caveats:
   `INSERT INTO PARTITION OVERWRITE` statements are currently not supported. Note, however, that
   partitioning and clustering in BigQuery are supported via `TBLPROPERTIES`. See the corresponding
   sections on [partitioning](#partitioning) and [clustering](#clustering).
-* CTAS (aka `CREATE TABLE AS SELECT`).
+* CTAS (aka `CREATE TABLE AS SELECT`) and CTLT (`CREATE TABLE LIKE TABLE`) statements are currently
+  not supported.
 * If a write job fails when using the Tez execution engine and the `indirect` write method, the
   temporary avro files might not be automatically cleaned up from the GCS bucket. The MR execution
   engine does not have this limitation. The temporary files are always cleaned up when the job is
@@ -428,6 +433,9 @@ Please note there are a few caveats:
   scale of 38, to BigQuery's `DECIMAL`/`NUMERIC` type, which as a precision of 38 and scale of 9.
   So you may currently only use values scale of up to 9. This limitation will be lifted in future
   versions.
+* [Custom Hive UDFs](https://cwiki.apache.org/confluence/display/hive/hiveplugins) (aka Hive plugins) are currently not supported.
+* BigQuery [ingestion time partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#ingestion_time) is currently supported only for read operations.
+* BigQuery [integer range partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#integer_range) is currently not supported.
 
 ## Development
 
