@@ -76,14 +76,13 @@ public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
   public void testMissingBucketPermissions() {
     hive.setHiveConfValue(
         HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
-    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, NonExistPath);
+    initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, NON_EXISTING_PATH);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     Throwable exception =
         assertThrows(
             RuntimeException.class,
             () -> runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')"));
-    // TODO: Look into why we don't always get the same message back
-    String message = "bucket does not exist: " + NonExistPath;
+    String message = "bucket does not exist: " + NON_EXISTING_PATH;
     assertTrue(exception.getMessage().contains(message));
   }
 }
