@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.integration;
 
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
@@ -57,7 +58,9 @@ public class IntegrationTestsBase {
   protected static String testBucketName;
 
   // Relative path under the temp test bucket for indirect writes.
-  protected String tempGcsDir;
+  protected static String NonExistPath = "gs://random-x8e0dAfe";
+  protected static String TempGcsDirPrefix = "temp-integration-test/";
+  protected String tempGcsDir = TempGcsDirPrefix;
 
   @HiveSQL(
       files = {},
@@ -115,12 +118,12 @@ public class IntegrationTestsBase {
             + ","
             + "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
     String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-    this.tempGcsDir = "temp/" + timestamp;
+    this.tempGcsDir = TempGcsDirPrefix + timestamp;
   }
 
   @AfterEach
   public void tearDownEach(TestInfo testInfo) {
-    if (tempGcsDir != null) {
+    if (tempGcsDir != null && tempGcsDir.startsWith(TempGcsDirPrefix)) {
       emptyGcsDir(testBucketName, tempGcsDir);
       tempGcsDir = null;
     }
@@ -250,6 +253,10 @@ public class IntegrationTestsBase {
 
   public void initHive(String engine, String readDataFormat, String tempGcsPath) {
     tempGcsDir = tempGcsPath.replaceFirst("gs://" + testBucketName + "/", "");
+    assertTrue(
+        tempGcsDir.startsWith(TempGcsDirPrefix)
+            || tempGcsPath.equals(NonExistPath)
+            || tempGcsPath.isEmpty());
 
     // Load potential Hive config values passed from system properties
     Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
