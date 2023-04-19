@@ -385,6 +385,7 @@
                   <excludes>
                     <exclude>com.google.cloud.hadoop.**</exclude>
                     <exclude>com.google.cloud.hive.bigquery.**</exclude>
+                    <exclude>com.google.common.**</exclude>
                   </excludes>
                 </relocation>
                 <relocation>
