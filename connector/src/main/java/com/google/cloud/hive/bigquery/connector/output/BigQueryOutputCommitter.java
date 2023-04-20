@@ -20,6 +20,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
@@ -29,7 +30,6 @@ import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import shaded.hivebqcon.com.google.common.collect.Sets;
 
 public class BigQueryOutputCommitter extends OutputCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);

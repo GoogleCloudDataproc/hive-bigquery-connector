@@ -15,23 +15,23 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.arrow;
 
+import com.google.cloud.bigquery.connector.common.ArrowReaderIterator;
+import com.google.cloud.bigquery.connector.common.ReadRowsHelper;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
+import com.google.protobuf.ByteString;
 import java.io.*;
 import java.util.Collections;
 import java.util.Iterator;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.ArrowReaderIterator;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.ReadRowsHelper;
-import shaded.hivebqcon.com.google.protobuf.ByteString;
-import shaded.hivebqcon.org.apache.arrow.memory.BufferAllocator;
-import shaded.hivebqcon.org.apache.arrow.memory.RootAllocator;
-import shaded.hivebqcon.org.apache.arrow.vector.VectorSchemaRoot;
-import shaded.hivebqcon.org.apache.arrow.vector.ipc.ArrowStreamReader;
 
 /**
  * Reads Arrow-formatted batches of rows (in the form of VectorSchemaRoot objects) from the BigQuery

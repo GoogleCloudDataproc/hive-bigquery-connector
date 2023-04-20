@@ -15,13 +15,16 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
-import static shaded.hivebqcon.com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.*;
@@ -44,9 +47,6 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.*;
-import shaded.hivebqcon.com.google.common.annotations.VisibleForTesting;
-import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryInputSplit.class);

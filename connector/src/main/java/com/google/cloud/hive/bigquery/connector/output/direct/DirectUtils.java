@@ -17,6 +17,10 @@ package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
@@ -28,10 +32,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskAttemptID;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper;
 
 public class DirectUtils {
 

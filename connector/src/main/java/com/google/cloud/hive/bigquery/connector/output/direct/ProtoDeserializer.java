@@ -21,14 +21,14 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
 import java.util.*;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import shaded.hivebqcon.com.google.protobuf.Descriptors;
-import shaded.hivebqcon.com.google.protobuf.DynamicMessage;
 
 public class ProtoDeserializer {
 

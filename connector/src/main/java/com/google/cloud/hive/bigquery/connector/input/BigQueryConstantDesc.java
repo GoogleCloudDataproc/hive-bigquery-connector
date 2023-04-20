@@ -17,12 +17,12 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import static org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory.*;
 
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
-import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 /**
  * Overrides ExprNodeConstantDesc to make sure filter values (in a WHERE clause) are properly

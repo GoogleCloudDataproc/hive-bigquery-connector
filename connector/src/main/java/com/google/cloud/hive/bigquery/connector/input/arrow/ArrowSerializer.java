@@ -20,6 +20,9 @@ import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspect
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
+import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.common.type.TimestampTZ;
@@ -32,9 +35,6 @@ import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
-import shaded.hivebqcon.org.apache.arrow.vector.*;
-import shaded.hivebqcon.org.apache.arrow.vector.complex.ListVector;
-import shaded.hivebqcon.org.apache.arrow.vector.complex.StructVector;
 
 public class ArrowSerializer {
 

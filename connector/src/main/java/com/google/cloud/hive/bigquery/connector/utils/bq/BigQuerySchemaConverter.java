@@ -17,6 +17,8 @@ package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -24,8 +26,6 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
-import shaded.hivebqcon.com.google.common.base.Preconditions;
-import shaded.hivebqcon.com.google.common.collect.ImmutableMap;
 
 /** Converts Hive Schema to BigQuery schema. */
 public class BigQuerySchemaConverter {

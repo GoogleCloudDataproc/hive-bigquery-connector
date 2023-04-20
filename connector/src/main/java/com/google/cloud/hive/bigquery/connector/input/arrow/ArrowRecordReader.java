@@ -19,14 +19,14 @@ import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputSplit;
 import java.io.IOException;
 import java.util.List;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.RecordReader;
-import shaded.hivebqcon.org.apache.arrow.vector.FieldVector;
-import shaded.hivebqcon.org.apache.arrow.vector.VectorSchemaRoot;
 
 /**
  * Reads from Arrow-formatted batches of rows, and returns individual rows in a serialized format

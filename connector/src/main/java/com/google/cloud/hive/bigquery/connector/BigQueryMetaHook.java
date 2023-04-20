@@ -20,6 +20,10 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
+import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
@@ -29,6 +33,8 @@ import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
@@ -51,12 +57,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.*;
 import org.apache.hadoop.mapred.JobContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClient;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryClientModule;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
-import shaded.hivebqcon.com.google.cloud.bigquery.connector.common.BigQueryUtil;
-import shaded.hivebqcon.com.google.common.base.Strings;
-import shaded.hivebqcon.com.google.common.collect.ImmutableList;
 
 /**
  * Class {@link BigQueryMetaHook} can be used to validate and perform different actions during the

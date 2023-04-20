@@ -19,13 +19,13 @@ import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
+import com.google.gson.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
-import shaded.hivebqcon.com.google.gson.*;
 
 /**
  * Helper class that contains some information about the job. That information is persisted as a
