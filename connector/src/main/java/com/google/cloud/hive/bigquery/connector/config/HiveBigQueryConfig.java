@@ -53,6 +53,7 @@ public class HiveBigQueryConfig
   public static final String TEMP_GCS_PATH_KEY = "bq.temp.gcs.path";
   public static final String WORK_DIR_PARENT_PATH_KEY = "bq.work.dir.parent.path";
   public static final String WORK_DIR_NAME_PREFIX_KEY = "bq.work.dir.name.prefix";
+  public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "bq-hive-";
   public static final String READ_DATA_FORMAT_KEY = "bq.read.data.format";
   public static final String READ_CREATE_SESSION_TIMEOUT_KEY = "bq.read.create.session.timeout";
   public static final String READ_MAX_PARALLELISM = "maxParallelism";
@@ -83,7 +84,6 @@ public class HiveBigQueryConfig
   private static final int DEFAULT_BIGQUERY_CLIENT_RETRIES = 10;
   static final String GCS_CONFIG_CREDENTIALS_FILE_PROPERTY =
       "google.cloud.auth.service.account.json.keyfile";
-  public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "bq-hive-";
 
   public static final String TABLE_NAME_SEPARATOR = "|";
   public static final Splitter TABLE_NAME_SPLITTER = Splitter.on(TABLE_NAME_SEPARATOR);
@@ -210,7 +210,7 @@ public class HiveBigQueryConfig
     opts.columnNameDelimiter =
         Optional.fromNullable(conf.get(serdeConstants.COLUMN_NAME_DELIMITER))
             .or(Optional.of(String.valueOf(SerDeUtils.COMMA)));
-    opts.traceId = Optional.of("Hive:" + HiveUtils.getHiveId(conf));
+    opts.traceId = Optional.of("Hive:" + HiveUtils.getQueryId(conf));
     opts.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     opts.createDisposition =
         Optional.fromNullable(conf.get(CREATE_DISPOSITION_KEY))

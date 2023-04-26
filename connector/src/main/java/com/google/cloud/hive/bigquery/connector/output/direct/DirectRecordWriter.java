@@ -19,6 +19,9 @@ import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import com.google.cloud.hive.bigquery.connector.output.WriterRegistry;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
@@ -50,10 +53,12 @@ public class DirectRecordWriter
   BigQueryDirectDataWriterHelper streamWriter;
   StructObjectInspector rowObjectInspector;
   Descriptors.Descriptor descriptor;
+  final String writerId;
 
   public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
+    this.writerId = WriterRegistry.getWriterId();
     this.jobDetails = jobDetails;
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
@@ -92,12 +97,12 @@ public class DirectRecordWriter
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
-      Path filePath =
-          DirectUtils.getTaskTempStreamFile(
-              jobConf, jobDetails.getHmsDbTableName(), jobDetails.getTableId(), taskAttemptID);
-      FSDataOutputStream streamRefFile = filePath.getFileSystem(jobConf).create(filePath);
-      streamRefFile.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
-      streamRefFile.close();
+      Path streamRefFile =
+          JobUtils.getTaskWriterOutputFile(
+              jobDetails, taskAttemptID, writerId, HiveBigQueryConfig.STREAM_FILE_EXTENSION);
+      FSDataOutputStream outputStream = streamRefFile.getFileSystem(jobConf).create(streamRefFile);
+      outputStream.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
+      outputStream.close();
     }
   }
 

@@ -24,43 +24,12 @@ import com.google.cloud.bigquery.connector.common.BigQueryDirectDataWriterHelper
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
-import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.util.Properties;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.TaskAttemptID;
 
 public class DirectUtils {
-
-  /** Return the name prefix for the temp stream file. */
-  public static String getTaskTempStreamFileNamePrefix(TableId tableId) {
-    return String.format(
-            "%s_%s_%s",
-            tableId.getProject(), tableId.getDataset(), tableId.getTable().replace("$", "__"))
-        .replace(":", "__");
-  }
-
-  /**
-   * Returns the name of the stream reference file for the given task. The stream reference files
-   * will essentially contain the name of the stream that the task writes data to.
-   */
-  public static Path getTaskTempStreamFile(
-      Configuration conf,
-      String hmsDbTableName,
-      TableId bigQueryTableId,
-      TaskAttemptID taskAttemptID) {
-    Path hmsTablePath = new Path(FileSystemUtils.getWorkDir(conf), hmsDbTableName);
-    return new Path(
-        hmsTablePath,
-        String.format(
-            "%s_%s.%s",
-            getTaskTempStreamFileNamePrefix(bigQueryTableId),
-            taskAttemptID.getTaskID(),
-            HiveBigQueryConfig.STREAM_FILE_EXTENSION));
-  }
 
   /**
    * Instantiates a BigQueryDirectDataWriterHelper object from the bigquery-connector-common

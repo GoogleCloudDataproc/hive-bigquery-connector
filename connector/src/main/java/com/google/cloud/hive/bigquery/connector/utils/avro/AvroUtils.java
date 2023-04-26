@@ -19,8 +19,6 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectUtils;
-import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,7 +41,6 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.TaskAttemptID;
 
 public class AvroUtils {
 
@@ -191,7 +188,7 @@ public class AvroUtils {
    * job.
    */
   public static DataFileWriter<GenericRecord> createDataFileWriter(
-      JobConf jobConf, JobDetails jobDetails) {
+      JobConf jobConf, JobDetails jobDetails, Path filePath) {
     Schema schema = jobDetails.getAvroSchema();
     GenericDatumWriter<GenericRecord> gdw = new GenericDatumWriter<>(schema);
     DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(gdw);
@@ -204,14 +201,6 @@ public class AvroUtils {
             : CodecFactory.fromString(codecName);
     dataFileWriter.setCodec(factory);
     dataFileWriter.setMeta(AvroSerDe.WRITER_TIME_ZONE, TimeZone.getDefault().toZoneId().toString());
-    TaskAttemptID taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    Path filePath =
-        IndirectUtils.getTaskAvroTempFile(
-            jobConf,
-            jobDetails.getHmsDbTableName(),
-            jobDetails.getTableId(),
-            jobDetails.getGcsTempPath(),
-            taskAttemptID);
     try {
       FileSystem fileSystem = filePath.getFileSystem(jobConf);
       FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);

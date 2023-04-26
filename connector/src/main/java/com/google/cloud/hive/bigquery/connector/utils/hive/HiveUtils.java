@@ -29,7 +29,7 @@ import org.apache.hadoop.mapreduce.JobID;
 public class HiveUtils {
 
   /** Returns the ID of the Hive query as set by Hive in the configuration. */
-  public static String getHiveId(Configuration conf) {
+  public static String getQueryId(Configuration conf) {
     return HiveConf.getVar(conf, HiveConf.ConfVars.HIVEQUERYID);
   }
 
