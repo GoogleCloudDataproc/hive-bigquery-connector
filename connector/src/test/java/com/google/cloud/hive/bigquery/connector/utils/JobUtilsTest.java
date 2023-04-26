@@ -50,6 +50,7 @@ public class JobUtilsTest {
     Path path = JobUtils.getWorkDir(conf);
     assertEquals("/tmp/bq-hive-query123", path.toString());
     conf.set("bq.work.dir.parent.path", "/my/workdir");
+    path = JobUtils.getWorkDir(conf);
     assertEquals("/my/workdir/bq-hive-query123", path.toString());
   }
 
@@ -74,6 +75,6 @@ public class JobUtilsTest {
     TaskAttemptID taskAttemptID = new TaskAttemptID();
     String writerId = WriterRegistry.getWriterId();
     Path path = JobUtils.getTaskWriterOutputFile(jobDetails, taskAttemptID, writerId, "json");
-    assertEquals(tmp + "myproject_mydataset_mytable_task__0000_r_000000_w0.avro", path.toString());
+    assertEquals(tmp + "/myproject_mydataset_mytable_task__0000_r_000000_w1.json", path.toString());
   }
 }
