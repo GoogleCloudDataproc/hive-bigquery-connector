@@ -15,6 +15,8 @@
  */
 package com.google.cloud.hive.bigquery.connector.config;
 
+import static com.google.cloud.bigquery.connector.common.BigQueryConfigurationUtil.getAnyOptionsWithPrefix;
+import static com.google.cloud.bigquery.connector.common.BigQueryConfigurationUtil.removePrefixFromMapKeys;
 import static com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
 
 import com.google.api.gax.retrying.RetrySettings;
@@ -33,11 +35,14 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.threeten.bp.Duration;
 
 /** Main config class to interact with the bigquery-common-connector. */
@@ -63,6 +68,11 @@ public class HiveBigQueryConfig
   public static final String ACCESS_TOKEN_KEY = "bq.access.token";
   public static final String ACCESS_TOKEN_PROVIDER_FQCN_KEY = "bq.access.token.provider.fqcn";
   public static final String ACCESS_TOKEN_PROVIDER_CONFIG_KEY = "bq.access.token.provider.config";
+  public static final String IMPERSONATE_FOR_USER_PREFIX =
+      "bq.impersonation.service.account.for.user.";
+  public static final String IMPERSONATE_FOR_GROUP_PREFIX =
+      "bq.impersonation.service.account.for.group.";
+  public static final String IMPERSONATE_SERVICE_ACCOUNT = "bq.impersonation.service.account";
   public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
   public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
   public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
@@ -106,6 +116,11 @@ public class HiveBigQueryConfig
   Optional<String> accessToken = empty();
   Optional<String> accessTokenProviderFQCN = empty();
   Optional<String> accessTokenProviderConfig = empty();
+  String loggedInUserName;
+  Set<String> loggedInUserGroups;
+  Optional<String> impersonationServiceAccount;
+  Optional<Map<String, String>> impersonationServiceAccountsForUsers;
+  Optional<Map<String, String>> impersonationServiceAccountsForGroups;
 
   // Reading parameters
   DataFormat readDataFormat; // ARROW or AVRO
@@ -194,6 +209,14 @@ public class HiveBigQueryConfig
     return map;
   }
 
+  public static ImmutableMap<String, String> convertHadoopConfigurationToMap(Configuration conf) {
+    HashMap<String, String> map = new HashMap<>();
+    for (Map.Entry<String, String> entry : conf) {
+      map.put(entry.getKey(), entry.getValue());
+    }
+    return ImmutableMap.copyOf(map);
+  }
+
   public static HiveBigQueryConfig from(Configuration conf) {
     return from(conf, (Map<String, String>) null);
   }
@@ -204,6 +227,10 @@ public class HiveBigQueryConfig
   }
 
   public static HiveBigQueryConfig from(Configuration conf, Map<String, String> tableParameters) {
+    ImmutableMap<String, String> confAsMap = convertHadoopConfigurationToMap(conf);
+    if (tableParameters == null) {
+      tableParameters = new HashMap<>();
+    }
     HiveBigQueryConfig.purgeOldTableParams(tableParameters);
     HiveBigQueryConfig.purgeOldConfParams(conf);
     HiveBigQueryConfig opts = new HiveBigQueryConfig();
@@ -276,6 +303,24 @@ public class HiveBigQueryConfig
         getAnyOption(ACCESS_TOKEN_PROVIDER_FQCN_KEY, conf, tableParameters);
     opts.accessTokenProviderConfig =
         getAnyOption(ACCESS_TOKEN_PROVIDER_CONFIG_KEY, conf, tableParameters);
+    try {
+      UserGroupInformation ugiCurrentUser = UserGroupInformation.getCurrentUser();
+      opts.loggedInUserName = ugiCurrentUser.getShortUserName();
+      opts.loggedInUserGroups = Sets.newHashSet(ugiCurrentUser.getGroupNames());
+    } catch (IOException e) {
+      throw new BigQueryConnectorException(
+          "Failed to get the UserGroupInformation current user", e);
+    }
+    opts.impersonationServiceAccount =
+        getAnyOption(IMPERSONATE_SERVICE_ACCOUNT, conf, tableParameters);
+    opts.impersonationServiceAccountsForUsers =
+        removePrefixFromMapKeys(
+            getAnyOptionsWithPrefix(confAsMap, tableParameters, IMPERSONATE_FOR_USER_PREFIX),
+            IMPERSONATE_FOR_USER_PREFIX);
+    opts.impersonationServiceAccountsForGroups =
+        removePrefixFromMapKeys(
+            getAnyOptionsWithPrefix(confAsMap, tableParameters, IMPERSONATE_FOR_GROUP_PREFIX),
+            IMPERSONATE_FOR_GROUP_PREFIX);
 
     // Partitioning and clustering
     opts.partitionType =
@@ -399,6 +444,31 @@ public class HiveBigQueryConfig
   @Override
   public java.util.Optional<String> getAccessToken() {
     return accessToken.toJavaUtil();
+  }
+
+  @Override
+  public String getLoggedInUserName() {
+    return loggedInUserName;
+  }
+
+  @Override
+  public Set<String> getLoggedInUserGroups() {
+    return loggedInUserGroups;
+  }
+
+  @Override
+  public java.util.Optional<Map<String, String>> getImpersonationServiceAccountsForUsers() {
+    return impersonationServiceAccountsForUsers.toJavaUtil();
+  }
+
+  @Override
+  public java.util.Optional<Map<String, String>> getImpersonationServiceAccountsForGroups() {
+    return impersonationServiceAccountsForGroups.toJavaUtil();
+  }
+
+  @Override
+  public java.util.Optional<String> getImpersonationServiceAccount() {
+    return impersonationServiceAccount.toJavaUtil();
   }
 
   @Override
