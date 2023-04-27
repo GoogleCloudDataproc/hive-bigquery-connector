@@ -23,6 +23,7 @@ import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.common.base.Joiner;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -44,12 +45,11 @@ public class DirectOutputCommitter {
    * created in the job's work directory. The reference files essentially contain the stream names.
    */
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
-    String hmsDbTableName = jobDetails.getHmsDbTableName();
     List<String> streamFiles =
         FileSystemUtils.getFiles(
             conf,
-            new Path(FileSystemUtils.getWorkDir(conf), hmsDbTableName),
-            DirectUtils.getTaskTempStreamFileNamePrefix(jobDetails.getTableId()),
+            jobDetails.getJobTempOutputPath(),
+            JobUtils.getTableIdPrefix(jobDetails.getTableId()),
             HiveBigQueryConfig.STREAM_FILE_EXTENSION);
     if (streamFiles.size() <= 0) {
       LOG.info("Nothing to commit, found 0 stream files.");

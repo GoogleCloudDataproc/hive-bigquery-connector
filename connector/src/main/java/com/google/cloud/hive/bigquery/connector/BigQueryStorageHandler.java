@@ -23,7 +23,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
-import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.inject.Guice;
@@ -167,7 +167,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
     jobDetails.setTableId(
         BigQueryUtil.parseTableId(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY)));
     Path jobDetailsFilePath =
-        FileSystemUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
+        JobUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
   }
 

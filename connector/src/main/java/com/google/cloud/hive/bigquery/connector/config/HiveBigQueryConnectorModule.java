@@ -66,6 +66,6 @@ public class HiveBigQueryConnectorModule implements Module {
   @Singleton
   @Provides
   public UserAgentProvider provideUserAgentProvider() {
-    return new HiveBigQueryConnectorUserAgentProvider(HiveUtils.getHiveId(conf));
+    return new HiveBigQueryConnectorUserAgentProvider(HiveUtils.getQueryId(conf));
   }
 }

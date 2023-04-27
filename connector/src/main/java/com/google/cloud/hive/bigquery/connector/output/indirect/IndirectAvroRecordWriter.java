@@ -17,11 +17,16 @@ package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.hive.bigquery.connector.BigQuerySerDe;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import com.google.cloud.hive.bigquery.connector.output.WriterRegistry;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.NullWritable;
@@ -29,6 +34,7 @@ import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.TaskAttemptID;
 
 /**
  * Writes records to an Avro file in GCS. Each task runs its own instance of this writer class, i.e.
@@ -44,13 +50,19 @@ public class IndirectAvroRecordWriter
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
   final DataFileWriter<GenericRecord> dataFileWriter;
+  final String writerId;
 
   public IndirectAvroRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.jobDetails = jobDetails;
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     this.avroSchema = jobDetails.getAvroSchema();
-    this.dataFileWriter = AvroUtils.createDataFileWriter(jobConf, jobDetails);
+    this.writerId = WriterRegistry.getWriterId();
+    TaskAttemptID taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
+    Path filePath =
+        JobUtils.getTaskWriterOutputFile(
+            jobDetails, taskAttemptID, writerId, HiveBigQueryConfig.LOAD_FILE_EXTENSION);
+    this.dataFileWriter = AvroUtils.createDataFileWriter(jobConf, jobDetails, filePath);
   }
 
   @Override

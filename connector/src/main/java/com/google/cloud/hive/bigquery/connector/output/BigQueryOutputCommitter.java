@@ -19,7 +19,7 @@ import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Set;
@@ -44,7 +44,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     } else {
       DirectOutputCommitter.commitJob(conf, jobDetails);
     }
-    FileSystemUtils.deleteWorkDirOnExit(conf, jobDetails.getHmsDbTableName());
+    JobUtils.deleteJobTempOutput(conf, jobDetails);
   }
 
   @Override
@@ -80,7 +80,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
         continue;
       }
       DirectOutputCommitter.abortJob(jobConf, jobDetails);
-      FileSystemUtils.deleteWorkDirOnExit(jobContext.getJobConf(), jobDetails.getHmsDbTableName());
+      JobUtils.deleteJobTempOutput(jobConf, jobDetails);
     }
     super.abortJob(jobContext, status);
   }
@@ -102,7 +102,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
 
   @Override
   public void commitTask(TaskAttemptContext taskAttemptContext) throws IOException {
-    // Do nothing
+    // Tez needs HIVE-24629 or HIVE-27016 to do task commit
+    // To-Do: add task commit, currently we are relying on task output file overwrites
   }
 
   @Override

@@ -18,6 +18,7 @@ package com.google.cloud.hive.bigquery.connector;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
 import com.google.gson.*;
 import java.io.*;
@@ -36,7 +37,8 @@ public class JobDetails {
   private TableId tableId;
   private TableId finalTableId;
   private boolean overwrite;
-  private String gcsTempPath; // Only used by the 'indirect' write method
+  // for direct it is where the stream reference files are, for indirect output in gcs temp path
+  private Path jobTempOutputPath;
   private Properties hmsTableProperties;
   private transient Schema bigquerySchema;
   private String bigquerySchemaJSON;
@@ -69,12 +71,12 @@ public class JobDetails {
     this.overwrite = overwrite;
   }
 
-  public String getGcsTempPath() {
-    return gcsTempPath;
+  public Path getJobTempOutputPath() {
+    return jobTempOutputPath;
   }
 
-  public void setGcsTempPath(String gcsTempPath) {
-    this.gcsTempPath = gcsTempPath;
+  public void setJobTempOutputPath(Path tempPath) {
+    this.jobTempOutputPath = tempPath;
   }
 
   public String getHmsDbTableName() {
@@ -120,7 +122,7 @@ public class JobDetails {
   /** Reads the job's details file from the job's work directory on HDFS. */
   public static JobDetails readJobDetailsFile(Configuration conf, String hmsDbTableName)
       throws IOException {
-    Path jobDetailsFilePath = FileSystemUtils.getJobDetailsFilePath(conf, hmsDbTableName);
+    Path jobDetailsFilePath = JobUtils.getJobDetailsFilePath(conf, hmsDbTableName);
     String jsonString = FileSystemUtils.readFile(conf, jobDetailsFilePath);
     Gson gson = new Gson();
     return gson.fromJson(jsonString, JobDetails.class);
