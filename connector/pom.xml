@@ -385,7 +385,12 @@
                   <excludes>
                     <exclude>com.google.cloud.hadoop.**</exclude>
                     <exclude>com.google.cloud.hive.bigquery.**</exclude>
-                    <exclude>com.google.common.**</exclude>
+                    <!--
+                      The provided Hive jars have non-shaded Guava collection and function classes on its interface,
+                      so we must not shade them in this connector, otherwise there'll be type mismatch at runtime.
+                    -->
+                    <exclude>com.google.common.base.**</exclude>
+                    <exclude>com.google.common.collect.**</exclude>
                   </excludes>
                 </relocation>
                 <relocation>
