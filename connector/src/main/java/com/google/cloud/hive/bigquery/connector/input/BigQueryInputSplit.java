@@ -31,6 +31,7 @@ import java.io.*;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.hadoop.fs.Path;
@@ -177,7 +178,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
             Arrays.asList(
                 checkNotNull(jobConf.get(serdeConstants.LIST_COLUMNS)).split(columnNameDelimiter)));
     // Remove the virtual columns
-    columnNames.removeAll(new HashSet<>(VirtualColumn.VIRTUAL_COLUMN_NAMES));
+    columnNames.removeAll(getVirtualColumnNames());
     // BigQuery column names are case insensitive, hive colum names are lower cased
     columnNames.replaceAll(String::toLowerCase);
 
@@ -313,6 +314,18 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     } catch (Exception e) {
       LOG.warn("Not able to find column project from plan for {}", dir);
       return Collections.emptyList();
+    }
+  }
+
+  // Use reflection to avoid depending on un-shaded Guava ImmutableSet from
+  // provided Hive jar.
+  private static HashSet<String> getVirtualColumnNames() throws RuntimeException {
+    try {
+      Field field = VirtualColumn.class.getField("VIRTUAL_COLUMN_NAMES");
+      Set<String> value = (Set<String>) field.get(null);
+      return new HashSet<>(value);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 }
