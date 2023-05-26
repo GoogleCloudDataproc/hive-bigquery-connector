@@ -388,6 +388,43 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that we can write all types of data to BigQuery. */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testWriteDecimals(String engine, String writeMethod) {
+    // To-Do: fix avro when upgrade bigquery-connector-common
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, "direct");
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    // Create the BQ table
+    createExternalTable(
+        "mixedDecimals",
+        "deci_default DECIMAL,  deci_p38s9_min DECIMAL(38,9), deci_p38s9_max DECIMAL(38,9), deci_p38s8 DECIMAL(38,8), deci_p38s10 DECIMAL(38,10), deci_p38s38_min DECIMAL(38,38), deci_p38s38_max DECIMAL(38,38)",
+        "deci_default NUMERIC(10,0), deci_p38s9_min NUMERIC, deci_p38s9_max NUMERIC, deci_p38s8 BIGNUMERIC(38,8), deci_p38s10 BIGNUMERIC(38,10), deci_p38s38_min BIGNUMERIC(38,38), deci_p38s38_max BIGNUMERIC(38,38)");
+    // Insert data into the BQ table using the BQ SDK
+    String[] values = {
+      "9999999999", // p10s0
+      "-99999999999999999999999999999.999999999", // p38s9_min
+      "99999999999999999999999999999.999999999", // p38s9_max
+      "999999999999999999999999999999.99999999", // p38s8
+      "9999999999999999999999999999.9999999999", // p38s10
+      "-0.99999999999999999999999999999999999999", // p38s38_min
+      "0.99999999999999999999999999999999999999", // p38s38_max
+    };
+    runHiveQuery("INSERT INTO `mixedDecimals` VALUES ( " + String.join(",", values) + ")");
+    // Read the data using the BQ SDK
+    TableResult result = runBqQuery(String.format("SELECT * FROM `${dataset}.mixedDecimals`"));
+    // Verify we get the expected values
+    assertEquals(1, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    FieldValueList row = rows.get(0);
+    assertEquals(7, row.size()); // Number of columns
+    for (int i = 0; i <= 6; i++) {
+      assertEquals(values[i], row.get(i).getValue().toString());
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Test a write operation and multiple read operations in the same query. */
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD)

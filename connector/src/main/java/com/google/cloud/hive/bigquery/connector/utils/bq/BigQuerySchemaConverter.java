@@ -51,7 +51,6 @@ public class BigQuerySchemaConverter {
                   StandardSQLTypeName.INT64) // Big Int
               .put(PrimitiveObjectInspector.PrimitiveCategory.FLOAT, StandardSQLTypeName.FLOAT64)
               .put(PrimitiveObjectInspector.PrimitiveCategory.DOUBLE, StandardSQLTypeName.FLOAT64)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.DECIMAL, StandardSQLTypeName.NUMERIC)
               .put(PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN, StandardSQLTypeName.BOOL)
               .put(PrimitiveObjectInspector.PrimitiveCategory.DATE, StandardSQLTypeName.DATE)
               .put(
@@ -110,6 +109,17 @@ public class BigQuerySchemaConverter {
       }
       bigQueryFieldBuilder =
           Field.newBuilder(fieldName, LegacySQLTypeName.RECORD, FieldList.of(bigQuerySubFields));
+    } else if (typeInfo instanceof DecimalTypeInfo) {
+      int precision = ((DecimalTypeInfo) typeInfo).getPrecision();
+      int scale = ((DecimalTypeInfo) typeInfo).getScale();
+      // HiveDecimal has precision/scale [38, 38]
+      // BigQuery
+      // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+      boolean useBig = scale > 9 || precision > scale + 29;
+      StandardSQLTypeName fieldType =
+          useBig ? StandardSQLTypeName.BIGNUMERIC : StandardSQLTypeName.NUMERIC;
+      bigQueryFieldBuilder = Field.newBuilder(fieldName, fieldType);
+      bigQueryFieldBuilder.setPrecision((long) precision).setScale((long) scale);
     } else {
       StandardSQLTypeName fieldType = toBigQueryFieldType(typeInfo);
       bigQueryFieldBuilder = Field.newBuilder(fieldName, fieldType);

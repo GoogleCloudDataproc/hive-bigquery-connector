@@ -101,40 +101,34 @@ It is recommended to collect [statistics](https://cwiki.apache.org/confluence/di
 therefore improving performance. Follow these steps to collect statistics for a table:
 (replace `<table_name>` with your table name)
 
-1. Check if Hive has reasonable statistics on `numRows` and `rawDataSize` for your table.
+If your Hive has [HIVE-24928](https://issues.apache.org/jira/browse/HIVE-24928) (this is applied on Dataproc),
+statistics can be collected by a quick metadata collection operation through
+```sql
+ANALYZE TABLE <table_name> COMPUTE STATISTICS;
+```
+To verify if Hive has reasonable statistics on `numRows` and `rawDataSize` for your table.
    ```sql
    DESCRIBE FORMATTED <table_name>;
    ```
-   Example output:
+Example output:
    ```
    Table Parameters:
-       COLUMN_STATS_ACCURATE	{\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\",\"name\":\"true\"}}
+       COLUMN_STATS_ACCURATE	{\"BASIC_STATS\":\"true\"}
        numFiles            	0
        numRows             	12345
        rawDataSize         	67890
-       totalSize           	34567
+       totalSize           	67890
    ```
-2. if statstics `rawDataSize` or `numRows` is missing, run the following HiveQL query:
-   ```sql
-   ANALYZE TABLE <table_name> COMPUTE STATISTICS;
-   ```
-   repeate step 1 to see if `rawDataSize` and `numRows` are set after above command.
 
-
-3. If statistics `rawDataSize` or `numRows` is still missing after above step 2),
-   this means the Hive version does not support collecting statistics from BigQuery table yet,
-   to workaround it, continue with the following steps.
-
-   Collect column stats
-   ```sql
-   ANALYZE TABLE <table_name> COMPUTE STATISTICS FOR COLUMNS;
-   ```
-   repeate step 1 to see if `COLUMN_STATS_ACCURATE` is set true after above command.
-
-   Enable the following setting to activate column statistics usage for query planning:
-   ```sql
-   SET hive.stats.fetch.column.stats=true;
-   ```
+Note: Without [HIVE-24928](https://issues.apache.org/jira/browse/HIVE-24928), user can run
+```sql
+ANALYZE TABLE <table_name> COMPUTE STATISTICS FOR COLUMNS;
+```
+to collect column stats and run query with the assistance of column stats.
+```sql
+SET hive.stats.fetch.column.stats=true;
+```
+Column stats collection is more expensive operation, so it is recommended to have [HIVE-24928](https://issues.apache.org/jira/browse/HIVE-24928) applied.
 
 ## Partitioning
 
@@ -429,10 +423,9 @@ Please note there are a few caveats:
   format for reading or the indirect method for writing. This is because Avro requires keys to be
   strings. If you use the Arrow format for reading (default) and the direct method for writing (also
   default), then there are no type limitations for the keys.
-* Currently, the connector maps Hive's `DECIMAL`/`NUMERIC` type, which as a precision of 38 and
-  scale of 38, to BigQuery's `DECIMAL`/`NUMERIC` type, which as a precision of 38 and scale of 9.
-  So you may currently only use values scale of up to 9. This limitation will be lifted in future
-  versions.
+* Hive `DECIMAL` data type has precision of 38 and scale of 38, while BigQuery's `NUMERIC`/`BIGNUMERIC` have different precisions and scales.
+  (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types),
+  If the BigQuery data of `BIGNUMERIC`'s precision and scale out of Hive's `DECIMAL` range, data can show up as NULL.
 * [Custom Hive UDFs](https://cwiki.apache.org/confluence/display/hive/hiveplugins) (aka Hive plugins) are currently not supported.
 * BigQuery [ingestion time partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#ingestion_time) is currently supported only for read operations.
 * BigQuery [integer range partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#integer_range) is currently not supported.
