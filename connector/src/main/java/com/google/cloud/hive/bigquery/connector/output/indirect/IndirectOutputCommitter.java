@@ -69,8 +69,12 @@ public class IndirectOutputCommitter {
         bqClient.loadDataIntoTable(
             opts, avroFiles, formatOptions, writeDisposition, Optional.empty());
       } finally {
-        // Delete all the Avro files from GCS
-        JobUtils.deleteJobTempOutput(conf, jobDetails);
+        try {
+          // Delete all the Avro files from GCS
+          JobUtils.deleteJobTempOutput(conf, jobDetails);
+        } catch (Exception e) {
+          LOG.warn("Error deleting job temporary files", e);
+        }
       }
     }
   }
