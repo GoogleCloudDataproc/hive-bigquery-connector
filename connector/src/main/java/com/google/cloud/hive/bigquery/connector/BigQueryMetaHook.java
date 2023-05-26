@@ -396,6 +396,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                 bigQuerySchema);
         // Set the temp table as the job's output table
         jobDetails.setTableId(tempTableInfo.getTableId());
+        LOG.info("Insert overwrite temporary table {} ", tempTableInfo.getTableId());
       }
     } else {
       configJobDetailsForIndirectWrite(opts, jobDetails, bigQuerySchema, injector);
@@ -422,10 +423,28 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   @Override
   public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
+    if (overwrite) {
+      try {
+        JobDetails jobDetails =
+            JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
+        if (jobDetails.getTableId() != jobDetails.getFinalTableId()) {
+          // Delete temporary table
+          Injector injector =
+              Guice.createInjector(
+                  new BigQueryClientModule(),
+                  new HiveBigQueryConnectorModule(conf, table.getParameters()));
+          BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+          LOG.info("Deleting temporary table {}", jobDetails.getTableId());
+          bqClient.deleteTable(jobDetails.getTableId());
+        }
+      } catch (Exception e) {
+        LOG.warn("Error deleting temporary table", e);
+      }
+    }
     try {
       JobUtils.deleteJobDirOnExit(conf, HiveUtils.getDbTableName(table));
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      LOG.warn("Error deleting job files", e);
     }
   }
 

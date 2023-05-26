@@ -119,13 +119,16 @@ public class DirectWriterContext {
     // Special case for "INSERT OVERWRITE" statements: Overwrite the final
     // destination table with the contents of the temporary table.
     if (destinationTableId != null && !destinationTableId.equals(tableIdToWrite)) {
+      LOG.info("Loading into destination table {}", destinationTableId);
       Job overwriteJob =
           bigQueryClient.overwriteDestinationWithTemporary(tableIdToWrite, destinationTableId);
       BigQueryClient.waitForJob(overwriteJob);
-      Preconditions.checkState(
-          bigQueryClient.deleteTable(tableIdToWrite),
-          new BigQueryConnectorException(
-              String.format("Could not delete temporary table %s from BigQuery", tableIdToWrite)));
+      try {
+        LOG.info("Deleting temprory table {}", tableIdToWrite);
+        bigQueryClient.deleteTable(tableIdToWrite);
+      } catch (Exception e) {
+        LOG.warn("Error deleting temporary table ", e);
+      }
     }
   }
 
