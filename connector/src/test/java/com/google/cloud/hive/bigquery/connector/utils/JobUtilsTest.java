@@ -47,10 +47,10 @@ public class JobUtilsTest {
     Configuration conf = new Configuration();
     conf.set("hive.query.id", "query123");
     conf.set("hadoop.tmp.dir", "/tmp");
-    Path path = JobUtils.getWorkDir(conf);
+    Path path = JobUtils.getQueryWorkDir(conf);
     assertEquals("/tmp/bq-hive-query123", path.toString());
     conf.set("bq.work.dir.parent.path", "/my/workdir");
-    path = JobUtils.getWorkDir(conf);
+    path = JobUtils.getQueryWorkDir(conf);
     assertEquals("/my/workdir/bq-hive-query123", path.toString());
   }
 

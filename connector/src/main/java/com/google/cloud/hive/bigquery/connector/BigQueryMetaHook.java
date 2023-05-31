@@ -28,6 +28,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
@@ -418,34 +419,17 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       BigQueryOutputCommitter.commit(conf, jobDetails);
     } catch (IOException e) {
       throw new RuntimeException(e);
+    } finally {
+      // deleteOnExit in case of other jobs using the same workdir
+      JobUtils.cleanNotFail(
+          () -> JobUtils.deleteQueryWorkDirOnExit(conf),
+          CleanMessage.DELETE_QUERY_TEMPORARY_DIRECTORY);
     }
   }
 
   @Override
   public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
-    if (overwrite) {
-      try {
-        JobDetails jobDetails =
-            JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
-        if (jobDetails.getTableId() != jobDetails.getFinalTableId()) {
-          // Delete temporary table
-          Injector injector =
-              Guice.createInjector(
-                  new BigQueryClientModule(),
-                  new HiveBigQueryConnectorModule(conf, table.getParameters()));
-          BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-          LOG.info("Deleting temporary table {}", jobDetails.getTableId());
-          bqClient.deleteTable(jobDetails.getTableId());
-        }
-      } catch (Exception e) {
-        LOG.warn("Error deleting temporary table", e);
-      }
-    }
-    try {
-      JobUtils.deleteJobDirOnExit(conf, HiveUtils.getDbTableName(table));
-    } catch (IOException e) {
-      LOG.warn("Error deleting job files", e);
-    }
+    // Do nothing, should have been handled by committer
   }
 
   @Override

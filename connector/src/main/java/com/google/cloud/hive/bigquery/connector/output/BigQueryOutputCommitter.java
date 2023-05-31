@@ -20,6 +20,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Set;
@@ -39,12 +40,17 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     String writeMethod = opts.getWriteMethod();
     // Pick the appropriate OutputCommitter (direct or indirect) based on the
     // configured write method
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-      IndirectOutputCommitter.commitJob(conf, jobDetails);
-    } else {
-      DirectOutputCommitter.commitJob(conf, jobDetails);
+    try {
+      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+        IndirectOutputCommitter.commitJob(conf, jobDetails);
+      } else {
+        DirectOutputCommitter.commitJob(conf, jobDetails);
+      }
+    } finally {
+      JobUtils.cleanNotFail(
+          () -> JobUtils.deleteJobTempOutput(conf, jobDetails),
+          CleanMessage.DELETE_JOB_TEMPORARY_DIRECTORY);
     }
-    JobUtils.deleteJobTempOutput(conf, jobDetails);
   }
 
   @Override
@@ -79,7 +85,11 @@ public class BigQueryOutputCommitter extends OutputCommitter {
         LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
         continue;
       }
-      DirectOutputCommitter.abortJob(jobConf, jobDetails);
+      HiveBigQueryConfig opts = HiveBigQueryConfig.from(jobConf, jobDetails.getTableProperties());
+      String writeMethod = opts.getWriteMethod();
+      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+        DirectOutputCommitter.abortJob(jobConf, jobDetails);
+      }
       JobUtils.deleteJobTempOutput(jobConf, jobDetails);
     }
     super.abortJob(jobContext, status);

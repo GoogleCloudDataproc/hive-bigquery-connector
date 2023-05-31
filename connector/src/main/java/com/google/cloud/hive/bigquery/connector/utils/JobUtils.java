@@ -34,10 +34,13 @@ import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskAttemptID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JobUtils {
 
   static Pattern gcsUriPattern = Pattern.compile("gs://([^/]*)(.*)?");
+  private static final Logger LOG = LoggerFactory.getLogger(JobUtils.class);
 
   /** Retrieves the bucket name from a fully-qualified GCS URI. */
   public static String extractBucketNameFromGcsUri(String gcsURI) {
@@ -68,7 +71,7 @@ public class JobUtils {
   }
 
   /** working directory for a query */
-  public static Path getWorkDir(Configuration conf) {
+  public static Path getQueryWorkDir(Configuration conf) {
     String parentPath = conf.get(HiveBigQueryConfig.WORK_DIR_PARENT_PATH_KEY);
     if (parentPath == null) {
       parentPath = conf.get(CommonConfigurationKeys.HADOOP_TMP_DIR);
@@ -81,7 +84,7 @@ public class JobUtils {
    * can be consulted at various stages of the job's execution.
    */
   public static Path getJobDetailsFilePath(Configuration conf, String hmsDbTableName) {
-    Path workDir = getWorkDir(conf);
+    Path workDir = getQueryWorkDir(conf);
     Path tblWorkPath = new Path(workDir, hmsDbTableName);
     return new Path(tblWorkPath, HiveBigQueryConfig.JOB_DETAILS_FILE);
   }
@@ -101,7 +104,7 @@ public class JobUtils {
   public static Path getQueryTempOutputPath(Configuration conf, HiveBigQueryConfig opts) {
     // direct method writes stream ref files in workdir, indirect writes to gcs temp dir.
     if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      return getWorkDir(conf);
+      return getQueryWorkDir(conf);
     } else {
       String parentPath = opts.getTempGcsPath();
       return getQuerySubDir(conf, parentPath);
@@ -136,17 +139,48 @@ public class JobUtils {
 
   public static void deleteJobTempOutput(Configuration conf, JobDetails jobDetails)
       throws IOException {
-    FileSystemUtils.deleteFilesOnExit(conf, jobDetails.getJobTempOutputPath());
+    LOG.info("Deleting job temporary output directory {}", jobDetails.getJobTempOutputPath());
+    FileSystemUtils.deleteFiles(conf, jobDetails.getJobTempOutputPath());
   }
 
-  /** Deletes the work directory for a table. */
-  public static void deleteJobDirOnExit(Configuration conf, String hmsDbTableName)
-      throws IOException {
-    Path workDir = getWorkDir(conf);
-    Path tblWorkPath = new Path(workDir, hmsDbTableName);
-    FileSystem fs = tblWorkPath.getFileSystem(conf);
-    if (fs.exists(tblWorkPath)) {
-      fs.deleteOnExit(tblWorkPath);
+  /** Deletes the job directory for a table. */
+  public static void deleteJobDir(Configuration conf, String hmsDbTableName) throws IOException {
+    Path workDir = getQueryWorkDir(conf);
+    Path tblJobPath = new Path(workDir, hmsDbTableName);
+    FileSystem fs = tblJobPath.getFileSystem(conf);
+    if (fs.exists(tblJobPath)) {
+      fs.delete(tblJobPath);
+    }
+  }
+
+  /** Deletes the work directory for a query. */
+  public static void deleteQueryWorkDirOnExit(Configuration conf) throws IOException {
+    Path workDir = getQueryWorkDir(conf);
+    LOG.info("Deleting query temporary directory {}", workDir);
+    FileSystem fs = workDir.getFileSystem(conf);
+    if (fs.listStatus(workDir).length == 0) {
+      fs.deleteOnExit(workDir);
+    }
+  }
+
+  public class CleanMessage {
+    public static final String DELETE_BIGQUERY_TEMPORARY_TABLE = "delete bigquery temporary table";
+    public static final String DELETE_JOB_TEMPORARY_DIRECTORY = "delete job temporary directory";
+    public static final String DELETE_QUERY_TEMPORARY_DIRECTORY =
+        "delete query temporary directory";
+  }
+
+  public interface CleanUp {
+    void clean() throws Exception;
+  }
+
+  public static void cleanNotFail(CleanUp cleanJob, String message) {
+    try {
+      LOG.debug("Start {}", message);
+      cleanJob.clean();
+      LOG.debug("Finished {}", message);
+    } catch (Exception e) {
+      LOG.warn("Failed {}: {}", message, e);
     }
   }
 }

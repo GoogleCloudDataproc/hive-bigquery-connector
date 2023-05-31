@@ -26,6 +26,8 @@ import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -119,23 +121,24 @@ public class DirectWriterContext {
     // Special case for "INSERT OVERWRITE" statements: Overwrite the final
     // destination table with the contents of the temporary table.
     if (destinationTableId != null && !destinationTableId.equals(tableIdToWrite)) {
-      LOG.info("Loading into destination table {}", destinationTableId);
+      LOG.info(
+          "Loading from temporary table {} to destination table {}",
+          tableIdToWrite,
+          destinationTableId);
       Job overwriteJob =
           bigQueryClient.overwriteDestinationWithTemporary(tableIdToWrite, destinationTableId);
       BigQueryClient.waitForJob(overwriteJob);
-      try {
-        LOG.info("Deleting temprory table {}", tableIdToWrite);
-        bigQueryClient.deleteTable(tableIdToWrite);
-      } catch (Exception e) {
-        LOG.warn("Error deleting temporary table ", e);
-      }
     }
   }
 
-  public void abort() {
+  public void clean() {
     // Deletes the preliminary table we wrote to (if it exists):
-    if (deleteTableOnAbort) {
-      bigQueryClient.deleteTable(tableIdToWrite);
+    if (deleteTableOnAbort
+        || (destinationTableId != null && !destinationTableId.equals(tableIdToWrite))) {
+      LOG.info("Deleting BigQuery table {}", tableIdToWrite);
+      JobUtils.cleanNotFail(
+          () -> bigQueryClient.deleteTable(tableIdToWrite),
+          CleanMessage.DELETE_BIGQUERY_TEMPORARY_TABLE);
     }
   }
 }
