@@ -79,8 +79,14 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     // Insert data using Hive
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT, testGcsPath);
 
+    // Query workdir not deleted yet, but there should be no temporary avro files
     blobs = getBlobs(testBucketName, testGcsDir);
-    assertEquals(0, blobs.size(), "Unexpected blobs: " + blobs);
+    for (int i = 0; i < blobs.size(); i++) {
+      String blobName = blobs.get(i).getName();
+      assertTrue(
+          blobName.startsWith(testGcsDir) && !blobName.endsWith(".avro"),
+          "Unexpected blob name: " + blobName);
+    }
   }
 
   // ---------------------------------------------------------------------------------------------------
