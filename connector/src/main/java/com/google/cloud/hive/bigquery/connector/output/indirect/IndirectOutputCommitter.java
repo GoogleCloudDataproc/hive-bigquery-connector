@@ -64,14 +64,9 @@ public class IndirectOutputCommitter {
               ? WriteDisposition.WRITE_TRUNCATE
               : WriteDisposition.WRITE_APPEND;
       LOG.info("Loading avroFiles [ " + Joiner.on(",").join(avroFiles) + "]");
-      try {
-        // Load the Avro files into BigQuery
-        bqClient.loadDataIntoTable(
-            opts, avroFiles, formatOptions, writeDisposition, Optional.empty());
-      } finally {
-        // Delete all the Avro files from GCS
-        JobUtils.deleteJobTempOutput(conf, jobDetails);
-      }
+      // Load the Avro files into BigQuery
+      bqClient.loadDataIntoTable(
+          opts, avroFiles, formatOptions, writeDisposition, Optional.empty());
     }
   }
 }

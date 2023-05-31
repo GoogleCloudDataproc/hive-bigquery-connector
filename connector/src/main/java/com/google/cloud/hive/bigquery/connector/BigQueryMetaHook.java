@@ -28,6 +28,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
@@ -396,6 +397,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
                 bigQuerySchema);
         // Set the temp table as the job's output table
         jobDetails.setTableId(tempTableInfo.getTableId());
+        LOG.info("Insert overwrite temporary table {} ", tempTableInfo.getTableId());
       }
     } else {
       configJobDetailsForIndirectWrite(opts, jobDetails, bigQuerySchema, injector);
@@ -417,16 +419,17 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       BigQueryOutputCommitter.commit(conf, jobDetails);
     } catch (IOException e) {
       throw new RuntimeException(e);
+    } finally {
+      // deleteOnExit in case of other jobs using the same workdir
+      JobUtils.cleanNotFail(
+          () -> JobUtils.deleteQueryWorkDirOnExit(conf),
+          CleanMessage.DELETE_QUERY_TEMPORARY_DIRECTORY);
     }
   }
 
   @Override
   public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
-    try {
-      JobUtils.deleteJobDirOnExit(conf, HiveUtils.getDbTableName(table));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    // Do nothing, should have been handled by committer
   }
 
   @Override

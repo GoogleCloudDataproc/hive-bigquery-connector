@@ -79,16 +79,14 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     // Insert data using Hive
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT, testGcsPath);
 
-    // Check that the blob was created by the job.
-    // Note: The blobs are still present here during the test execution because the
-    // Hive/Hadoop session is still on, but in production those files would be
-    // automatically be cleaned up at the end of the job.
+    // Query workdir not deleted yet, but there should be no temporary avro files
     blobs = getBlobs(testBucketName, testGcsDir);
-    assertEquals(1, blobs.size(), "Actual blobs: " + blobs);
-    String blobName = blobs.get(0).getName();
-    assertTrue(
-        blobName.startsWith(testGcsDir) && blobName.endsWith(".avro"),
-        "Unexpected blob name: " + blobName);
+    for (int i = 0; i < blobs.size(); i++) {
+      String blobName = blobs.get(i).getName();
+      assertTrue(
+          blobName.startsWith(testGcsDir) && !blobName.endsWith(".avro"),
+          "Unexpected blob name: " + blobName);
+    }
   }
 
   // ---------------------------------------------------------------------------------------------------

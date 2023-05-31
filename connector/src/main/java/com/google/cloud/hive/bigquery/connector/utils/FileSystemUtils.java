@@ -54,10 +54,10 @@ public class FileSystemUtils {
   }
 
   /** Delete files in a path. */
-  public static void deleteFilesOnExit(Configuration conf, Path dir) throws IOException {
+  public static void deleteFiles(Configuration conf, Path dir) throws IOException {
     FileSystem fs = dir.getFileSystem(conf);
     if (fs.exists(dir)) {
-      fs.deleteOnExit(dir);
+      fs.delete(dir);
     }
   }
 

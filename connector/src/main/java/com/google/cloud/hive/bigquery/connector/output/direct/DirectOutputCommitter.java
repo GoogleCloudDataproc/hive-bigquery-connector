@@ -90,7 +90,11 @@ public class DirectOutputCommitter {
             jobDetails.getFinalTableId(),
             bigQuerySchema,
             opts.getEnableModeCheckForSchemaFields());
-    writerContext.commit(streamNames);
+    try {
+      writerContext.commit(streamNames);
+    } finally {
+      writerContext.clean();
+    }
   }
 
   public static void abortJob(Configuration conf, JobDetails jobDetails) {
@@ -112,6 +116,6 @@ public class DirectOutputCommitter {
             jobDetails.getFinalTableId(),
             bigQuerySchema,
             config.getEnableModeCheckForSchemaFields());
-    writerContext.abort();
+    writerContext.clean();
   }
 }
