@@ -386,6 +386,44 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
+  /** Check that we can write into not-null fields. */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testWriteRequiredFields(String engine, String writeMethod) {
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    String bq_table_ddl =
+        String.join(
+            "\n",
+            "id INT64 NOT NULL,",
+            "name STRING NOT NULL,",
+            "mixed_struct STRUCT<type STRING NOT NULL, info STRUCT<units INT64 NOT NULL, label STRING NOT NULL>>,",
+            "mp ARRAY<STRUCT<key STRING NOT NULL, value ARRAY<STRUCT<key STRING NOT NULL, value INT64 NOT NULL>>>>");
+    String hive_table_ddl =
+        String.join(
+            "\n",
+            "id INT,",
+            "name STRING,",
+            "mixed_struct STRUCT<type: STRING, info: STRUCT<units: INT, label: STRING>>,",
+            "mp MAP<STRING, MAP<STRING,INT>>");
+    createExternalTable("test_required", hive_table_ddl, bq_table_ddl);
+    runHiveQuery(
+        String.join(
+            "\n",
+            "INSERT INTO test_required VALUES(",
+            "1,",
+            "'james',",
+            "NAMED_STRUCT('type', 'apartment', 'info', NAMED_STRUCT('units', 2, 'label', 'medium')),",
+            "MAP('mykey', MAP('subkey', 0))",
+            ")"));
+    // Read the data using the BQ SDK
+    TableResult result = runBqQuery("SELECT * FROM `${dataset}.test_required`");
+    // Verify we get the expected values
+    assertEquals(1, result.getTotalRows());
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
   /** Test a write operation and multiple read operations in the same query. */
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD)

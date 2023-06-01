@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Field.Mode;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
@@ -62,18 +63,23 @@ public class AvroUtils {
     return recordSchema;
   }
 
+  /* Returns a nullable schema if the field is nullable */
+  private static Schema modedAvroSchema(Schema fieldSchema, boolean nullable) {
+    return nullable
+        ? Schema.createUnion(fieldSchema, Schema.create(Schema.Type.NULL))
+        : fieldSchema;
+  }
+
   public static Schema getAvroSchema(ObjectInspector fieldOi, Field bigqueryField) {
+    boolean nullable = bigqueryField.getMode() != Mode.REQUIRED;
     if (fieldOi instanceof ListObjectInspector) {
       ListObjectInspector loi = (ListObjectInspector) fieldOi;
       ObjectInspector elementOi = loi.getListElementObjectInspector();
-      return Schema.createUnion(
-          Schema.createArray(getAvroSchema(elementOi, bigqueryField)),
-          Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(Schema.createArray(getAvroSchema(elementOi, bigqueryField)), nullable);
     }
     if (fieldOi instanceof StructObjectInspector) {
-      return Schema.createUnion(
-          getAvroSchema((StructObjectInspector) fieldOi, bigqueryField.getSubFields()),
-          Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(
+          getAvroSchema((StructObjectInspector) fieldOi, bigqueryField.getSubFields()), nullable);
     }
     if (fieldOi instanceof MapObjectInspector) {
       // Convert the Map type into a list of key/value records
@@ -81,20 +87,23 @@ public class AvroUtils {
       Schema keySchema = Schema.create(Schema.Type.STRING);
       Schema.Field keyField =
           new Schema.Field(KeyValueObjectInspector.KEY_FIELD_NAME, keySchema, null, null);
-      Schema valueSchema = getAvroSchema(moi.getMapValueObjectInspector(), bigqueryField);
+      Schema valueSchema =
+          getAvroSchema(
+              moi.getMapValueObjectInspector(),
+              bigqueryField.getSubFields().get(KeyValueObjectInspector.VALUE_FIELD_NAME));
       Schema.Field valueField =
           new Schema.Field(KeyValueObjectInspector.VALUE_FIELD_NAME, valueSchema, null, null);
       Schema entrySchema =
           Schema.createRecord(
               "map_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
       entrySchema.setFields(Arrays.asList(keyField, valueField));
-      return Schema.createUnion(Schema.createArray(entrySchema), Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(Schema.createArray(entrySchema), nullable);
     }
     if (fieldOi instanceof ByteObjectInspector
         || fieldOi instanceof ShortObjectInspector
         || fieldOi instanceof IntObjectInspector
         || (fieldOi instanceof LongObjectInspector)) {
-      return Schema.createUnion(Schema.create(Schema.Type.LONG), Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(Schema.create(Schema.Type.LONG), nullable);
     }
     if (fieldOi instanceof TimestampObjectInspector) {
       Schema schema = Schema.create(Schema.Type.LONG);
@@ -110,32 +119,31 @@ public class AvroUtils {
                 bigqueryField.getName(),
                 fieldOi.getTypeName()));
       }
-      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(schema, nullable);
     }
     if (fieldOi instanceof TimestampLocalTZObjectInspector) {
       Schema schema = Schema.create(Schema.Type.LONG);
       schema.addProp("logicalType", "timestamp-micros");
-      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(schema, nullable);
     }
     if (fieldOi instanceof DateObjectInspector) {
       Schema schema = Schema.create(Schema.Type.INT);
       schema.addProp("logicalType", "date");
-      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(schema, nullable);
     }
     if (fieldOi instanceof FloatObjectInspector || fieldOi instanceof DoubleObjectInspector) {
-      return Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(Schema.create(Schema.Type.DOUBLE), nullable);
     }
     if (fieldOi instanceof BooleanObjectInspector) {
-      return Schema.createUnion(
-          Schema.create(Schema.Type.BOOLEAN), Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(Schema.create(Schema.Type.BOOLEAN), nullable);
     }
     if (fieldOi instanceof BinaryObjectInspector) {
-      return Schema.createUnion(Schema.create(Schema.Type.BYTES), Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(Schema.create(Schema.Type.BYTES), nullable);
     }
     if (fieldOi instanceof HiveCharObjectInspector
         || fieldOi instanceof HiveVarcharObjectInspector
         || fieldOi instanceof StringObjectInspector) {
-      return Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(Schema.create(Schema.Type.STRING), nullable);
     }
     if (fieldOi instanceof HiveDecimalObjectInspector) {
       HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) fieldOi;
@@ -143,7 +151,7 @@ public class AvroUtils {
       schema.addProp("logicalType", "decimal");
       schema.addProp("precision", hdoi.precision());
       schema.addProp("scale", hdoi.scale());
-      return Schema.createUnion(schema, Schema.create(Schema.Type.NULL));
+      return modedAvroSchema(schema, nullable);
     }
 
     String unsupportedCategory;
