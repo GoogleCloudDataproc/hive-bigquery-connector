@@ -63,6 +63,7 @@ public class AvroUtils {
     return recordSchema;
   }
 
+  /* Returns a nullable schema if the field is nullable */
   private static Schema modedAvroSchema(Schema fieldSchema, boolean nullable) {
     return nullable
         ? Schema.createUnion(fieldSchema, Schema.create(Schema.Type.NULL))

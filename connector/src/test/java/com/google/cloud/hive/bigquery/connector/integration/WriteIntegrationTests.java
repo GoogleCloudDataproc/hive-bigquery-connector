@@ -386,7 +386,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
-  /** Check that we can write into required fields. */
+  /** Check that we can write into not-null fields. */
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteRequiredFields(String engine, String writeMethod) {
