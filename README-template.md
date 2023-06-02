@@ -434,7 +434,7 @@ There are multiple options to override the default behavior and to provide custo
   not set then the no-arg constructor will be called. The JAR containing the implementation class
   should be on the cluster's classpath.
 * Define service account impersonation for specific users, specific groups, or for all
-  users by default using below properties:
+  users that run the Hive query by default using below properties:
 
     - `bq.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
 
