@@ -412,6 +412,55 @@ Please note there are a few caveats:
 * Reading from views is **disabled** by default. In order to enable it, set the `viewsEnabled` configuration
   property to `true`.
 
+## Authentication
+
+The connector needs an instance of a GoogleCredentials in order to connect to the BigQuery APIs.
+
+By default on Dataproc, the connector automatically uses the cluster service account's credentials.
+
+There are multiple options to override the default behavior and to provide custom credentials:
+
+* Set the path to a service account's JSON private key in the `GOOGLE_APPLICATION_CREDENTIALS`
+  environment variable.
+* Set the path to a service account's JSON private key in the `bq.credentials.file` configuration
+  property.
+* Set a base64-encoded service account JSON private key in the `bq.credentials.key` configuration
+  property.
+* Set the fully qualified class name of a custom [access token provider]((https://github.com/GoogleCloudDataproc/spark-bigquery-connector/tree/master/bigquery-connector-common/src/main/java/com/google/cloud/bigquery/connector/common/AccessTokenProvider.java))
+  implementation in the `bq.access.token.provider.fqcn` configuration property. The class must be
+  implemented in Java or other JVM languages such as Scala or Kotlin. It must either have a no-arg
+  constructor or a constructor accepting a single `java.util.String` parameter. This parameter can
+  be supplied using the `bq.access.token.provider.config` configuration property. If the property is
+  not set then the no-arg constructor will be called. The JAR containing the implementation class
+  should be on the cluster's classpath.
+* Define service account impersonation for specific users, specific groups, or for all
+  users by default using below properties:
+
+    - `bq.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
+
+      The service account to be impersonated for a specific user. You can specify multiple
+      properties using that pattern for multiple users.
+
+    - `bq.impersonation.service.account.for.group.<GROUP_NAME>` (not set by default)
+
+      The service account to be impersonated for a specific group. You can specify multiple
+      properties using that pattern for multiple groups.
+
+    - `bq.impersonation.service.account` (not set by default)
+
+      Default service account to be impersonated for all users.
+
+  If any of the above properties are set then the service account specified will be impersonated by
+  generating a short-lived credentials when accessing BigQuery.
+
+  If more than one property is set then the service account associated with the username will take
+  precedence over the service account associated with the group name for a matching user and group,
+  which in turn will take precedence over default service account impersonation.
+
+* For simpler applications where access token refresh is not required, pass the access token itself
+  with the `bq.access.token` configuration property. You can generate an access token by running
+  `gcloud auth application-default print-access-token`.
+
 ## Known issues and limitations
 
 * The `UPDATE`, `MERGE`, and `DELETE`, and `ALTER TABLE` statements are currently not supported.

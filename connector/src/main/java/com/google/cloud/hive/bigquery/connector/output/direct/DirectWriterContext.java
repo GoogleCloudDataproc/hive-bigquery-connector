@@ -29,7 +29,9 @@ import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
 import com.google.common.base.Preconditions;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +94,12 @@ public class DirectWriterContext {
       return destinationTable.getTableId();
     } else {
       deleteTableOnAbort = true;
-      return bigQueryClient.createTable(tableId, bigQuerySchema).getTableId();
+      return bigQueryClient
+          .createTable(
+              tableId,
+              bigQuerySchema,
+              BigQueryClient.CreateTableOptions.of(Optional.empty(), Collections.emptyMap()))
+          .getTableId();
     }
   }
 
