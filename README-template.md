@@ -478,10 +478,9 @@ There are multiple options to override the default behavior and to provide custo
   format for reading or the indirect method for writing. This is because Avro requires keys to be
   strings. If you use the Arrow format for reading (default) and the direct method for writing (also
   default), then there are no type limitations for the keys.
-* Currently, the connector maps Hive's `DECIMAL`/`NUMERIC` type, which as a precision of 38 and
-  scale of 38, to BigQuery's `DECIMAL`/`NUMERIC` type, which as a precision of 38 and scale of 9.
-  So you may currently only use values scale of up to 9. This limitation will be lifted in future
-  versions.
+* Hive `DECIMAL` data type has precision of 38 and scale of 38, while BigQuery's `NUMERIC`/`BIGNUMERIC` have different precisions and scales.
+  (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types),
+  If the BigQuery data of `BIGNUMERIC`'s precision and scale out of Hive's `DECIMAL` range, data can show up as NULL.
 * [Custom Hive UDFs](https://cwiki.apache.org/confluence/display/hive/hiveplugins) (aka Hive plugins) are currently not supported.
 * BigQuery [ingestion time partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#ingestion_time) is currently supported only for read operations.
 * BigQuery [integer range partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#integer_range) is currently not supported.
