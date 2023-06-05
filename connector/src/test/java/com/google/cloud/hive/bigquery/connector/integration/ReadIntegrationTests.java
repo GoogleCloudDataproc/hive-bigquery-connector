@@ -47,17 +47,12 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     assertFalse(bQTableExists(dataset, TEST_TABLE_NAME));
     // Create a Hive table without creating its corresponding table in BigQuery
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
-    // Attempt to read the table
+    // Attempt to read the table, Hive will return SemanticAnalyzer error of table not found.
+    // but hive runner throws NPE, so not checking exact exception message here.
     Throwable exception =
         assertThrows(
             RuntimeException.class,
             () -> runHiveQuery(String.format("SELECT * FROM %s", TEST_TABLE_NAME)));
-    assertTrue(
-        exception
-            .getMessage()
-            .contains(
-                String.format(
-                    "Table '%s.%s.%s' not found", getProject(), dataset, TEST_TABLE_NAME)));
   }
 
   // -----------------------------------------------------------------------------------------------

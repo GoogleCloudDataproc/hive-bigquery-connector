@@ -40,8 +40,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.threeten.bp.Duration;
 
@@ -107,7 +105,6 @@ public class HiveBigQueryConfig
   public static final String PARTITION_DATE_PSEUDO_COLUMN = "_PARTITIONDATE";
 
   TableId tableId;
-  Optional<String> columnNameDelimiter;
   Optional<String> traceId = empty();
 
   // Credentials management
@@ -198,6 +195,15 @@ public class HiveBigQueryConfig
     return Optional.fromNullable(value);
   }
 
+  private static Optional<String> getAnyOption(
+      String key, Configuration conf, Properties properties) {
+    String value = conf.get(key);
+    if (value == null && properties != null) {
+      value = properties.getProperty(key);
+    }
+    return Optional.fromNullable(value);
+  }
+
   public static Map<String, String> convertPropertiesToMap(Properties properties) {
     Map<String, String> map = new HashMap<>();
     if (properties != null) {
@@ -234,9 +240,6 @@ public class HiveBigQueryConfig
     HiveBigQueryConfig.purgeOldTableParams(tableParameters);
     HiveBigQueryConfig.purgeOldConfParams(conf);
     HiveBigQueryConfig opts = new HiveBigQueryConfig();
-    opts.columnNameDelimiter =
-        Optional.fromNullable(conf.get(serdeConstants.COLUMN_NAME_DELIMITER))
-            .or(Optional.of(String.valueOf(SerDeUtils.COMMA)));
     opts.traceId = Optional.of("Hive:" + HiveUtils.getQueryId(conf));
     opts.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     opts.createDisposition =
@@ -249,12 +252,7 @@ public class HiveBigQueryConfig
       opts.tableId = BigQueryUtil.parseTableId(bqTable.get());
     }
 
-    opts.writeMethod =
-        getAnyOption(WRITE_METHOD_KEY, conf, tableParameters).or(WRITE_METHOD_DIRECT).toLowerCase();
-    if (!opts.writeMethod.equals(WRITE_METHOD_DIRECT)
-        && !opts.writeMethod.equals(WRITE_METHOD_INDIRECT)) {
-      throw new IllegalArgumentException("Invalid write method: " + opts.writeMethod);
-    }
+    opts.writeMethod = getWriteMethod(conf, tableParameters);
     opts.tempGcsPath = getAnyOption(TEMP_GCS_PATH_KEY, conf, tableParameters).orNull();
 
     // Views
@@ -357,10 +355,6 @@ public class HiveBigQueryConfig
   @Override
   public TableId getTableId() {
     return tableId;
-  }
-
-  public String getColumnNameDelimiter() {
-    return columnNameDelimiter.get();
   }
 
   @Override
@@ -618,6 +612,30 @@ public class HiveBigQueryConfig
         .setArrowCompressionCodec(arrowCompressionCodec)
         .setTraceId(traceId.toJavaUtil())
         .build();
+  }
+
+  public static String getWriteMethod(Configuration conf, Properties properties) {
+    String writeMethod =
+        getAnyOption(HiveBigQueryConfig.WRITE_METHOD_KEY, conf, properties)
+            .or(WRITE_METHOD_DIRECT)
+            .toLowerCase();
+    if (!writeMethod.equals(WRITE_METHOD_DIRECT) && !writeMethod.equals(WRITE_METHOD_INDIRECT)) {
+      throw new IllegalArgumentException("Invalid write method: " + writeMethod);
+    }
+    ;
+    return writeMethod;
+  }
+
+  public static String getWriteMethod(Configuration conf, Map<String, String> parameters) {
+    String writeMethod =
+        getAnyOption(HiveBigQueryConfig.WRITE_METHOD_KEY, conf, parameters)
+            .or(WRITE_METHOD_DIRECT)
+            .toLowerCase();
+    if (!writeMethod.equals(WRITE_METHOD_DIRECT) && !writeMethod.equals(WRITE_METHOD_INDIRECT)) {
+      throw new IllegalArgumentException("Invalid write method: " + writeMethod);
+    }
+    ;
+    return writeMethod;
   }
 
   /*
