@@ -17,7 +17,6 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -42,6 +41,7 @@ import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.plan.*;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
+import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
@@ -147,17 +147,17 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   }
 
   @Override
+  public Path getPath() {
+    return warehouseLocation;
+  }
+
+  @Override
   public String toString() {
     return String.format("warehouseLocation=%s, streamName=%s", warehouseLocation, streamName);
   }
 
   public String getStreamName() {
     return this.streamName;
-  }
-
-  @Override
-  public Path getPath() {
-    return warehouseLocation;
   }
 
   public List<String> getColumnNames() {
@@ -172,7 +172,10 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
 
     // Retrieve the table's column names
-    String columnNameDelimiter = opts.getColumnNameDelimiter();
+    String columnNameDelimiter =
+        jobConf.get(serdeConstants.COLUMN_NAME_DELIMITER) == null
+            ? jobConf.get(serdeConstants.COLUMN_NAME_DELIMITER)
+            : String.valueOf(SerDeUtils.COMMA);
     List<String> columnNames =
         new ArrayList<>(
             Arrays.asList(
@@ -219,17 +222,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       }
     }
 
-    // Check that the BQ table in fact exists
-    // TODO: Small optimization: Do the existence check in ReadSessionResponse.create() so we can
-    //  save making this extra getTable() call to BigQuery. See:
-    //  https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/640
-    TableInfo tableInfo = bqClient.getTable(opts.getTableId());
-    if (tableInfo == null) {
-      throw new RuntimeException(
-          "Table '" + BigQueryUtil.friendlyTableName(opts.getTableId()) + "' not found");
-    }
-
-    LOG.info("Create readSession for {}", tableInfo);
+    LOG.info("Create readSession for {}", opts.getTableId());
     ReadSessionCreatorConfig readSessionCreatorConfig = opts.toReadSessionCreatorConfig();
     ReadSessionCreator readSessionCreator =
         new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
