@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.api.gax.rpc.HeaderProvider;
 import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
@@ -131,23 +130,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             String.format("%s already contains a column named `%s`", hmsTable, columnName));
       }
     }
-  }
-
-  private void createBigQueryTable(Table hmsTable, TableInfo bigQueryTableInfo) {
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, hmsTable.getParameters()));
-    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
-    BigQueryCredentialsSupplier credentialsSupplier =
-        injector.getInstance(BigQueryCredentialsSupplier.class);
-    HeaderProvider headerProvider = injector.getInstance(HeaderProvider.class);
-
-    // TODO: We cannot use the BigQueryClient class here because it doesn't have a
-    //  `create(TableInfo)` method. We could add it to that class eventually.
-    BigQuery bigQueryService =
-        BigQueryUtils.getBigQueryService(opts, headerProvider, credentialsSupplier);
-    bigQueryService.create(bigQueryTableInfo);
   }
 
   private void configJobDetailsForIndirectWrite(
@@ -287,12 +269,10 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
       tableDefBuilder.setTimePartitioning(tpBuilder.build());
     }
 
-    StandardTableDefinition tableDefinition = tableDefBuilder.build();
-    TableInfo bigQueryTableInfo =
-        TableInfo.newBuilder(tableId, tableDefinition)
-            .setDescription(table.getParameters().get("comment"))
-            .build();
-    createBigQueryTable(table, bigQueryTableInfo);
+    bqClient.createTable(
+        tableId,
+        tableSchema,
+        BigQueryClient.CreateTableOptions.of(Optional.empty(), Collections.emptyMap()));
 
     String hmsDbTableName = HiveUtils.getDbTableName(table);
     LOG.info("Created BigQuery table {} for {}", tableId, hmsDbTableName);
