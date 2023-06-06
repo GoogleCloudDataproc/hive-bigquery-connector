@@ -165,6 +165,38 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   /** Check that we can read a Hive Map type from BigQuery. */
   @ParameterizedTest
   @MethodSource(READ_FORMAT)
+  public void testReadDecimals(String readDataFormat) throws IOException {
+    initHive(getDefaultExecutionEngine(), readDataFormat);
+    createExternalTable(
+        "mixedDecimals",
+        "deci_default DECIMAL,  deci_p38s9_min DECIMAL(38,9), deci_p38s9_max DECIMAL(38,9), deci_p38s8 DECIMAL(38,8), deci_p38s10 DECIMAL(38,10), deci_p38s38_min DECIMAL(38,38), deci_p38s38_max DECIMAL(38,38)",
+        "deci_default NUMERIC(10,0), deci_p38s9_min NUMERIC, deci_p38s9_max NUMERIC, deci_p38s8 BIGNUMERIC(38,8), deci_p38s10 BIGNUMERIC(38,10), deci_p38s38_min BIGNUMERIC(38,38), deci_p38s38_max BIGNUMERIC(38,38)");
+    // Insert data into the BQ table using the BQ SDK
+    String[] values = {
+      "9999999999", // p10s0
+      "-99999999999999999999999999999.999999999", // p38s9_min
+      "99999999999999999999999999999.999999999", // p38s9_max
+      "999999999999999999999999999999.99999999", // p38s8
+      "9999999999999999999999999999.9999999999", // p38s10
+      "-0.99999999999999999999999999999999999999", // p38s38_min
+      "0.99999999999999999999999999999999999999", // p38s38_max
+    };
+    runBqQuery("INSERT `${dataset}.mixedDecimals` VALUES ( " + String.join(",", values) + ")");
+    // Read the data using Hive
+    List<Object[]> rows = runHiveQuery("SELECT * FROM mixedDecimals");
+    assertEquals(1, rows.size());
+    Object[] row = rows.get(0);
+    assertEquals(7, row.length);
+    for (int i = 0; i <= 6; i++) {
+      assertEquals(values[i], row[i].toString());
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we can read a Hive Map type from BigQuery. */
+  @ParameterizedTest
+  @MethodSource(READ_FORMAT)
   public void testMapOfInts(String readDataFormat) throws IOException {
     initHive(getDefaultExecutionEngine(), readDataFormat);
     createExternalTable(

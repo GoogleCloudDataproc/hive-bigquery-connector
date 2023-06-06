@@ -142,7 +142,7 @@ public class HiveBigQueryConfig
   // Indicates whether to interpret Avro logical types as the corresponding BigQuery data
   // type (for example, TIMESTAMP), instead of using the raw type (for example, LONG).
   boolean useAvroLogicalTypes = true;
-  ImmutableList<String> decimalTargetTypes = ImmutableList.of();
+  ImmutableList<String> decimalTargetTypes = ImmutableList.of("NUMERIC", "BIGNUMERIC");
   String tempGcsPath;
 
   // Partitioning and clustering
