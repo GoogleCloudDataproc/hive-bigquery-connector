@@ -237,8 +237,6 @@ public class HiveBigQueryConfig
     if (tableParameters == null) {
       tableParameters = new HashMap<>();
     }
-    HiveBigQueryConfig.purgeOldTableParams(tableParameters);
-    HiveBigQueryConfig.purgeOldConfParams(conf);
     HiveBigQueryConfig opts = new HiveBigQueryConfig();
     opts.traceId = Optional.of("Hive:" + HiveUtils.getQueryId(conf));
     opts.proxyConfig = HiveBigQueryProxyConfig.from(conf);
@@ -636,55 +634,5 @@ public class HiveBigQueryConfig
     }
     ;
     return writeMethod;
-  }
-
-  /*
-  Remove before GA release.
-   */
-  public static void purgeOldConfParams(Configuration conf) {
-    if (conf.get("bq.dataset") == null || conf.get("bq.table") == null) {
-      return;
-    }
-    String bqTable = conf.get("bq.dataset") + "." + conf.get("bq.table");
-    if (conf.get("bq.project") != null && !conf.get("bq.project").isEmpty()) {
-      bqTable = conf.get("bq.project") + "." + bqTable;
-    }
-    conf.set("bq.table", bqTable);
-    conf.unset("bq.project");
-    conf.unset("bq.dataset");
-  }
-
-  public static void purgeOldTableParams(Map<String, String> params) {
-    if (params == null || !params.containsKey(TABLE_KEY)) {
-      return;
-    }
-    String[] tokens = params.get(TABLE_KEY).split("\\.");
-    if (tokens.length < 2) {
-      String bqTable = params.get("bq.dataset") + "." + params.get(TABLE_KEY);
-      if (params.containsKey("bq.project")) {
-        bqTable = params.get("bq.project") + "." + bqTable;
-      }
-      params.put(TABLE_KEY, bqTable);
-    }
-    params.remove("bq.project");
-    params.remove("bq.dataset");
-  }
-
-  /*
-  Remove before GA release.
-   */
-  public static void supportOldTableProperties(Properties properties) {
-    if (properties == null) {
-      return;
-    }
-    if (properties.containsKey("bq.dataset")) {
-      String bqTable = properties.get("bq.dataset") + "." + properties.get(TABLE_KEY);
-      if (properties.containsKey("bq.project")) {
-        bqTable = properties.get("bq.project") + "." + bqTable;
-      }
-      properties.replace(TABLE_KEY, bqTable);
-    }
-    properties.remove("bq.project");
-    properties.remove("bq.dataset");
   }
 }
