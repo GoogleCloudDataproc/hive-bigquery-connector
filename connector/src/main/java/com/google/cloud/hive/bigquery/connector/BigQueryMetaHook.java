@@ -174,11 +174,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
     // Make sure the specified types are supported
     validateHiveTypes(table.getSd().getCols());
 
-    // To-Do: remove before GA.
-    if (table.getParameters().containsKey("bq.dataset")) {
-      HiveBigQueryConfig.purgeOldTableParams(table.getParameters());
-    }
-
     TableId tableId = getTableId(table);
     table
         .getParameters()
@@ -340,8 +335,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
   /** Called before insert query. */
   @Override
   public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-    HiveBigQueryConfig.purgeOldTableParams(table.getParameters());
-
     Map<String, String> tableParameters = table.getParameters();
     Injector injector =
         Guice.createInjector(
@@ -434,7 +427,6 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   @Override
   public void commitDropTable(Table table, boolean deleteData) throws MetaException {
-    HiveBigQueryConfig.purgeOldTableParams(table.getParameters());
     if (!MetaStoreUtils.isExternalTable(table) && deleteData) {
       // This is a managed table, so let's delete the table in BigQuery
       Injector injector =
