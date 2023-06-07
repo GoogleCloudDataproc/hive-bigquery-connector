@@ -238,7 +238,7 @@ public class HiveBigQueryConfig
       tableParameters = new HashMap<>();
     }
     HiveBigQueryConfig opts = new HiveBigQueryConfig();
-    opts.traceId = Optional.of("Hive:" + HiveUtils.getQueryId(conf));
+    opts.traceId = Optional.of(getTraceId(conf));
     opts.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     opts.createDisposition =
         Optional.fromNullable(conf.get(CREATE_DISPOSITION_KEY))
@@ -505,16 +505,8 @@ public class HiveBigQueryConfig
 
   @Override
   public RetrySettings getBigQueryClientRetrySettings() {
-    return RetrySettings.newBuilder()
-        .setMaxAttempts(DEFAULT_BIGQUERY_CLIENT_RETRIES) // TODO: Make configurable
-        .setTotalTimeout(Duration.ofMinutes(10))
-        .setInitialRpcTimeout(Duration.ofSeconds(60))
-        .setMaxRpcTimeout(Duration.ofMinutes(5))
-        .setRpcTimeoutMultiplier(1.6)
-        .setRetryDelayMultiplier(1.6)
-        .setInitialRetryDelay(Duration.ofMillis(1250))
-        .setMaxRetryDelay(Duration.ofSeconds(5))
-        .build();
+    // To-Do: make the setting configurable
+    return getDefaultBigQueryClientRetrySettings();
   }
 
   @Override
@@ -634,5 +626,22 @@ public class HiveBigQueryConfig
     }
     ;
     return writeMethod;
+  }
+
+  public static RetrySettings getDefaultBigQueryClientRetrySettings() {
+    return RetrySettings.newBuilder()
+        .setMaxAttempts(DEFAULT_BIGQUERY_CLIENT_RETRIES)
+        .setTotalTimeout(Duration.ofMinutes(10))
+        .setInitialRpcTimeout(Duration.ofSeconds(60))
+        .setMaxRpcTimeout(Duration.ofMinutes(5))
+        .setRpcTimeoutMultiplier(1.6)
+        .setRetryDelayMultiplier(1.6)
+        .setInitialRetryDelay(Duration.ofMillis(1250))
+        .setMaxRetryDelay(Duration.ofSeconds(5))
+        .build();
+  }
+
+  public static String getTraceId(Configuration conf) {
+    return "Hive:" + HiveUtils.getQueryId(conf);
   }
 }
