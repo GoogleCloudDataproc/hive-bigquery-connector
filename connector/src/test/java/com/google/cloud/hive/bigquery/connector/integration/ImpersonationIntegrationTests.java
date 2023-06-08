@@ -27,7 +27,7 @@ import test.hivebqcon.com.google.gson.Gson;
 import test.hivebqcon.com.google.gson.JsonObject;
 import test.hivebqcon.com.google.gson.reflect.TypeToken;
 
-public class ImpersonationTests extends IntegrationTestsBase {
+public class ImpersonationIntegrationTests extends IntegrationTestsBase {
 
   public static JsonObject getErrorJsonFromHttpResponseException(
       Throwable e, String stackTraceClassName, String stackTraceMethodName) {
