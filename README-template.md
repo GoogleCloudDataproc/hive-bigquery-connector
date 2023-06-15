@@ -19,28 +19,45 @@ software versions:
 * Hadoop 2.10.2, 3.2.3 and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
 
-## Installation
+## Build
 
-1. Enable the BigQuery Storage API. Follow [these instructions](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api).
+To build the connector jar:
 
-2. Clone this repository:
+1. Clone this repository:
    ```sh
    git clone https://github.com/GoogleCloudPlatform/hive-bigquery-connector
    cd hive-bigquery-connector
    ```
 
-3. Compile and package the JAR:
+2. Compile and package the jar:
    ``` sh
    ./mvnw package -DskipTests
    ```
-   The packaged JAR is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT.jar`
+   The packaged jar is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT.jar`
 
-4. Upload the JAR to your cluster.
 
-5. Pass the JAR's path with the `--auxpath` parameter when you start your Hive session:
+## Installation
+
+### Prerequisite
+
+Make sure you have the BigQuery Storage API enabled in your GCP project. Follow [these instructions](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api).
+
+### Option 1: connectors init action
+
+For Dataproc clusters, the most convenient way to install the Hive-BigQuery
+connector is to use the [connectors init action](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/connectors).
+
+### Option 2: manual installation
+
+You can also download the released connector jar from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.hive/hive-bigquery-connector),
+or build from the source, then install it in your cluster manually:
+
+1. Upload the jar to your cluster.
+
+2. Pass the jar's path with the `--auxpath` parameter when you start your Hive session:
 
    ```sh
-   hive --auxpath <JAR path>/hive-bigquery-connector-2.0.0-SNAPSHOT.jar
+   hive --auxpath <jar path>/hive-bigquery-connector-<version>.jar
    ```
 
 ## Managed tables vs external tables
