@@ -52,12 +52,13 @@ connector is to use the [connectors init action](https://github.com/GoogleCloudD
 You can also download the released connector jar from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.hive/hive-bigquery-connector),
 or build from the source, then install it in your cluster manually:
 
-1. Upload the jar to your cluster.
-
-2. Pass the jar's path with the `--auxpath` parameter when you start your Hive session:
+Try with Hive client session or Beeline client session:
 
    ```sh
    hive --auxpath <jar path>/hive-bigquery-connector-<version>.jar
+   ```
+   ```sh
+   beeline > add jar <jar path>/hive-bigquery-connector-<version>.jar;
    ```
 
 ## Managed tables vs external tables
@@ -118,40 +119,36 @@ It is recommended to collect [statistics](https://cwiki.apache.org/confluence/di
 therefore improving performance. Follow these steps to collect statistics for a table:
 (replace `<table_name>` with your table name)
 
-1. Check if Hive has reasonable statistics on `numRows` and `rawDataSize` for your table.
+If your Hive has [HIVE-24928](https://issues.apache.org/jira/browse/HIVE-24928) (this is applied on Dataproc),
+statistics can be collected by a quick metadata collection operation through
+```sql
+ANALYZE TABLE <table_name> COMPUTE STATISTICS;
+```
+To verify if Hive has reasonable statistics on `numRows` and `rawDataSize` for your table.
    ```sql
    DESCRIBE FORMATTED <table_name>;
    ```
-   Example output:
+Example output:
    ```
    Table Parameters:
-       COLUMN_STATS_ACCURATE	{\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\",\"name\":\"true\"}}
+       COLUMN_STATS_ACCURATE	{\"BASIC_STATS\":\"true\"}
        numFiles            	0
        numRows             	12345
        rawDataSize         	67890
        totalSize           	34567
    ```
-2. if statstics `rawDataSize` or `numRows` is missing, run the following HiveQL query:
-   ```sql
-   ANALYZE TABLE <table_name> COMPUTE STATISTICS;
-   ```
-   repeate step 1 to see if `rawDataSize` and `numRows` are set after above command.
 
+Workaround for without [HIVE-24928](https://issues.apache.org/jira/browse/HIVE-24928):
 
-3. If statistics `rawDataSize` or `numRows` is still missing after above step 2),
-   this means the Hive version does not support collecting statistics from BigQuery table yet,
-   to workaround it, continue with the following steps.
-
-   Collect column stats
-   ```sql
-   ANALYZE TABLE <table_name> COMPUTE STATISTICS FOR COLUMNS;
-   ```
-   repeate step 1 to see if `COLUMN_STATS_ACCURATE` is set true after above command.
-
-   Enable the following setting to activate column statistics usage for query planning:
-   ```sql
-   SET hive.stats.fetch.column.stats=true;
-   ```
+User can run
+```sql
+ANALYZE TABLE <table_name> COMPUTE STATISTICS FOR COLUMNS;
+```
+to collect column stats and run query with the assistance of column stats.
+```sql
+SET hive.stats.fetch.column.stats=true;
+```
+Column stats collection is more expensive operation, so it is recommended to have [HIVE-24928](https://issues.apache.org/jira/browse/HIVE-24928) applied.
 
 ## Partitioning
 

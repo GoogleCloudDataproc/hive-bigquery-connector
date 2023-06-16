@@ -213,6 +213,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     Optional<String> filter = Optional.empty();
     if (serializedFilterExpr != null) {
       filterExpr = SerializationUtilities.deserializeExpression(serializedFilterExpr);
+      LOG.info("filter expression: {}", filterExpr);
       ExprNodeGenericFuncDesc translatedFilterExpr =
           (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr, jobConf);
       if (translatedFilterExpr != null) {
@@ -220,7 +221,11 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       }
     }
 
-    LOG.info("Create readSession for {}", opts.getTableId());
+    LOG.info(
+        "Create readSession for {}, selectedFields={}, filter={}",
+        opts.getTableId(),
+        selectedFields,
+        filter);
     ReadSessionCreatorConfig readSessionCreatorConfig = opts.toReadSessionCreatorConfig();
     ReadSessionCreator readSessionCreator =
         new ReadSessionCreator(readSessionCreatorConfig, bqClient, bqClientFactory);
