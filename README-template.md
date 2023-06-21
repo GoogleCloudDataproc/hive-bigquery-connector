@@ -153,20 +153,24 @@ Column stats collection is more expensive operation, so it is recommended to hav
 ## Partitioning
 
 As Hive's partitioning and BigQuery's partitioning inherently work in different ways, the Hive
-`PARTITIONED BY` clause is not supported. However, you can still leverage BigQuery's partitioning by
-using table properties. Two types of partitioning are currently supported: time-unit column
-partitioning and ingestion time partitioning.
+`PARTITIONED BY` clause is not supported. However, you can still leverage BigQuery's native
+partitioning by specifying some table properties. Two types of BigQuery native partitioning are
+currently supported: time-unit column partitioning and ingestion time partitioning.
+
+Note: This section is about BigQuery native partitioning. To learn about integrating with
+partitioned tables in open formats like Parquet or ORC, refer to the section on
+[BigLake integration](#bigLake-integration).
 
 ### Time-unit column partitioning
 
-You can partition a table on a column of Hive type `DATE`, `TIMESTAMP`, or `TIMESTAMPLOCALTZ`, which
-respectively correspond to the BigQuery `DATE`, `DATETIME`, and `TIMESTAMP` types. When you write
-data to the table, BigQuery automatically puts the data into the correct partition based on the
-values in the column.
+You can partition a BigQuery table on a column of BigQuery types `DATE`, `DATETIME`, or
+`TIMESTAMP`, which respectively correspond to the Hive types `DATE`, `TIMESTAMP`, and
+`TIMESTAMPLOCALTZ`. When you write data to the table, BigQuery automatically puts the data into the
+correct partition based on the values in the column.
 
-For `TIMESTAMP` and `TIMESTAMPLOCALTZ` columns, the partitions can have either hourly, daily,
-monthly, or yearly granularity. For `DATE` columns, the partitions can have daily, monthly, or
-yearly granularity. Partitions boundaries are based on UTC time.
+For the `DATETIME` and `TIMESTAMP` BigQuery types, the partitions can have either hourly, daily,
+monthly, or yearly granularity. For the `DATE` type, the partitions can have daily, monthly, or
+yearly granularity. Partition boundaries are based on UTC time.
 
 To create a table partitioned by a time-unit column, you must set the `bq.time.partition.field`
 table property to the column's name.
@@ -192,7 +196,7 @@ When you create a table partitioned by ingestion time, BigQuery automatically as
 partitions based on the time when BigQuery ingests the data. You can choose hourly, daily, monthly,
 or yearly boundaries for the partitions. Partitions boundaries are based on UTC time.
 
-An ingestion-time partitioned table also has two pseudo columns:
+An ingestion time partitioned table also has two pseudo columns:
 
 - `_PARTITIONTIME`: ingestion time for each row, truncated to the partition boundary (such as hourly
   or daily). This column has the `DATE` Hive type, which corresponds to the BigQuery `DATE` type.
@@ -221,9 +225,9 @@ to learn more.
 ## Clustering
 
 As Hive's clustering and BigQuery's clustering inherently work in different ways, the Hive
-`CLUSTERED BY` clause is not supported. However, you can still leverage BigQuery's clustering by
-setting the `bq.clustered.fields` table property to a comma-separated list of the columns to cluster
-the table by.
+`CLUSTERED BY` clause is not supported. However, you can still leverage BigQuery's native clustering
+by setting the `bq.clustered.fields` table property to a comma-separated list of the columns to
+cluster the table by.
 
 Here's an example:
 
@@ -256,17 +260,17 @@ You can use the following properties in the `TBLPROPERTIES` clause when you crea
 
 You can set the following Hive/Hadoop configuration properties in your environment:
 
-| Property                  | Default value       | Description                                                                                                                                                                                        |
-|---------------------------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                        |
-| `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                               |
-| `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temprary Avro files to GCS before loading into BigQuery). |
-| `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                            |
-| `bq.work.dir.name.prefix` | `bq-hive-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                            |
-| `materializationProject`  |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                    |
-| `materializationDataset`  |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                    |
-| `maxParallelism`          |                     | Maximum initial number of read streams                                                                                                                                                             |
-| `viewsEnabled`            | `false`             | Set it to `true` to enable reading views.                                                                                                                                                          |
+| Property                  | Default value       | Description                                                                                                                                                                                         |
+|---------------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                         |
+| `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                                |
+| `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temporary Avro files to GCS before loading into BigQuery). |
+| `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
+| `bq.work.dir.name.prefix` | `bq-hive-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
+| `materializationProject`  |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                     |
+| `materializationDataset`  |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                     |
+| `maxParallelism`          |                     | Maximum initial number of read streams                                                                                                                                                              |
+| `viewsEnabled`            | `false`             | Set it to `true` to enable reading views.                                                                                                                                                           |
 
 ## Data Type Mapping
 
@@ -310,7 +314,7 @@ data at the BigQuery storage layer, which reduces the amount of data traversing 
 improves overall performance.
 
 Many built-in Hive UDFs and operators (e.g. `AND`, `OR`, `ABS`, `TRIM`, `BETWEEN`...) are identical
-in BigQuery, so the connector passes those as-is to BigQuery.
+in BigQuery, so the connector pushes those as-is to BigQuery.
 
 However, some Hive UDFs and operators are different in BigQuery. So the connector automatically
 converts those to the equivalent functions in BigQuery. Below is the list of UDFs and operators that
@@ -340,7 +344,10 @@ are automatically converted:
 | `WEEKOFYEAR`     | `EXTRACT(WEEK FROM ...)`      |                                                                                           |
 | `QUARTER`        | `EXTRACT(QUARTER FROM ...)`   |                                                                                           |
 
-Note: [Custom Hive UDFs](https://cwiki.apache.org/confluence/display/hive/hiveplugins) (aka Hive plugins) are currently not supported.
+Note: [Custom Hive UDFs](https://cwiki.apache.org/confluence/display/hive/hiveplugins) (aka Hive
+plugins) are currently not supported in predicate pushdowns. If a query contains a custom Hive UDF
+in a `WHERE` filter, then the custom UDF will not be pushed down to BigQuery and will instead be
+processed by the Hive query engine.
 
 ## Parallelism
 
@@ -410,9 +417,11 @@ The connector uses the direct write method by default. To let it use the indirec
 set the `bq.write.method` configuration property to `indirect`, and set the `bq.temp.gcs.path`
 property to indicate where to store the temporary Avro files in GCS.
 
-## Reading From BigQuery Views
+## Reading from BigQuery views and materialized views
 
-The connector has preliminary support for reading from [BigQuery views](https://cloud.google.com/bigquery/docs/views-intro).
+The connector has preliminary support for reading from [BigQuery logical views](https://cloud.google.com/bigquery/docs/views-intro)
+and [BigQuery materialized views](https://cloud.google.com/bigquery/docs/materialized-views-intro).
+
 Please note there are a few caveats:
 
 * The Storage Read API operates on storage directly, so the API cannot be used to read logical or materialized views. To
@@ -426,11 +435,165 @@ Please note there are a few caveats:
 * Reading from views is **disabled** by default. In order to enable it, set the `viewsEnabled` configuration
   property to `true`.
 
+## Reading from BigQuery table snapshots
+
+The connector supports reading from [BigQuery table snapshots](https://cloud.google.com/bigquery/docs/table-snapshots-intro).
+
+A BigQuery table snapshot preserves the contents of a table (called the base table) at a particular
+time. You can save a snapshot of a current table, or create a snapshot of a table as it was at any
+time in the past seven days.
+
+To link a Hive table to a BigQuery table snapshot, simply specify the snapshot's name in the
+`bq.table` table property, for example:
+
+```sql
+CREATE TABLE mytable (abc BIGINT, xyz STRING)
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+TBLPROPERTIES (
+    'bq.table'='myproject.mydataset.mysnapshot'
+);
+```
+
+## Read consistency
+
+As stated in the [BigQuery Storage API documentation](https://cloud.google.com/bigquery/docs/reference/storage),
+read sessions are based on a snapshot isolation model (Note: this is unrelated to
+[BigQuery table snapshots](https://cloud.google.com/bigquery/docs/table-snapshots-intro)). All
+consumers read based on a specific point in time. The snapshot time is based on the read
+session creation time (i.e. when the `SELECT` query is initiated).
+
+Note that this consistency model currently only applies to the table data, not its metadata.
+
+## BigLake integration
+
+[BigLake](https://cloud.google.com/biglake) allows you to store your data in open formats
+(e.g Parquet, ORC) in an object store like [GCS](https://cloud.google.com/storage) instead
+of in [BigQuery's native storage called Capacitor](https://cloud.google.com/blog/topics/developers-practitioners/bigquery-admin-reference-guide-storage),
+but still leverage advanced BigQuery features like [metadata caching](https://cloud.google.com/bigquery/docs/biglake-intro#metadata_caching_for_performance)
+for query performance, or [column-level access control](https://cloud.google.com/bigquery/docs/column-level-security-intro)
+and [dynamic data masking](https://cloud.google.com/bigquery/docs/column-data-masking-intro) for
+security and governance at scale.
+
+To integrate Hive with BigLake tables backed by GCS, you need to:
+
+1. Create a [Cloud resource connection](https://cloud.google.com/bigquery/docs/create-cloud-resource-connection).
+2. Upload your data files to a GCS bucket.
+3. Create an external table definition in BigQuery that points to the data file URIs in GCS.
+4. Create an external table definition in Hive that points to the BigQuery table definition.
+
+### Example: CSV table
+
+In this example, we create simple table backed by some CSV files.
+
+The files have the following layout in a GCS bucket:
+
+```text
+gs://mybucket/warehouse/my_csv_table/file1.csv
+gs://mybucket/warehouse/my_csv_table/file2.csv
+```
+
+External BigQuery table definition:
+
+```sql
+CREATE EXTERNAL TABLE `myproject.mydataset.my_csv_table`
+WITH CONNECTION `myproject.us.myconnection`
+OPTIONS (
+  format = 'CSV',
+  uris = ['gs://mybucket/warehouse/my_csv_table/*.csv']
+)
+```
+
+External Hive table definition:
+
+```sql
+CREATE EXTERNAL TABLE mydb.my_csv_table (
+    abc BIGINT,
+    xyz STRING
+)
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+TBLPROPERTIES (
+  'bq.table' = 'myproject.mydataset.my_csv_table'
+)
+```
+
+Sample Hive query to read data:
+
+```sql
+SELECT abc
+FROM mydb.my_csv_table
+WHERE xyz = "some text"
+```
+
+### Example: Hive-partitioned Parquet table
+
+In this example, we integrate a hive-partitioned Parquet table with BigLake.
+
+The Parquet files have two columns:
+* `id`: 64-bit integer
+* `name`: string
+
+The Parquet files are partitioned by `city` and have the following layout:
+
+```text
+gs://mybucket/warehouse/my_parquet_table/city=Paris/000000_0.parquet
+gs://mybucket/warehouse/my_parquet_table/city=Paris/000001_0.parquet
+
+gs://mybucket/warehouse/my_parquet_table/city=London/000000_0.parquet
+gs://mybucket/warehouse/my_parquet_table/city=London/000001_0.parquet
+gs://mybucket/warehouse/my_parquet_table/city=London/000002_0.parquet
+```
+
+External BigQuery table definition:
+
+```sql
+CREATE EXTERNAL TABLE `myproject.mydataset.my_parquet_table`
+WITH PARTITION COLUMNS
+WITH CONNECTION `myproject.us.myconnection`
+OPTIONS (
+  format = 'PARQUET',
+  uris = ['gs://mybucket/warehouse/my_parquet_table/*'],
+  hive_partition_uri_prefix = 'gs://mybucket/warehouse/my_parquet_table',
+  require_hive_partition_filter = true
+)
+```
+
+Notes about the above statement:
+* The `WITH PARTITION COLUMNS` clause exposes the `city` partition as a column in the BigQuery
+  table schema.
+* The `require_hive_partition_filter=true` option means that all queries over this table require a
+  partition filter that can be used to eliminate partitions when reading data.
+
+External Hive table definition that matches the BigQuery table's schema:
+
+```sql
+CREATE EXTERNAL TABLE mydb.my_parquet_table (
+    id BIGINT,
+    name STRING
+    city STRING
+)
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+TBLPROPERTIES (
+  'bq.table' = 'myproject.mydataset.my_parquet_table'
+)
+```
+
+Sample Hive query to read data:
+
+```sql
+SELECT *
+FROM mydb.my_parquet_table
+WHERE city = "Paris"
+```
+
+For more information, refer to the official BigQuery documentation on
+[Creating external tables on partitioned data](https://cloud.google.com/bigquery/docs/external-data-cloud-storage#create-external-table-partitioned)
+and [Creating Cloud Storage BigLake tables](https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake).
+
 ## Authentication
 
-The connector needs an instance of a GoogleCredentials in order to connect to the BigQuery APIs.
+The connector needs an instance of a `GoogleCredentials` in order to connect to the BigQuery APIs.
 
-By default on Dataproc, the connector automatically uses the cluster service account's credentials.
+By default, on Dataproc, the connector automatically uses the cluster service account's credentials.
 
 There are multiple options to override the default behavior and to provide custom credentials:
 
@@ -447,8 +610,9 @@ There are multiple options to override the default behavior and to provide custo
   be supplied using the `bq.access.token.provider.config` configuration property. If the property is
   not set then the no-arg constructor will be called. The JAR containing the implementation class
   should be on the cluster's classpath.
-* Define service account impersonation for specific users, specific groups, or for all
-  users that run the Hive query by default using below properties:
+* Define [service account impersonation](https://cloud.google.com/iam/docs/service-account-permissions#directly-impersonate)
+  for specific users, specific groups, or for all users that run the Hive query by default using
+  the below properties:
 
     - `bq.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
 
@@ -470,6 +634,9 @@ There are multiple options to override the default behavior and to provide custo
   If more than one property is set then the service account associated with the username will take
   precedence over the service account associated with the group name for a matching user and group,
   which in turn will take precedence over default service account impersonation.
+
+  The impersonator service account must have the `serviceAccountTokenCreator` IAM role set on the
+  impersonated service account.
 
 * For simpler applications where access token refresh is not required, pass the access token itself
   with the `bq.access.token` configuration property. You can generate an access token by running
