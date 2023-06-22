@@ -1,6 +1,6 @@
 # Release Notes
 
-## Next
+## 2.0.3 - 2023-06-22
 
 * GA release.
 
