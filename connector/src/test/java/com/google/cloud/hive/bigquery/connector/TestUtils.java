@@ -218,10 +218,24 @@ public class TestUtils {
     bq.create(DatasetInfo.newBuilder(datasetId).setLocation(LOCATION).build());
   }
 
-  public static void createOrReplaceBqView(String dataset, String table, String view) {
+  public static void createOrReplaceLogicalView(String dataset, String table, String view) {
     String query =
         String.format(
             "CREATE OR REPLACE VIEW %s.%s AS (SELECT * FROM %s.%s)", dataset, view, dataset, table);
+    getBigqueryClient().query(query);
+  }
+
+  /**
+   * Create a BQ materialized view
+   * (https://cloud.google.com/bigquery/docs/materialized-views-intro). Note: Replacing an existing
+   * materialized view is not supported by BigQuery, so we cannot use a `CREATE OR REPLACE`
+   * statement.
+   */
+  public static void createMaterializedView(String dataset, String table, String view) {
+    String query =
+        String.format(
+            "CREATE MATERIALIZED VIEW %s.%s AS (SELECT * FROM %s.%s)",
+            dataset, view, dataset, table);
     getBigqueryClient().query(query);
   }
 

@@ -36,7 +36,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     // Create the table in BigQuery
     createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
     // Create the corresponding BigQuery view
-    createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
+    createOrReplaceLogicalView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
     // Create the corresponding Hive table
     createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Query the view
@@ -56,7 +56,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     // Create the table in BigQuery
     createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
     // Create the corresponding BigQuery view
-    createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
+    createOrReplaceLogicalView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
     // Create the corresponding Hive table
     createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Query the view
@@ -74,7 +74,7 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
     // Create the table in BigQuery
     createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
     // Create the corresponding BigQuery view
-    createOrReplaceBqView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
+    createOrReplaceLogicalView(dataset, TEST_TABLE_NAME, TEST_VIEW_NAME);
     // Create the corresponding Hive table
     createExternalTable(TEST_VIEW_NAME, HIVE_TEST_VIEW_DDL);
     // Insert data into BQ using the BQ SDK
@@ -94,5 +94,37 @@ public class ViewIntegrationTests extends IntegrationTestsBase {
         },
         rows.toArray());
     // TODO: Confirm that the predicate was in fact pushed down to BigQuery
+  }
+
+  /** Test a BQ materialized view */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
+  public void testMaterializedView(String engine, String readDataFormat) {
+    // Enable views
+    hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
+    initHive(engine, readDataFormat);
+    // Create the table in BigQuery
+    createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
+    // Create the corresponding BigQuery materialized view
+    String viewName = TEST_VIEW_NAME + "_" + readDataFormat;
+    createMaterializedView(dataset, TEST_TABLE_NAME, viewName);
+    // Create the corresponding Hive table
+    createExternalTable(viewName, HIVE_TEST_VIEW_DDL);
+    // Insert data into BQ using the BQ SDK
+    runBqQuery(
+        String.format(
+            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    TableResult result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", viewName));
+    assertEquals(2, result.getTotalRows());
+    // Read filtered view using Hive
+    List<Object[]> rows =
+        runHiveQuery(String.format("SELECT * FROM %s WHERE number = 999", viewName));
+    // Verify we get the expected rows
+    assertArrayEquals(
+        new Object[] {
+          new Object[] {999L, "abcd"},
+        },
+        rows.toArray());
   }
 }
