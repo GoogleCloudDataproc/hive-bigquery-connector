@@ -2,6 +2,8 @@
 
 ## Next
 
+* GA release.
+
 ## 2.0.2-preview - 2023-06-08
 
 * PR #85: Remove support for deprecated table properties bq.project and bq.dataset
