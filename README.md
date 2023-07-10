@@ -711,7 +711,7 @@ export PROJECT=my-gcp-project
 export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
 export BIGLAKE_CONNECTION=hive-integration-tests
-export BIGLAKE_BUCKET=${USER}-biglake-test
+export BIGLAKE_BUCKET=${PROJECT}-biglake-tests
 ```
 
 Create the test BigLake connection:
