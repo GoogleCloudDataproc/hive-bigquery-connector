@@ -267,7 +267,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             .addToCols(
                 new FieldSchema(
                     HiveBigQueryConfig.PARTITION_TIME_PSEUDO_COLUMN,
-                    "timestamp",
+                    "timestamp with local time zone",
                     "Ingestion time pseudo column"));
         assertDoesNotContainColumn(table, HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN);
         table

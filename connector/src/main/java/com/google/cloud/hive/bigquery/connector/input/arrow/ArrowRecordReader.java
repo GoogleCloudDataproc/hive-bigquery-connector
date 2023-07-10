@@ -57,7 +57,7 @@ public class ArrowRecordReader
     for (int i = 0; i < numColumnsInSchemaRoot; i++) {
       FieldVector fieldVector = schemaRoot.getVector(i);
       String fieldName = fieldVector.getName();
-      int colIndex = columnNames.indexOf(fieldName);
+      int colIndex = columnNames.indexOf(fieldName.toLowerCase());
       if (colIndex == -1) {
         throw new RuntimeException(
             "Unable to find column " + fieldName + " in columns " + columnNames);
