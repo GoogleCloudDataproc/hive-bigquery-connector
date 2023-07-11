@@ -1,0 +1,8 @@
+#!/bin/sh
+staged_files=$(git diff --staged --name-only)
+./mvnw spotless:apply
+for file in $staged_Files; do
+  if test -f "$file"; then
+    git add $file
+  fi
+done

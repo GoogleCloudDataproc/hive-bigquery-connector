@@ -314,6 +314,22 @@
             </systemProperty>
           </systemProperties>
         </configuration>
+        <executions>
+          <execution>
+            <id>install-git-hooks</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>cp</executable>
+              <arguments>
+                <argument>${project.basedir}/../scripts/pre-commit</argument>
+                <argument>${project.basedir}/../.git/hooks</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>
