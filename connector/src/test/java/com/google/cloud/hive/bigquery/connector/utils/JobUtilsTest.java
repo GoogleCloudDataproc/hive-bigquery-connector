@@ -15,11 +15,14 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.text.MatchesPattern.matchesPattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.output.WriterRegistry;
+import java.util.regex.Pattern;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskAttemptID;
@@ -75,6 +78,8 @@ public class JobUtilsTest {
     TaskAttemptID taskAttemptID = new TaskAttemptID();
     String writerId = WriterRegistry.getWriterId();
     Path path = JobUtils.getTaskWriterOutputFile(jobDetails, taskAttemptID, writerId, "json");
-    assertEquals(tmp + "/myproject_mydataset_mytable_task__0000_r_000000_w1.json", path.toString());
+    String pattern =
+        "^" + Pattern.quote(tmp) + "/myproject_mydataset_mytable_task__0000_r_000000_w\\d+\\.json$";
+    assertThat(path.toString(), matchesPattern(pattern));
   }
 }
