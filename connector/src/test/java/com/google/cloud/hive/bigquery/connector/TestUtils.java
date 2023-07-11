@@ -53,7 +53,12 @@ public class TestUtils {
   public static final String BIGLAKE_CONNECTION_ENV_VAR = "BIGLAKE_CONNECTION";
   public static final String BIGLAKE_BUCKET_ENV_VAR = "BIGLAKE_BUCKET";
 
-  public static String BIGQUERY_TEST_TABLE_DDL = String.join("\n", "number INT64,", "text STRING");
+  public static String BIGQUERY_TEST_TABLE_DDL =
+      String.join(
+          "\n",
+          "NUMBER INT64,", // Intentionally set this column uppercase to test Hive's case
+          // insensitivity. See PR #98
+          "text STRING");
 
   public static String BIGQUERY_ANOTHER_TEST_TABLE_DDL =
       String.join("\n", "num INT64,", "str_val STRING");
