@@ -68,7 +68,7 @@ public class AvroRecordReader implements RecordReader<NullWritable, ObjectWritab
     List<Schema.Field> fields = actualSchema.getFields();
     Object[] row = new Object[columnNames.size()];
     for (Schema.Field field : fields) {
-      int colIndex = columnNames.indexOf(field.name());
+      int colIndex = columnNames.indexOf(field.name().toLowerCase());
       ObjectInspector fieldObjectInspector =
           rowObjectInspector.getStructFieldRef(field.name()).getFieldObjectInspector();
       row[colIndex] =

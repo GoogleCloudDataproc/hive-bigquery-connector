@@ -2,6 +2,13 @@
 
 ## Next
 
+* Fixed case sensitivity bug with column names. This particularly affected pseudo columns like
+  `_PARTITIONTIME` and `_PARTITIONDATE` in time-ingestion partitioned BigQuery tables.
+* **Backward-incompatible change:** The type of the `_PARTITION_TIME` pseudo-column in
+  time-ingestion partitioned tables was fixed from `timestamp` to `timestamp with local time zone`.
+  Unfortunately, Hive doesn't allow change column types in external table definitions, so you must
+  drop the external table and then recreate it.
+
 ## 2.0.3 - 2023-06-22
 
 * GA release.

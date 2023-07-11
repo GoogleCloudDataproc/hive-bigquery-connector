@@ -22,9 +22,15 @@ import com.google.cloud.bigquery.Clustering;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class PartitionIntegrationTests extends IntegrationTestsBase {
 
@@ -73,15 +79,18 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     assertArrayEquals(
         new Object[] {
           new Object[] {"int_val", "bigint", ""},
-          new Object[] {"_partitiontime", "timestamp", "Ingestion time pseudo column"},
+          new Object[] {
+            "_partitiontime", "timestamp with local time zone", "Ingestion time pseudo column"
+          },
           new Object[] {"_partitiondate", "date", "Ingestion time pseudo column"}
         },
         rows.toArray());
   }
 
-  @Test
-  public void testQueryIngestionTimePartition() {
-    initHive();
+  @ParameterizedTest
+  @MethodSource(READ_FORMAT)
+  public void testQueryIngestionTimePartition(String readDataFormat) throws IOException {
+    initHive(getDefaultExecutionEngine(), readDataFormat);
     // Make sure the BQ table doesn't exist
     dropBqTableIfExists(dataset, INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Create the table using Hive
@@ -90,14 +99,28 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
         HIVE_INGESTION_TIME_PARTITIONED_DDL,
         HIVE_INGESTION_TIME_PARTITIONED_PROPS,
         null);
-    runHiveQuery(
+    // Insert data into BQ using the BQ SDK
+    runBqQuery(
         String.format(
-            "SELECT * from %s WHERE `_PARTITIONDATE` <= DATE'2019-08-02'",
+            "INSERT `${dataset}.%s` (_PARTITIONTIME, int_val) VALUES "
+                + "(TIMESTAMP_TRUNC('2017-05-01', DAY), 123),"
+                + "(TIMESTAMP_TRUNC('2021-06-12', DAY), 999)",
             INGESTION_TIME_PARTITIONED_TABLE_NAME));
-    runHiveQuery(
-        String.format(
-            "SELECT * from %s WHERE `_PARTITIONTIME` > TIMESTAMPLOCALTZ'2000-01-01 00:23:45.123456"
-                + " Pacific/Honolulu'",
-            INGESTION_TIME_PARTITIONED_TABLE_NAME));
+    List<Object[]> rows =
+        runHiveQuery(
+            String.format(
+                "SELECT `int_val`, `_partitiontime`, `_partitiondate` from %s WHERE `_partitiondate` <= '2019-08-02'",
+                INGESTION_TIME_PARTITIONED_TABLE_NAME));
+    assertEquals(1, rows.size());
+    Object[] row = rows.get(0);
+    assertEquals(3, row.length); // Number of columns
+    assertEquals(123L, row[0]);
+    assertEquals(
+        "2017-05-01T00:00:00Z", // 'Z' == UTC
+        Instant.from(
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S VV", Locale.getDefault())
+                    .parse(row[1].toString()))
+            .toString());
+    assertEquals("2017-05-01", row[2]);
   }
 }
