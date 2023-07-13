@@ -15,9 +15,11 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.hive;
 
+import java.util.Map;
 import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapreduce.JobID;
@@ -27,6 +29,21 @@ import org.apache.hadoop.mapreduce.JobID;
  * temporary files uniquely named after the individual tasks.
  */
 public class HiveUtils {
+
+  /**
+   * Same as `MetaStoreUtils.isExternalTable()` but we define it here as
+   * `MetaStoreUtils.isExternalTable()` isn't available in old versions of Hive.
+   */
+  public static boolean isExternalTable(Table table) {
+    if (table == null) {
+      return false;
+    }
+    Map<String, String> params = table.getParameters();
+    if (params == null) {
+      return false;
+    }
+    return "TRUE".equalsIgnoreCase(params.get("EXTERNAL"));
+  }
 
   /** Returns the ID of the Hive query as set by Hive in the configuration. */
   public static String getQueryId(Configuration conf) {

@@ -185,6 +185,17 @@ public class HiveBigQueryConfig
     // empty
   }
 
+  public static Map<String, String> hadoopConfigAsMap(Configuration conf) {
+    Iterator<Map.Entry<String, String>> iterator = conf.iterator();
+    Map<String, String> configMap = new HashMap();
+    while (iterator.hasNext()) {
+      String name = iterator.next().getKey();
+      String value = conf.get(name);
+      configMap.put(name, value);
+    }
+    return configMap;
+  }
+
   private static Optional<String> getAnyOption(
       String key, Configuration conf, Map<String, String> tableParameters) {
     // TO-DO: here we choose conf value over table value, any issue?
@@ -258,7 +269,7 @@ public class HiveBigQueryConfig
         Boolean.parseBoolean(getAnyOption(VIEWS_ENABLED_KEY, conf, tableParameters).or("false"));
     MaterializationConfiguration materializationConfiguration =
         MaterializationConfiguration.from(
-            ImmutableMap.copyOf(conf.getPropsWithPrefix("")), new HashMap<>());
+            ImmutableMap.copyOf(hadoopConfigAsMap(conf)), new HashMap<>());
     opts.materializationProject = materializationConfiguration.getMaterializationProject();
     opts.materializationDataset = materializationConfiguration.getMaterializationDataset();
     opts.materializationExpirationTimeInMinutes =

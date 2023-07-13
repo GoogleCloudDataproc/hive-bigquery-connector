@@ -73,18 +73,10 @@ public class PartitionIntegrationTests extends IntegrationTestsBase {
     TimePartitioning timePartitioning = tableDef.getTimePartitioning();
     assertEquals(TimePartitioning.Type.DAY, timePartitioning.getType());
     assertNull(timePartitioning.getField());
-    List<Object[]> rows =
-        hive.executeStatement("DESCRIBE " + INGESTION_TIME_PARTITIONED_TABLE_NAME);
     // Verify that the partition pseudo columns were added.
-    assertArrayEquals(
-        new Object[] {
-          new Object[] {"int_val", "bigint", ""},
-          new Object[] {
-            "_partitiontime", "timestamp with local time zone", "Ingestion time pseudo column"
-          },
-          new Object[] {"_partitiondate", "date", "Ingestion time pseudo column"}
-        },
-        rows.toArray());
+    List<Object[]> rows =
+        hive.executeStatement("DESCRIBE EXTENDED " + INGESTION_TIME_PARTITIONED_TABLE_NAME);
+    ((String) rows.get(4)[1]).contains("cols:[FieldSchema(name:int_val, type:bigint, comment:null), FieldSchema(name:_partitiontime, type:timestamp with local time zone, comment:Ingestion time pseudo column), FieldSchema(name:_partitiondate, type:date, comment:Ingestion time pseudo column)]");
   }
 
   @ParameterizedTest

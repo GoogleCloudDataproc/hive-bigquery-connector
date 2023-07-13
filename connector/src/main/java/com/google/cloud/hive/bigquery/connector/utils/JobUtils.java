@@ -30,7 +30,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.TaskAttemptID;
@@ -74,7 +73,7 @@ public class JobUtils {
   public static Path getQueryWorkDir(Configuration conf) {
     String parentPath = conf.get(HiveBigQueryConfig.WORK_DIR_PARENT_PATH_KEY);
     if (parentPath == null) {
-      parentPath = conf.get(CommonConfigurationKeys.HADOOP_TMP_DIR);
+      parentPath = conf.get("hadoop.tmp.dir");
     }
     return getQuerySubDir(conf, parentPath);
   }

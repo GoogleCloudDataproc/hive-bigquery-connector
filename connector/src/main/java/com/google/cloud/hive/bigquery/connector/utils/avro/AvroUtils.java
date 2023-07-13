@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -38,10 +37,11 @@ import org.apache.avro.mapred.AvroOutputFormat;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.mapred.JobConf;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 
 public class AvroUtils {
 
@@ -66,7 +66,7 @@ public class AvroUtils {
   /* Returns a nullable schema if the field is nullable */
   private static Schema modedAvroSchema(Schema fieldSchema, boolean nullable) {
     return nullable
-        ? Schema.createUnion(fieldSchema, Schema.create(Schema.Type.NULL))
+        ? Schema.createUnion(Arrays.asList(fieldSchema, Schema.create(Schema.Type.NULL)))
         : fieldSchema;
   }
 
@@ -149,8 +149,9 @@ public class AvroUtils {
       HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) fieldOi;
       Schema schema = Schema.create(Schema.Type.BYTES);
       schema.addProp("logicalType", "decimal");
-      schema.addProp("precision", hdoi.precision());
-      schema.addProp("scale", hdoi.scale());
+      ObjectMapper objectMapper = new ObjectMapper();
+      schema.addProp("precision", objectMapper.convertValue(hdoi.precision(), JsonNode.class));
+      schema.addProp("scale", objectMapper.convertValue(hdoi.scale(), JsonNode.class));
       return modedAvroSchema(schema, nullable);
     }
 
@@ -208,7 +209,6 @@ public class AvroUtils {
             ? CodecFactory.deflateCodec(level)
             : CodecFactory.fromString(codecName);
     dataFileWriter.setCodec(factory);
-    dataFileWriter.setMeta(AvroSerDe.WRITER_TIME_ZONE, TimeZone.getDefault().toZoneId().toString());
     try {
       FileSystem fileSystem = filePath.getFileSystem(jobConf);
       FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);

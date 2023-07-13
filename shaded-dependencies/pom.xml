@@ -36,17 +36,111 @@
   </licenses>
 
   <!--
-  This module's sole purpose is to shade some libraries (e.g. Guava) to avoid conflicts with other versions that are
-  used by other tools, like Hadoop and Hive. The reason why we shade those libraries in a separate module instead of
-  in the main storage handler module, is to do the shading upstream so that the storage handler's integration tests
-  can run without conflicts.
+  What is this module for?
+
+  This module is used to shade some libraries (e.g. Guava) to avoid conflicts with the connector's
+  dependencies while running integration tests.
+  The libraries shaded here are also shaded in the connector's module itself, so this should not
+  affect anything when the connector is used in production.
+  This module is meant to be added as a dependency in the connector's pom.xml with the `provided`
+  scope.
   -->
 
   <dependencies>
+
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>31.1-jre</version>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-client-common</artifactId>
+      <version>${hadoop.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-exec</artifactId>
+      <version>${hive.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.pentaho</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-common</artifactId>
+      <version>${hive.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-service</artifactId>
+      <version>${hive.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.pentaho</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+
+    <dependency>
+      <artifactId>tez-dag</artifactId>
+      <groupId>org.apache.tez</groupId>
+      <version>${tez.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <artifactId>tez-common</artifactId>
+      <groupId>org.apache.tez</groupId>
+      <version>${tez.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <artifactId>tez-mapreduce</artifactId>
+      <groupId>org.apache.tez</groupId>
+      <version>${tez.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
   </dependencies>
@@ -65,6 +159,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>
@@ -80,39 +175,12 @@
                   </excludes>
                 </filter>
               </filters>
-<!--              <artifactSet>-->
-<!--                TODO: See if we can exclude more to reduce the JAR size &ndash;&gt;-->
-<!--                <excludes>-->
-<!--                  <exclude>...</exclude>-->
-<!--                </excludes>-->
-<!--              </artifactSet>-->
               <relocations>
                 <relocation>
                   <pattern>com</pattern>
-                  <shadedPattern>shaded.hivebqcon.com</shadedPattern>
+                  <shadedPattern>shaded.for.hive.bq.integration.tests.com</shadedPattern>
                   <includes>
-                    <include>com.google.cloud.bigquery.connector.common.**</include>
-                    <include>com.google.protobuf.**</include>
                     <include>com.google.common.**</include>
-                    <include>com.google.gson.**</include>
-                    <include>com.google.flatbuffers.**</include>
-                  </includes>
-                </relocation>
-                <relocation>
-                  <pattern>io</pattern>
-                  <shadedPattern>shaded.hivebqcon.io</shadedPattern>
-                  <includes>
-                    <include>io.netty.**</include>
-                    <include>io.grpc.netty.**</include>
-                    <include>io.grpc.protobuf.**</include>
-                    <include>io.opencensus.**</include>
-                  </includes>
-                </relocation>
-                <relocation>
-                  <pattern>org</pattern>
-                  <shadedPattern>shaded.hivebqcon.org</shadedPattern>
-                  <includes>
-                    <include>org.apache.arrow.**</include>
                   </includes>
                 </relocation>
               </relocations>
@@ -129,9 +197,8 @@
         </executions>
       </plugin>
 
-
       <!-- The build-helper-maven-plugin is useful to add the shaded JAR into the IDE environment, so that -->
-      <!-- IntelliJ can find the `repackaged.by.hivebqconnector.*` classes. -->
+      <!-- IntelliJ can find the repackaged classes. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>

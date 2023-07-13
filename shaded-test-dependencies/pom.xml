@@ -36,8 +36,12 @@
   </licenses>
 
   <!--
-  This module's sole purpose is to shade some libraries used for test (e.g. Dataproc java client) to avoid conflicts
-  with packages in the connector (e.g., protobuf) .
+  What is this module for?
+
+  This module is used to shade some libraries (e.g. Guava) to avoid conflicts with the connector's
+  dependencies while running acceptance tests in Dataproc.
+  This module is meant to be added as a dependency in the connector's pom.xml with the `test`
+  scope.
   -->
 
   <dependencies>
@@ -112,7 +116,7 @@
 
 
       <!-- The build-helper-maven-plugin is useful to add the shaded JAR into the IDE environment, so that -->
-      <!-- IntelliJ can find the `repackaged.by.hivebqconnector.*` classes. -->
+      <!-- IntelliJ can find the repackaged classes. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
