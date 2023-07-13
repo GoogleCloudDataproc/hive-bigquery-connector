@@ -1,0 +1,22 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.google.cloud.hive</groupId>
+        <artifactId>shaded-deps-parent</artifactId>
+        <version>${revision}</version>
+        <relativePath>../shaded-deps-parent</relativePath>
+    </parent>
+
+    <artifactId>shaded-deps-dataproc20</artifactId>
+    <name>Shaded dependencies for Dataproc 2.0</name>
+
+    <properties>
+        <hive.version>3.1.2</hive.version>
+        <hadoop.version>3.2.3</hadoop.version>
+        <tez.version>0.9.2</tez.version>
+    </properties>
+
+</project>

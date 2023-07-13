@@ -16,7 +16,6 @@
 package com.google.cloud.hive.bigquery.connector.integration;
 
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
-import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.TableResult;
@@ -64,7 +63,7 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
     initHive(engine, readDataFormat);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     List<Object[]> rows = runHiveQuery(String.format("SELECT * FROM %s", TEST_TABLE_NAME));
-    assertThat(rows).isEmpty();
+    assertEquals(0, rows.size());
   }
 
   // ---------------------------------------------------------------------------------------------------

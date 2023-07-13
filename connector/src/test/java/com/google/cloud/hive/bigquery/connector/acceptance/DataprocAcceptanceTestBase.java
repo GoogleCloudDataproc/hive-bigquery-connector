@@ -32,7 +32,7 @@ import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTest
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.readGcsFile;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.uploadConnectorInitAction;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.uploadConnectorJar;
-import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.ClusterProperty;
 import com.google.common.collect.ImmutableList;
@@ -294,12 +294,12 @@ public class DataprocAcceptanceTestBase {
         AcceptanceTestUtils.readGcsFile(job.getDriverControlFilesUri() + "driveroutput.000000000");
     System.out.println("Driver output: " + driverOutput);
     System.out.println("Job status: " + job.getStatus().getState());
-    assertThat(job.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+    assertEquals(JobStatus.State.DONE, job.getStatus().getState());
   }
 
   void verifyJobOutput(String outputDirUri, String expectedOutput) throws Exception {
     String output = readGcsFile(outputDirUri, "_0");
-    assertThat(output.trim()).isEqualTo(expectedOutput);
+    assertEquals(expectedOutput, output.trim());
   }
 
   @Test

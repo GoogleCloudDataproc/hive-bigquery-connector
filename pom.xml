@@ -58,8 +58,45 @@
 
     <modules>
         <module>hive-bigquery-parent</module>
-        <module>shaded-dependencies</module>
-        <module>shaded-test-dependencies</module>
+        <module>shaded-acceptance-tests-dependencies</module>
         <module>connector</module>
     </modules>
+
+    <profiles>
+        <profile>
+            <id>hive2.3.6-hadoop2.7.0</id>
+            <modules>
+                <module>shaded-sparksql</module>
+                <module>shaded-deps-hive2.3.6-hadoop2.7.0</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>hive2.3.9-hadoop2.10.2</id>
+            <modules>
+                <module>shaded-sparksql</module>
+                <module>shaded-deps-hive2.3.9-hadoop2.10.2</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>hive3.1.2-hadoop2.10.2</id>
+            <modules>
+                <module>shaded-deps-hive3.1.2-hadoop2.10.2</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>dataproc20</id>
+            <modules>
+                <module>shaded-deps-dataproc20</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>dataproc21</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <module>shaded-deps-dataproc21</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>

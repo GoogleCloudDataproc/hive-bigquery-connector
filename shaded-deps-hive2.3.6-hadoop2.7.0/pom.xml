@@ -1,0 +1,22 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.google.cloud.hive</groupId>
+        <artifactId>shaded-deps-parent</artifactId>
+        <version>${revision}</version>
+        <relativePath>../shaded-deps-parent</relativePath>
+    </parent>
+
+    <artifactId>shaded-deps-hive2.3.6-hadoop2.7.0</artifactId>
+    <name>Shaded dependencies for Hive 2.3.6 and Hadoop 2.7.0</name>
+
+    <properties>
+        <hive.version>2.3.6</hive.version>
+        <hadoop.version>2.7.0</hadoop.version>
+        <tez.version>0.9.2</tez.version>
+    </properties>
+
+</project>

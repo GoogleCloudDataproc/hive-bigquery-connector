@@ -25,37 +25,88 @@
     <relativePath>../hive-bigquery-parent</relativePath>
   </parent>
 
-  <artifactId>shaded-test-dependencies</artifactId>
-
-  <licenses>
-      <license>
-          <name>Apache License, Version 2.0</name>
-          <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-          <distribution>repo</distribution>
-      </license>
-  </licenses>
+  <artifactId>shaded-sparksql</artifactId>
 
   <!--
   What is this module for?
 
-  This module is used to shade some libraries (e.g. Guava) to avoid conflicts with the connector's
-  dependencies while running acceptance tests in Dataproc.
+  This module is used to shade some libraries to avoid conflicts with the connector's
+  dependencies while running integration tests with Spark.
   This module is meant to be added as a dependency in the connector's pom.xml with the `test`
   scope.
   -->
 
   <dependencies>
 
+    <!-- Needed for Spark SQL -->
     <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-dataproc</artifactId>
-      <version>${google-cloud-dataproc.version}</version>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.9</version>
+    </dependency>
+
+    <!-- Needed for Spark SQL -->
+    <dependency>
+      <groupId>org.codehaus.janino</groupId>
+      <artifactId>janino</artifactId>
+      <version>3.1.10</version>
+    </dependency>
+
+    <!-- Needed for Spark SQL -->
+    <dependency>
+      <groupId>org.codehaus.janino</groupId>
+      <artifactId>commons-compiler</artifactId>
+      <version>3.1.10</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.12</artifactId>
+      <version>${spark.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>hadoop-client-api</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hadoop-client-runtime</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_2.12</artifactId>
+      <version>${spark.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-hive_2.12</artifactId>
+      <version>${spark.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>hadoop-client-runtime</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
   </dependencies>
 
   <build>
     <plugins>
+      <!-- TODO: Ok to exclude from Maven Central? -->
+      <!-- Instruct not to publish this module to Maven Central -->
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>${nexus-staging-maven-plugin.version}</version>
+        <configuration>
+          <skipStaging>true</skipStaging>
+        </configuration>
+      </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -86,18 +137,28 @@
               <relocations>
                 <relocation>
                   <pattern>com</pattern>
-                  <shadedPattern>test.hivebqcon.com</shadedPattern>
+                  <shadedPattern>test.spark.hivebqcon.com</shadedPattern>
                   <includes>
-                    <include>com.google.**</include>
+                    <include>com.codahale.**</include>
+                    <include>com.google.common.**</include>
+                    <include>com.fasterxml.**</include>
+                    <include>com.google.protobuf.**</include>
                   </includes>
                 </relocation>
                 <relocation>
                   <pattern>io</pattern>
-                  <shadedPattern>test.hivebqcon.io</shadedPattern>
+                  <shadedPattern>test.spark.hivebqcon.io</shadedPattern>
                   <includes>
                     <include>io.netty.**</include>
-                    <include>io.grpc.**</include>
-                    <include>io.opencensus.**</include>
+                  </includes>
+                </relocation>
+                <relocation>
+                  <pattern>org</pattern>
+                  <shadedPattern>test.spark.hivebqcon.org</shadedPattern>
+                  <includes>
+                    <include>org.apache.commons.**</include>
+                    <include>org.codehaus.commons.**</include>
+                    <include>org.codehaus.janino.**</include>
                   </includes>
                 </relocation>
               </relocations>
@@ -114,31 +175,9 @@
         </executions>
       </plugin>
 
-
-      <!-- The build-helper-maven-plugin is useful to add the shaded JAR into the IDE environment, so that -->
-      <!-- IntelliJ can find the repackaged classes. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
-        <version>${build-helper-maven-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>compile</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attach-artifact</goal>
-            </goals>
-            <configuration>
-              <artifacts>
-                <artifact>
-                  <file>${project.build.directory}/${project.build.finalName}-shaded.jar</file>
-                  <type>jar</type>
-                  <classifier>optional</classifier>
-                </artifact>
-              </artifacts>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
     </plugins>
