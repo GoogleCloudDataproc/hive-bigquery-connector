@@ -780,6 +780,9 @@ The following environment variables must be set and **exported** first.
 * `GOOGLE_CLOUD_PROJECT` - The Google cloud platform project used to test the connector
 * `TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the integration tests
 * `ACCEPTANCE_TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the acceptance tests
+* `SERVICE_ACCOUNT` - The service account to use for setting up dataproc
+* `SUBNET` - The VPC Network subnet to use for setting up dataproc
+* `BIGLAKE_REGION` - The region to use for setting up dataproc
 
 To run the acceptance tests:
 
