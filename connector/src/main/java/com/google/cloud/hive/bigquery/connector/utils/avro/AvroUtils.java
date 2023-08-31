@@ -22,11 +22,14 @@ import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
@@ -44,6 +47,51 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
 public class AvroUtils {
+
+  /**
+   * Variable used to figure out if the user has an old or newer version of the
+   * Avro library. This is used to get around some changes in the API of the
+   * library. For example, the `getJsonProp()` method was public in old versions and
+   * then made private in newer versions in favor or a new `getObjectProp()` method.
+   */
+  public static Boolean usesOldAvroLib;
+
+  static {
+    try {
+      Schema emptySchema = SchemaBuilder.builder().nullType();
+      emptySchema.getClass().getMethod("getJsonProp", String.class);
+      usesOldAvroLib = true;
+    } catch (NoSuchMethodException e) {
+      usesOldAvroLib = false;
+    }
+  }
+
+  public static void addProp(Schema schema, String propName, String propValue) {
+    schema.addProp(propName, propValue);
+  }
+
+  public static void addProp(Schema schema, String propName, Object propValue) {
+    if (usesOldAvroLib) {
+      ObjectMapper objectMapper = new ObjectMapper();
+      schema.addProp(propName, objectMapper.convertValue(propValue, JsonNode.class));
+    } else {
+      schema.addProp(propName, propValue);
+    }
+  }
+
+  public static int getPropAsInt(Schema schema, String propName) {
+    try {
+      if (usesOldAvroLib) {
+        Method method = schema.getClass().getMethod("getJsonProp", String.class);
+        JsonNode value = (JsonNode) method.invoke(schema, propName);
+        return value.asInt();
+      }
+      Method method = schema.getClass().getMethod("getObjectProp", String.class);
+      return (int) method.invoke(schema, propName);
+    } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   public static Schema getAvroSchema(StructObjectInspector soi, FieldList bigqueryFields) {
     List<Schema.Field> avroFields = new ArrayList<>();
@@ -108,9 +156,9 @@ public class AvroUtils {
     if (fieldOi instanceof TimestampObjectInspector) {
       Schema schema = Schema.create(Schema.Type.LONG);
       if (bigqueryField.getType().getStandardType().equals(StandardSQLTypeName.TIMESTAMP)) {
-        schema.addProp("logicalType", "timestamp-micros");
+        AvroUtils.addProp(schema, "logicalType", "timestamp-micros");
       } else if (bigqueryField.getType().getStandardType().equals(StandardSQLTypeName.DATETIME)) {
-        schema.addProp("logicalType", "local-timestamp-micros");
+        AvroUtils.addProp(schema, "logicalType", "local-timestamp-micros");
       } else {
         throw new RuntimeException(
             String.format(
@@ -123,12 +171,12 @@ public class AvroUtils {
     }
     if (fieldOi instanceof TimestampLocalTZObjectInspector) {
       Schema schema = Schema.create(Schema.Type.LONG);
-      schema.addProp("logicalType", "timestamp-micros");
+      AvroUtils.addProp(schema, "logicalType", "timestamp-micros");
       return modedAvroSchema(schema, nullable);
     }
     if (fieldOi instanceof DateObjectInspector) {
       Schema schema = Schema.create(Schema.Type.INT);
-      schema.addProp("logicalType", "date");
+      AvroUtils.addProp(schema, "logicalType", "date");
       return modedAvroSchema(schema, nullable);
     }
     if (fieldOi instanceof FloatObjectInspector || fieldOi instanceof DoubleObjectInspector) {
@@ -148,10 +196,9 @@ public class AvroUtils {
     if (fieldOi instanceof HiveDecimalObjectInspector) {
       HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) fieldOi;
       Schema schema = Schema.create(Schema.Type.BYTES);
-      schema.addProp("logicalType", "decimal");
-      ObjectMapper objectMapper = new ObjectMapper();
-      schema.addProp("precision", objectMapper.convertValue(hdoi.precision(), JsonNode.class));
-      schema.addProp("scale", objectMapper.convertValue(hdoi.scale(), JsonNode.class));
+      AvroUtils.addProp(schema, "logicalType", "decimal");
+      AvroUtils.addProp(schema, "precision", new Integer(hdoi.precision()));
+      AvroUtils.addProp(schema, "scale", new Integer(hdoi.scale()));
       return modedAvroSchema(schema, nullable);
     }
 

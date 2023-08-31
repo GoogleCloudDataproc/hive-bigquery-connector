@@ -144,7 +144,7 @@ public class AvroSerializer {
 
     if (objectInspector instanceof HiveDecimalObjectInspector) {
       byte[] bytes = ((ByteBuffer) avroObject).array();
-      int scale = actualSchema.getJsonProp("scale").asInt();
+      int scale = AvroUtils.getPropAsInt(actualSchema, "scale");
       BigDecimal bigDecimal = new BigDecimal(new BigInteger(bytes), scale);
       HiveDecimal hiveDecimal = HiveDecimal.create(bigDecimal);
       return new HiveDecimalWritable(hiveDecimal);
