@@ -49,10 +49,10 @@ import org.codehaus.jackson.map.ObjectMapper;
 public class AvroUtils {
 
   /**
-   * Variable used to figure out if the user has an old or newer version of the
-   * Avro library. This is used to get around some changes in the API of the
-   * library. For example, the `getJsonProp()` method was public in old versions and
-   * then made private in newer versions in favor or a new `getObjectProp()` method.
+   * Variable used to figure out if the user has an old or newer version of the Avro library. This
+   * is used to get around some changes in the API of the library. For example, the `getJsonProp()`
+   * method was public in old versions and then made private in newer versions in favor or a new
+   * `getObjectProp()` method.
    */
   public static Boolean usesOldAvroLib;
 
