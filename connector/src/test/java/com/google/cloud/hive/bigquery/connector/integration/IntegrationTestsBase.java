@@ -36,7 +36,6 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -112,11 +111,6 @@ public class IntegrationTestsBase {
     hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "true");
     // Enable vectorize mode
     hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
-    hive.setHiveConfValue(
-        MetastoreConf.ConfVars.SERDES_USING_METASTORE_FOR_SCHEMA.getHiveName(),
-        MetastoreConf.ConfVars.SERDES_USING_METASTORE_FOR_SCHEMA.getDefaultVal()
-            + ","
-            + "com.google.cloud.hive.bigquery.connector.BigQuerySerDe");
     String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
     this.tempGcsDir = TEMP_GCS_DIR_PREFIX + timestamp;
   }

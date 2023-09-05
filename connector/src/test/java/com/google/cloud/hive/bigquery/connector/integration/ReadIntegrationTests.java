@@ -145,17 +145,16 @@ public class ReadIntegrationTests extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testCount(String engine, String readDataFormat) {
     initHive(engine, readDataFormat);
-    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    String tableName = "counting";
+    createExternalTable(tableName, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Create some initial data in BQ
     runBqQuery(
-        String.format(
-            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
-    TableResult result =
-        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+        String.format("INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", tableName));
+    TableResult result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", tableName));
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Run COUNT query in Hive
-    List<Object[]> rows = runHiveQuery("SELECT COUNT(*) FROM " + TEST_TABLE_NAME);
+    List<Object[]> rows = runHiveQuery("SELECT COUNT(*) FROM " + tableName);
     assertEquals(1, rows.size());
     assertEquals(2L, rows.get(0)[0]);
   }
