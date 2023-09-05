@@ -68,7 +68,7 @@
         <hamcrest.version>2.2</hamcrest.version>
         <hiverunner.version>6.1.0</hiverunner.version>
         <jackson.version>2.12.7.1</jackson.version>
-        <junit-jupiter.version>5.9.3</junit-jupiter.version>
+        <junit-jupiter.version>5.10.0</junit-jupiter.version>
         <junit-platform-launcher.version>1.9.2</junit-platform-launcher.version>
         <protobuf.version>3.21.12</protobuf.version>
         <spark.version>3.4.1</spark.version>
