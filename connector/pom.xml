@@ -61,15 +61,6 @@
       </exclusions>
     </dependency>
 
-    <!--
-    <dependency>
-      <groupId>com.google.cloud.hive</groupId>
-      <artifactId>shaded-dependencies</artifactId>
-      <version>${project.parent.version}</version>
-      <classifier>shaded</classifier>
-    </dependency>
-    -->
-
     <dependency>
       <groupId>commons-logging</groupId>
       <artifactId>commons-logging</artifactId>
@@ -78,59 +69,10 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>${hadoop.version}</version>
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.avro</groupId>
-          <artifactId>avro</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-mapreduce-client-common</artifactId>
-      <version>${hadoop.version}</version>
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.avro</groupId>
-          <artifactId>avro</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-exec</artifactId>
-      <version>${hive.version}</version>
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.pentaho</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-common</artifactId>
-      <version>${hive.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-service</artifactId>
-      <version>${hive.version}</version>
+      <groupId>${project.parent.groupId}</groupId>
+      <artifactId>shaded-dependencies</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>shaded</classifier>
       <scope>provided</scope>
     </dependency>
 
@@ -152,7 +94,7 @@
     <!-- ******* Testing dependencies ******* -->
 
     <dependency>
-      <groupId>com.google.cloud.hive</groupId>
+      <groupId>${project.parent.groupId}</groupId>
       <artifactId>shaded-test-dependencies</artifactId>
       <version>${project.parent.version}</version>
       <classifier>shaded</classifier>
@@ -181,46 +123,6 @@
     </dependency>
 
     <dependency>
-      <artifactId>tez-dag</artifactId>
-      <groupId>org.apache.tez</groupId>
-      <version>${tez.version}</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <artifactId>tez-common</artifactId>
-      <groupId>org.apache.tez</groupId>
-      <version>${tez.version}</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <artifactId>tez-mapreduce</artifactId>
-      <groupId>org.apache.tez</groupId>
-      <version>${tez.version}</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-
-    <dependency>
       <groupId>io.github.hiverunner</groupId>
       <artifactId>hiverunner</artifactId>
       <version>${hiverunner.version}</version>
@@ -229,6 +131,46 @@
         <exclusion>
           <groupId>org.apache.tez</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hive-serde</artifactId>
+          <groupId>org.apache.hive</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hive-upgrade-acid</artifactId>
+          <groupId>org.apache.hive</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hive-webhcat-java-client</artifactId>
+          <groupId>org.apache.hive.hcatalog</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hive-jdbc</artifactId>
+          <groupId>org.apache.hive</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hive-service</artifactId>
+          <groupId>org.apache.hive</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hadoop-mapreduce-client-common</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hadoop-annotations</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hadoop-yarn-client</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jackson-annotations</artifactId>
+          <groupId>com.fasterxml.jackson.core</groupId>
         </exclusion>
       </exclusions>
     </dependency>

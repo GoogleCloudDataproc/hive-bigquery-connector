@@ -347,7 +347,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     runHiveQuery(
         String.join(
             "\n",
-            "INSERT INTO " + ALL_TYPES_TABLE_NAME + " VALUES(",
+            "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
             "NULL,",
             "NULL,",
             "NULL,",
@@ -371,8 +371,7 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
             "ARRAY(CAST (1 AS BIGINT)),",
             "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
             "NAMED_STRUCT('float_field', CAST(0.0 AS FLOAT), 'ts_field', CAST ('' AS TIMESTAMP)),",
-            "MAP('mykey', MAP('subkey', 0))",
-            ")"));
+            "MAP('mykey', MAP('subkey', 0))"));
     // Read the data using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", ALL_TYPES_TABLE_NAME));
@@ -410,12 +409,11 @@ public class WriteIntegrationTests extends IntegrationTestsBase {
     runHiveQuery(
         String.join(
             "\n",
-            "INSERT INTO test_required VALUES(",
+            "INSERT INTO test_required SELECT",
             "1,",
             "'james',",
             "NAMED_STRUCT('type', 'apartment', 'info', NAMED_STRUCT('units', 2, 'label', 'medium')),",
-            "MAP('mykey', MAP('subkey', 0))",
-            ")"));
+            "MAP('mykey', MAP('subkey', 0))"));
     // Read the data using the BQ SDK
     TableResult result = runBqQuery("SELECT * FROM `${dataset}.test_required`");
     // Verify we get the expected values

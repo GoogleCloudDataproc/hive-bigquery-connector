@@ -114,7 +114,6 @@ public class AvroSerializer {
       TimestampTZ timestampTZ = DateTimeUtils.getHiveTimestampTZFromUTC((long) avroObject);
       return new TimestampLocalTZWritable(timestampTZ);
     }
-
     if (objectInspector instanceof ByteObjectInspector) { // Tiny Int
       return new ByteWritable(((Long) avroObject).byteValue());
     }
@@ -145,7 +144,7 @@ public class AvroSerializer {
 
     if (objectInspector instanceof HiveDecimalObjectInspector) {
       byte[] bytes = ((ByteBuffer) avroObject).array();
-      int scale = (int) actualSchema.getObjectProp("scale");
+      int scale = AvroUtils.getPropAsInt(actualSchema, "scale");
       BigDecimal bigDecimal = new BigDecimal(new BigInteger(bytes), scale);
       HiveDecimal hiveDecimal = HiveDecimal.create(bigDecimal);
       return new HiveDecimalWritable(hiveDecimal);

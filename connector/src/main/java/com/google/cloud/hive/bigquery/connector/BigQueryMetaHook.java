@@ -47,7 +47,6 @@ import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
@@ -222,7 +221,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
             new HiveBigQueryConnectorModule(conf, table.getParameters()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
-    if (MetaStoreUtils.isExternalTable(table)) {
+    if (HiveUtils.isExternalTable(table)) {
       if (bqClient.tableExists(tableId)) {
         Map<String, String> basicStats = BigQueryUtils.getBasicStatistics(bqClient, tableId);
         basicStats.put(StatsSetupConst.COLUMN_STATS_ACCURATE, "{\"BASIC_STATS\":\"true\"}");
@@ -407,6 +406,13 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
    */
   @Override
   public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
+    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
+    if (engine.equals("mr")) {
+      // In Hive v3, `commitInsertTable()` never gets called for MR -- only for Tez.
+      // But in Hive v2, it does get called. So we exit here since the BigQueryOutputCommitter
+      // is already called automatically for MR.
+      return;
+    }
     try {
       JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
       BigQueryOutputCommitter.commit(conf, jobDetails);
@@ -427,7 +433,7 @@ public class BigQueryMetaHook extends DefaultHiveMetaHook {
 
   @Override
   public void commitDropTable(Table table, boolean deleteData) throws MetaException {
-    if (!MetaStoreUtils.isExternalTable(table) && deleteData) {
+    if (!HiveUtils.isExternalTable(table) && deleteData) {
       // This is a managed table, so let's delete the table in BigQuery
       Injector injector =
           Guice.createInjector(
