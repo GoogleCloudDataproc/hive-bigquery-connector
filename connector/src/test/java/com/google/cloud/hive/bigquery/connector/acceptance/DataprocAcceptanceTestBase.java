@@ -25,6 +25,8 @@ import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTest
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.PROJECT_ID;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.REGION;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.SERVICE_ACCOUNT;
+import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.SUBNET;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.createBqDataset;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.generateClusterName;
@@ -197,9 +199,10 @@ public class DataprocAcceptanceTestBase {
                         .setExecutableFile(String.format(connectorInitActionUri, REGION)))
                 .setGceClusterConfig(
                     GceClusterConfig.newBuilder()
-                        .setNetworkUri("default")
+                        .setSubnetworkUri(SUBNET)
                         .setZoneUri(REGION + "-a")
-                        .putMetadata("hive-bigquery-connector-url", connectorJarUri))
+                        .putMetadata("hive-bigquery-connector-url", connectorJarUri)
+                        .setServiceAccount(SERVICE_ACCOUNT))
                 .setMasterConfig(
                     InstanceGroupConfig.newBuilder()
                         .setNumInstances(1)

@@ -20,7 +20,14 @@ import org.apache.parquet.Strings;
 
 public class AcceptanceTestConstants {
 
-  public static final String REGION = "us-west1";
+  public static final String REGION = Preconditions.checkNotNull(System.getenv("BIGLAKE_REGION"),
+          "Please set the 'BIGLAKE_REGION' environment variable");
+
+  public static final String SUBNET = Preconditions.checkNotNull(System.getenv("SUBNET"),
+          "Please set the 'SUBNET' environment variable");
+
+  public static final String SERVICE_ACCOUNT = Preconditions.checkNotNull(System.getenv("SERVICE_ACCOUNT"),
+          "Please set the 'SERVICE_ACCOUNT' environment variable");
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
   public static final String PROJECT_ID =
       Preconditions.checkNotNull(
