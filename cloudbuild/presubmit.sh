@@ -25,7 +25,7 @@ fi
 readonly ACTION=$1
 
 readonly PROFILES="dataproc21"
-readonly MVN="./mvnw -B -e -s /workspace/cloudbuild/gcp-settings.xml -Dmaven.repo.local=/workspace/.repository"
+readonly MVN="./mvnw -B -e -Dmaven.repo.local=/workspace/.repository"
 
 export TEST_BUCKET=dataproc-integ-tests
 export BIGLAKE_BUCKET=dataproc-integ-tests

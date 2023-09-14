@@ -56,37 +56,47 @@
 
     <properties>
         <revision>2.0.0-SNAPSHOT</revision>
-        <nexus.remote.skip>false</nexus.remote.skip>
 
+        <!-- Dependencies -->
         <avro.version>1.11.1</avro.version>
-        <jackson.version>2.12.7.1</jackson.version>
-        <protobuf.version>3.21.12</protobuf.version>
-        <legacy-bigquery-connector.version>hadoop2-1.0.0</legacy-bigquery-connector.version>
         <bigquery-connector-common.version>0.31.0</bigquery-connector-common.version>
+        <gcs-connector.version>hadoop2-2.2.14</gcs-connector.version>
         <google-cloud-dataproc.version>4.7.0</google-cloud-dataproc.version>
         <google-cloud-storage.version>2.20.1</google-cloud-storage.version>
         <grpc.version>1.53.0</grpc.version>
-        <junit.version>5.9.2</junit.version>
+        <guava.version>32.1.2-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <hiverunner.version>6.1.0</hiverunner.version>
+        <jackson.version>2.12.7.1</jackson.version>
+        <junit-jupiter.version>5.10.0</junit-jupiter.version>
+        <junit-platform-launcher.version>1.9.2</junit-platform-launcher.version>
+        <protobuf.version>3.21.12</protobuf.version>
+        <spark.version>3.4.1</spark.version>
         <truth.version>1.1.3</truth.version>
-        <hamcrest.version>2.2</hamcrest.version>
 
+        <!-- Plugins -->
         <maven-spotless-plugin.version>2.14.0</maven-spotless-plugin.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
         <maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
         <maven-exec-plugin.version>3.1.0</maven-exec-plugin.version>
         <maven-shade-plugin.version>3.4.1</maven-shade-plugin.version>
+        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <maven-surefire-plugin.version>3.0.0-M8</maven-surefire-plugin.version>
         <maven-failsafe-plugin.version>3.0.0-M8</maven-failsafe-plugin.version>
         <build-helper-maven-plugin.version>3.3.0</build-helper-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+        <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
+        <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
+        <maven-javadoc-plugin.version>3.5.0</maven-javadoc-plugin.version>
+        <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
+        <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
 
+        <!-- Misc properties -->
+        <nexus.remote.skip>false</nexus.remote.skip>
         <java.version>1.8</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-
         <compiler.error.flag>-Werror</compiler.error.flag>
         <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
         <compiler.default.exclude>nothing</compiler.default.exclude>
@@ -94,6 +104,7 @@
     </properties>
 
     <dependencies>
+        <!-- TODO: Do the following really have to be declared as dependencies here? -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -101,21 +112,64 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.conscrypt</groupId>
             <artifactId>conscrypt-openjdk-uber</artifactId>
             <version>2.5.2</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <version>${junit-platform-launcher.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest</artifactId>
+                <version>${hamcrest.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.cloud.bigdataoss</groupId>
+                <artifactId>gcs-connector</artifactId>
+                <version>${gcs-connector.version}</version>
+                <classifier>shaded</classifier>
+                <scope>provided</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.grpc</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.guava</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.code.gson</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
             <dependency>
                 <groupId>com.google.cloud</groupId>
                 <artifactId>google-cloud-storage-bom</artifactId>
@@ -124,9 +178,26 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>google-cloud-storage</artifactId>
+                <version>${google-cloud-storage.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.grpc</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
                 <groupId>com.google.cloud.spark</groupId>
                 <artifactId>bigquery-connector-common</artifactId>
                 <version>${bigquery-connector-common.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.grpc</groupId>
+                        <artifactId>grpc-netty-shaded</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.google.protobuf</groupId>
@@ -148,17 +219,194 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.13.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-engine</artifactId>
+                <version>1.10.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit-jupiter.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.glassfish</groupId>
                 <artifactId>javax.el</artifactId>
                 <version>3.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.hiverunner</groupId>
+                <artifactId>hiverunner</artifactId>
+                <version>${hiverunner.version}</version>
+                <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.tez</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hive-serde</artifactId>
+                        <groupId>org.apache.hive</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hive-upgrade-acid</artifactId>
+                        <groupId>org.apache.hive</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hive-webhcat-java-client</artifactId>
+                        <groupId>org.apache.hive.hcatalog</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hive-jdbc</artifactId>
+                        <groupId>org.apache.hive</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hive-service</artifactId>
+                        <groupId>org.apache.hive</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hadoop-mapreduce-client-common</artifactId>
+                        <groupId>org.apache.hadoop</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hadoop-annotations</artifactId>
+                        <groupId>org.apache.hadoop</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hadoop-yarn-client</artifactId>
+                        <groupId>org.apache.hadoop</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>hadoop-mapreduce-client-core</artifactId>
+                        <groupId>org.apache.hadoop</groupId>
+                    </exclusion>
+                    <exclusion>
+                        <artifactId>jackson-annotations</artifactId>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                    </exclusion>
+                </exclusions>
             </dependency>
         </dependencies>
 
     </dependencyManagement>
 
+
     <build>
         <pluginManagement>
             <plugins>
+                <!-- Used to resolve the ${revision} property in the project artifacts' versions -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>${flatten-maven-plugin.version}</version>
+                    <configuration>
+                        <updatePomFile>true</updatePomFile>
+                        <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>flatten</id>
+                            <!-- we need it to run after the `package` phase, when the shade plugin runs -->
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>flatten</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>flatten.clean</id>
+                            <phase>clean</phase>
+                            <goals>
+                                <goal>clean</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- TODO: Clarify why we need this plugin -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>${maven-exec-plugin.version}</version>
+                    <configuration>
+                        <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                        <systemProperties>
+                            <systemProperty>
+                                <key>java.util.logging.config.file</key>
+                                <value>logging.properties</value>
+                            </systemProperty>
+                        </systemProperties>
+                    </configuration>
+                </plugin>
+                <!-- Used to copy some properties from resource files into the BuildProperties class -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>${maven-resources-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>copy-resources</id>
+                            <phase>validate</phase>
+                            <goals>
+                                <goal>copy-resources</goal>
+                            </goals>
+                            <configuration>
+                                <outputDirectory>${basedir}/target/classes</outputDirectory>
+                                <resources>
+                                    <resource>
+                                        <directory>src/build/resources</directory>
+                                        <filtering>true</filtering>
+                                    </resource>
+                                </resources>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- Used to manage unit tests -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                        <excludes>
+                            <exclude>**/*IntegrationTests.java</exclude>
+                            <exclude>**/*AcceptanceTest.java</exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <compilerArgs>
+                            <arg>-Xlint:all</arg>
+                        </compilerArgs>
+                        <showWarnings>true</showWarnings>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>default-compile</id>
+                            <goals>
+                                <goal>compile</goal>
+                            </goals>
+                            <phase>compile</phase>
+                            <configuration>
+                                <compilerArgs>
+                                    <arg>${compiler.default.pkginfo.flag}</arg>
+                                </compilerArgs>
+                                <excludes>
+                                    <exclude>${compiler.default.exclude}</exclude>
+                                </excludes>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- TODO: Clarify why we need this plugin -->
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
@@ -171,9 +419,41 @@
                         </execution>
                     </executions>
                 </plugin>
+
+                <!-- The build-helper-maven-plugin is used to add the shaded JAR into the IDE environment, so that -->
+                <!-- IntelliJ can find the repackaged classes. -->
+                <!-- See: https://youtrack.jetbrains.com/issue/IDEA-93855/Please-add-support-for-maven-shade-plugin-renaming#focus=Comments-27-6055272.0-0 -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>${build-helper-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>compile</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>attach-artifact</goal>
+                            </goals>
+                            <configuration>
+                                <artifacts>
+                                    <artifact>
+                                        <file>${project.build.directory}/${project.build.finalName}-shaded.jar</file>
+                                        <type>jar</type>
+                                        <classifier>optional</classifier>
+                                    </artifact>
+                                </artifacts>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
+
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
@@ -221,18 +501,16 @@
         </plugins>
     </build>
 
+
     <profiles>
         <profile>
             <id>integration</id>
-            <activation>
-                <activeByDefault>false</activeByDefault>
-            </activation>
             <build>
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>3.0.0-M6</version>
+                        <version>${maven-failsafe-plugin.version}</version>
                         <configuration>
                             <forkCount>1</forkCount>
                             <reuseForks>false</reuseForks>
@@ -261,9 +539,6 @@
         </profile>
         <profile>
             <id>acceptance</id>
-            <activation>
-                <activeByDefault>false</activeByDefault>
-            </activation>
             <build>
                 <plugins>
                     <plugin>
@@ -297,9 +572,6 @@
         </profile>
         <profile>
             <id>coverage</id>
-            <activation>
-                <activeByDefault>false</activeByDefault>
-            </activation>
             <build>
                 <plugins>
                     <plugin>
@@ -319,7 +591,7 @@
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.7</version>
+                        <version>${nexus-staging-maven-plugin.version}</version>
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>ossrh</serverId>
@@ -331,7 +603,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.0.1</version>
+                        <version>${maven-gpg-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -347,8 +619,9 @@
                         </configuration>
                     </plugin>
                     <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>3.2.1</version>
+                        <version>${maven-source-plugin.version}</version>
                         <configuration>
                             <forceCreation>true</forceCreation>
                         </configuration>
@@ -362,8 +635,9 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.4.0</version>
+                        <version>${maven-javadoc-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -375,54 +649,6 @@
                     </plugin>
                 </plugins>
             </build>
-        </profile>
-        <profile>
-            <id>oss-hadoop2.7-hive2.3.6</id>
-            <properties>
-                <hadoop.version>2.7.0</hadoop.version>
-                <hive.version>2.3.6</hive.version>
-                <tez.version>0.9.2</tez.version>
-                <gcs-connector.version>hadoop2-2.2.3</gcs-connector.version>
-            </properties>
-        </profile>
-        <profile>
-            <id>oss-hadoop2.10-hive2.3.9</id>
-            <properties>
-                <hadoop.version>2.10.2</hadoop.version>
-                <hive.version>2.3.9</hive.version>
-                <tez.version>0.9.2</tez.version>
-                <gcs-connector.version>hadoop2-2.2.14</gcs-connector.version>
-            </properties>
-        </profile>
-        <profile>
-          <id>oss-hadoop2.10-hive3</id>
-          <properties>
-            <hadoop.version>2.10.2</hadoop.version>
-            <hive.version>3.1.2</hive.version>
-            <tez.version>0.9.2</tez.version>
-            <gcs-connector.version>hadoop2-2.2.14</gcs-connector.version>
-          </properties>
-        </profile>
-        <profile>
-          <id>dataproc20</id>
-          <properties>
-            <hadoop.version>3.2.3</hadoop.version>
-            <hive.version>3.1.2</hive.version>
-            <tez.version>0.9.2</tez.version>
-            <gcs-connector.version>hadoop3-2.2.14</gcs-connector.version>
-          </properties>
-        </profile>
-        <profile>
-          <id>dataproc21</id>
-          <activation>
-            <activeByDefault>true</activeByDefault>
-          </activation>
-          <properties>
-            <hadoop.version>3.3.3</hadoop.version>
-            <hive.version>3.1.3</hive.version>
-            <tez.version>0.10.1</tez.version>
-            <gcs-connector.version>hadoop3-2.2.14</gcs-connector.version>
-          </properties>
         </profile>
     </profiles>
 

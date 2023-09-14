@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2022 Google, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.google.cloud.hive</groupId>
+    <artifactId>hive-bigquery-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../hive-bigquery-parent</relativePath>
+  </parent>
+
+  <artifactId>shaded-acceptance-tests-dependencies</artifactId>
+
+  <licenses>
+      <license>
+          <name>Apache License, Version 2.0</name>
+          <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+          <distribution>repo</distribution>
+      </license>
+  </licenses>
+
+  <!--
+  What is this module for?
+
+  This module is used to shade some libraries (e.g. Guava) to avoid conflicts with the connector's
+  dependencies while running acceptance tests in Dataproc.
+  This module is meant to be added as a dependency in the connector's pom.xml with the `test`
+  scope.
+  -->
+
+  <dependencies>
+
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-dataproc</artifactId>
+      <version>${google-cloud-dataproc.version}</version>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>${maven-shade-plugin.version}</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>module-info.class</exclude>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/MANIFEST.MF</exclude>
+                    <exclude>META-INF/DEPENDENCIES</exclude>
+                    <exclude>META-INF/LICENSE</exclude>
+                    <exclude>META-INF/NOTICE</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <relocations>
+                <relocation>
+                  <pattern>com</pattern>
+                  <shadedPattern>test.hivebqcon.com</shadedPattern>
+                  <includes>
+                    <include>com.google.**</include>
+                  </includes>
+                </relocation>
+                <relocation>
+                  <pattern>io</pattern>
+                  <shadedPattern>test.hivebqcon.io</shadedPattern>
+                  <includes>
+                    <include>io.netty.**</include>
+                    <include>io.grpc.**</include>
+                    <include>io.opencensus.**</include>
+                  </includes>
+                </relocation>
+              </relocations>
+              <transformers>
+                <!-- ServicesResourceTransformer is necessary to avoid this issue: "java.lang.IllegalStateException: Could not find policy 'pick_first'. Make sure its implementation is either registered to LoadBalancerRegistry or included in META-INF/services/io.grpc.LoadBalancerProvider from your jar files" -->
+                <transformer
+                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer
+                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
+              </transformers>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+
+      <!-- The build-helper-maven-plugin is useful to add the shaded JAR into the IDE environment, so that -->
+      <!-- IntelliJ can find the repackaged classes. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>compile</id>
+            <phase>package</phase>
+            <goals>
+              <goal>attach-artifact</goal>
+            </goals>
+            <configuration>
+              <artifacts>
+                <artifact>
+                  <file>${project.build.directory}/${project.build.finalName}-shaded.jar</file>
+                  <type>jar</type>
+                  <classifier>optional</classifier>
+                </artifact>
+              </artifacts>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+  </build>
+</project>
