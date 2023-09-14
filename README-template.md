@@ -10,13 +10,15 @@ See the details in [CHANGES.md](CHANGES.md).
 
 ## Version support
 
+TODO: Add notes about Hive 2 vs Hive 3 support.
+
 This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.1.
 
 For Hadoop clusters other than Dataproc, the connector has been tested with the following
 software versions:
 
-* Hive 3.1.2 and 3.1.3.
-* Hadoop 2.10.2, 3.2.3 and 3.3.3.
+* Hive 2.3.6, 2.3.9, 3.1.2, 3.1.3.
+* Hadoop 2.7.0, 2.10.2, 3.2.3 and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
 
 ## Build
@@ -266,7 +268,7 @@ You can set the following Hive/Hadoop configuration properties in your environme
 | `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                                |
 | `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temporary Avro files to GCS before loading into BigQuery). |
 | `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
-| `bq.work.dir.name.prefix` | `bq-hive-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
+| `bq.work.dir.name.prefix` | `hivebq_`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
 | `materializationProject`  |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                     |
 | `materializationDataset`  |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                     |
 | `maxParallelism`          |                     | Maximum initial number of read streams                                                                                                                                                              |
@@ -463,6 +465,17 @@ consumers read based on a specific point in time. The snapshot time is based on 
 session creation time (i.e. when the `SELECT` query is initiated).
 
 Note that this consistency model currently only applies to the table data, not its metadata.
+
+## Spark SQL integration
+
+TODO: Flesh out this section. Also add some code examples.
+
+- Currently supported Spark versions: Spark 3. (TODO: Test with versions earlier than 3.4.1)
+- Reads and writes are supported.
+- BQ `TIMESTAMP` type not supported.
+- Table creation not supported b/c Spark SQL itself does not support it:
+  > Hive storage handler is not supported yet when creating table, you can create a table using storage handler at Hive side, and use Spark SQL to read it
+  *Source:* https://spark.apache.org/docs/latest/sql-data-sources-hive-tables.html#specifying-storage-format-for-hive-tables
 
 ## BigLake integration
 
@@ -711,7 +724,7 @@ export PROJECT=my-gcp-project
 export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
 export BIGLAKE_CONNECTION=hive-integration-tests
-export BIGLAKE_BUCKET=${USER}-biglake-test
+export BIGLAKE_BUCKET=${PROJECT}-biglake-tests
 ```
 
 Create the test BigLake connection:
