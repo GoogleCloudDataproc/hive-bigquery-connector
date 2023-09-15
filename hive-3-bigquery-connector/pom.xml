@@ -83,7 +83,7 @@
             <dependencies>
                 <dependency>
                     <groupId>${project.groupId}</groupId>
-                    <artifactId>shaded-deps-dataproc21`</artifactId>
+                    <artifactId>shaded-deps-dataproc21</artifactId>
                     <version>${project.version}</version>
                     <classifier>shaded</classifier>
                     <scope>provided</scope>
