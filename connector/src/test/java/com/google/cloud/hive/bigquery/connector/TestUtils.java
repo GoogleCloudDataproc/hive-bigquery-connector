@@ -46,7 +46,7 @@ public class TestUtils {
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
-  public static final String TEST_BUCKET_ENV_VAR = "TEST_BUCKET";
+  public static final String INTEGRATION_BUCKET_ENV_VAR = "INTEGRATION_BUCKET";
 
   // The BigLake bucket and connection must be created before running the tests.
   // Also, the connection's service account must be given permission to access the bucket.
@@ -211,8 +211,9 @@ public class TestUtils {
    * Returns the name of the bucket used to store temporary Avro files when testing the indirect
    * write method. This bucket is created automatically when running the tests.
    */
-  public static String getTestBucket() {
-    return System.getenv().getOrDefault(TEST_BUCKET_ENV_VAR, getProject() + "-integration-tests");
+  public static String getIntegrationTestBucket() {
+    return System.getenv()
+        .getOrDefault(INTEGRATION_BUCKET_ENV_VAR, getProject() + "-integration-tests");
   }
 
   public static void createBqDataset(String dataset) {
@@ -269,7 +270,15 @@ public class TestUtils {
   }
 
   public static void createBucket(String bucketName) {
-    getStorageClient().create(BucketInfo.newBuilder(bucketName).setLocation(LOCATION).build());
+    try {
+      getStorageClient().create(BucketInfo.newBuilder(bucketName).setLocation(LOCATION).build());
+    } catch (StorageException e) {
+      if (e.getCode() == 409) {
+        // The bucket already exists, which is okay.
+        return;
+      }
+      throw e;
+    }
   }
 
   public static void uploadBlob(String bucketName, String objectName, byte[] contents) {
