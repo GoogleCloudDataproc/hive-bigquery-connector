@@ -37,7 +37,7 @@ cd /workspace
 case "$ACTION" in
   # Java code style check
   check)
-    ./mvnw spotless:check
+    ./mvnw spotless:check -P"${HIVE2_PROFILE}" && ./mvnw spotless:check -P"${HIVE3_PROFILE}"
     exit
     ;;
 
