@@ -22,7 +22,7 @@ import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.jupiter.api.Test;
 
-public class BigQueryConstantDescTest {
+public abstract class BigQueryConstantDescTestBase {
 
   @Test
   public void testString() {

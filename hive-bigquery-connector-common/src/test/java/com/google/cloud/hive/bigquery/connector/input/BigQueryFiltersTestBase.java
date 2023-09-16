@@ -32,7 +32,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.jupiter.api.Test;
 
-public class BigQueryFiltersTest {
+public abstract class BigQueryFiltersTestBase {
 
   class CustomUDF extends GenericUDF {
     @Override

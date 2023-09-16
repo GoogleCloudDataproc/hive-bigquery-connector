@@ -29,7 +29,7 @@ import org.apache.hadoop.hive.ql.udf.generic.*;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.jupiter.api.Test;
 
-public class UDFTest {
+public abstract class UDFTestBase {
 
   public static String translateUDF(GenericUDF udf, List<ExprNodeDesc> children) {
     ExprNodeGenericFuncDesc func = new ExprNodeGenericFuncDesc();

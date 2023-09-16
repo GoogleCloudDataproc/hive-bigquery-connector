@@ -13,20 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.input.udfs;
+package com.google.cloud.hive.bigquery.connector.input;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+public class BigQueryFiltersTest extends BigQueryFiltersTestBase {
 
-import com.google.cloud.hive.bigquery.connector.input.BigQueryConstantDesc;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
-import org.junit.jupiter.api.Test;
+  // Tests are from the super-class
 
-public class Hive3BigQueryConstantDescTest {
-  @Test
-  public void testTimestampLocalTZ() {
-    BigQueryConstantDesc desc =
-        new BigQueryConstantDesc(
-            TypeInfoFactory.timestampLocalTZTypeInfo, "2010-10-10 1:2:3.123456");
-    assertEquals("TIMESTAMP'2010-10-10 1:2:3.123456'", desc.getExprString());
-  }
 }

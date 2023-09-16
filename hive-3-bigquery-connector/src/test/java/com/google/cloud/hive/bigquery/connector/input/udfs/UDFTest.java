@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
-import static com.google.cloud.hive.bigquery.connector.input.udfs.UDFTest.translateUDF;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Arrays;
@@ -25,7 +24,10 @@ import org.apache.hadoop.hive.ql.udf.generic.*;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.jupiter.api.Test;
 
-public class Hive3UDFTest {
+public class UDFTest extends UDFTestBase {
+
+  // Other tests are from the super-class
+
   @Test
   public void testCastTimestamp() {
     String expression =
