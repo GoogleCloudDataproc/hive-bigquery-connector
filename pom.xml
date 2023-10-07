@@ -58,8 +58,10 @@
 
     <modules>
         <module>hive-bigquery-parent</module>
+        <module>shaded-deps-parent</module>
         <module>shaded-acceptance-tests-dependencies</module>
-        <module>connector</module>
+        <module>hive-bigquery-connector-common</module>
+        <module>hive-x-bigquery-connector</module>
     </modules>
 
     <profiles>
@@ -81,12 +83,14 @@
             <id>hive3.1.2-hadoop2.10.2</id>
             <modules>
                 <module>shaded-deps-hive3.1.2-hadoop2.10.2</module>
+                <module>hive-3-bigquery-connector</module>
             </modules>
         </profile>
         <profile>
             <id>dataproc20</id>
             <modules>
                 <module>shaded-deps-dataproc20</module>
+                <module>hive-3-bigquery-connector</module>
             </modules>
         </profile>
         <profile>
@@ -96,6 +100,7 @@
             </activation>
             <modules>
                 <module>shaded-deps-dataproc21</module>
+                <module>hive-3-bigquery-connector</module>
             </modules>
         </profile>
     </profiles>

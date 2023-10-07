@@ -24,8 +24,7 @@
     <version>${revision}</version>
     <packaging>pom</packaging>
     <name>Hive BigQuery Connector Build Parent</name>
-    <description>Parent project for all the Hive BigQuery Connector artifacts
-    </description>
+    <description>Parent project for all the Hive BigQuery Connector artifacts</description>
 
     <url>https://github.com/GoogleCloudDataproc/hive-bigquery-connector</url>
 
@@ -137,6 +136,11 @@
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-launcher</artifactId>
             <version>${junit-platform-launcher.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.truth</groupId>
+            <artifactId>truth</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -287,6 +291,18 @@
                     <exclusion>
                         <artifactId>jackson-annotations</artifactId>
                         <groupId>com.fasterxml.jackson.core</groupId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>com.google.truth</groupId>
+                <artifactId>truth</artifactId>
+                <version>${truth.version}</version>
+                <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.guava</groupId>
+                        <artifactId>guava</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
@@ -445,6 +461,11 @@
                             </configuration>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>3.1.1</version>
                 </plugin>
             </plugins>
         </pluginManagement>

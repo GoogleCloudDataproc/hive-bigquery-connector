@@ -46,6 +46,7 @@
 
   <dependencies>
 
+    <!-- Needed for acceptance tests -->
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-dataproc</artifactId>
@@ -56,6 +57,16 @@
 
   <build>
     <plugins>
+      <!-- TODO: Ok to exclude from Maven Central? -->
+      <!-- Instruct not to publish this module to Maven Central -->
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>${nexus-staging-maven-plugin.version}</version>
+        <configuration>
+          <skipStaging>true</skipStaging>
+        </configuration>
+      </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -114,31 +125,9 @@
         </executions>
       </plugin>
 
-
-      <!-- The build-helper-maven-plugin is useful to add the shaded JAR into the IDE environment, so that -->
-      <!-- IntelliJ can find the repackaged classes. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
-        <version>${build-helper-maven-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>compile</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attach-artifact</goal>
-            </goals>
-            <configuration>
-              <artifacts>
-                <artifact>
-                  <file>${project.build.directory}/${project.build.finalName}-shaded.jar</file>
-                  <type>jar</type>
-                  <classifier>optional</classifier>
-                </artifact>
-              </artifacts>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
     </plugins>
