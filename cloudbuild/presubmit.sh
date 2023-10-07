@@ -36,7 +36,7 @@ cd /workspace
 case "$ACTION" in
   # Java code style check
   check)
-    ./mvnw spotless:check
+    ./mvnw spotless:check -P"${PROFILES}"
     exit
     ;;
 
