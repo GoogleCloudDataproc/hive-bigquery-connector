@@ -145,7 +145,6 @@
   </dependencies>
 
   <build>
-    <pluginManagement>
       <plugins>
         <plugin>
           <groupId>org.sonatype.plugins</groupId>
@@ -209,6 +208,5 @@
         </plugin>
 
       </plugins>
-    </pluginManagement>
   </build>
 </project>
