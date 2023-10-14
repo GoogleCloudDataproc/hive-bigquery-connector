@@ -111,7 +111,6 @@
         <artifactId>nexus-staging-maven-plugin</artifactId>
         <version>${nexus-staging-maven-plugin.version}</version>
         <configuration>
-          <!-- TODO: Should we indeed exclude those shaded-XXX modules from Maven Central? -->
           <!-- Instruct not to publish this module to Maven Central -->
           <skipStaging>true</skipStaging>
         </configuration>
