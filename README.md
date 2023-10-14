@@ -40,7 +40,11 @@ To build the connector jar:
 
 ### Prerequisite
 
-Make sure you have the BigQuery Storage API enabled in your GCP project. Follow [these instructions](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api).
+Enable the BigQuery Storage API for your project:
+
+```sh
+gcloud services enable bigquerystorage.googleapis.com
+```
 
 ### Option 1: connectors init action
 
@@ -614,19 +618,19 @@ There are multiple options to override the default behavior and to provide custo
   for specific users, specific groups, or for all users that run the Hive query by default using
   the below properties:
 
-    - `bq.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
+  - `bq.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
 
-      The service account to be impersonated for a specific user. You can specify multiple
-      properties using that pattern for multiple users.
+    The service account to be impersonated for a specific user. You can specify multiple
+    properties using that pattern for multiple users.
 
-    - `bq.impersonation.service.account.for.group.<GROUP_NAME>` (not set by default)
+  - `bq.impersonation.service.account.for.group.<GROUP_NAME>` (not set by default)
 
-      The service account to be impersonated for a specific group. You can specify multiple
-      properties using that pattern for multiple groups.
+    The service account to be impersonated for a specific group. You can specify multiple
+    properties using that pattern for multiple groups.
 
-    - `bq.impersonation.service.account` (not set by default)
+  - `bq.impersonation.service.account` (not set by default)
 
-      Default service account to be impersonated for all users.
+    Default service account to be impersonated for all users.
 
   If any of the above properties are set then the service account specified will be impersonated by
   generating a short-lived credentials when accessing BigQuery.
@@ -773,29 +777,26 @@ You must use Java version 8, as it's the version that Hive itself uses. Make sur
 
 Acceptance tests create Dataproc clusters with the connector and run jobs to verify it.
 
-The following environment variables must be set and **exported** first.
-
-* `GOOGLE_APPLICATION_CREDENTIALS` - the full path to a credentials JSON, either a service account or the result of a
-  `gcloud auth login` run
-* `GOOGLE_CLOUD_PROJECT` - The Google cloud platform project used to test the connector
-* `TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the integration tests
-* `ACCEPTANCE_TEST_BUCKET` - The GCS bucked used to test writing to BigQuery during the acceptance tests
-
 To run the acceptance tests:
 
-```sh
-./mvnw verify -Pdataproc21,acceptance
-```
+1. Enable the Dataproc API for your project:
+   ```sh
+   gcloud services enable dataproc.googleapis.com
+   ```
+2. Run the tests:
+   ```sh
+   ./mvnw verify -Pdataproc21,acceptance
+   ```
 
-If you want to avoid rebuilding `shaded-dependencies` and `shaded-test-dependencies` when there is no changes in these
+If you want to avoid rebuilding `shaded-dependencies` and `shaded-acceptance-tests-dependencies` when there is no changes in these
 modules, you can break it down into several steps, and only rerun the necessary steps:
 
 ```sh
 # Install hive-bigquery-parent/pom.xml to Maven local repo
 mvn install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
 
-# Build and install shaded-dependencies and shaded-test-dependencies jars to Maven local repo
-mvn clean install -pl shaded-dependencies,shaded-test-dependencies -Pdataproc21 -DskipTests
+# Build and install shaded-deps-dataproc21 and shaded-acceptance-tests-dependencies jars to Maven local repo
+mvn clean install -pl shaded-deps-dataproc21,shaded-acceptance-tests-dependencies -Pdataproc21 -DskipTests
 
 # Build and test connector
 mvn clean verify -pl connector -Pdataproc21,acceptance

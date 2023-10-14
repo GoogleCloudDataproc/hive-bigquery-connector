@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.storage.StorageException;
 import com.klarna.hiverunner.HiveRunnerExtension;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -68,16 +67,8 @@ public class IntegrationTestsBase {
 
   @BeforeAll
   public static void setUpAll() {
-    testBucketName = getTestBucket();
-
-    // Create the temp bucket for indirect writes if it does not exist.
-    try {
-      createBucket(testBucketName);
-    } catch (StorageException e) {
-      if (e.getCode() == 409) {
-        // The bucket already exists, which is okay.
-      }
-    }
+    testBucketName = getIntegrationTestBucket();
+    createBucket(testBucketName);
 
     // Upload datasets to the BigLake bucket.
     uploadBlob(

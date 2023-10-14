@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQuery.DatasetDeleteOption;
@@ -75,7 +76,6 @@ public class AcceptanceTestUtils {
   }
 
   // must be set in order to run the acceptance test
-  static final String BUCKET = System.getenv("ACCEPTANCE_TEST_BUCKET");
   private static final BigQuery bq = BigQueryOptions.getDefaultInstance().getService();
 
   static Storage storage =
@@ -163,8 +163,27 @@ public class AcceptanceTestUtils {
     return blobId;
   }
 
-  public static String createTestBaseGcsDir(String testId) {
-    return String.format("gs://%s/hivebq-tests/%s", BUCKET, testId);
+  public static String getAcceptanceProject() {
+    String project = System.getenv("GOOGLE_CLOUD_PROJECT");
+    if (project != null) {
+      return project;
+    }
+    try {
+      return GoogleCredentials.getApplicationDefault().getQuotaProjectId();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static String getAcceptanceTestBucket() {
+    return System.getenv()
+        .getOrDefault(
+            AcceptanceTestConstants.ACCEPTANCE_BUCKET_ENV_VAR,
+            AcceptanceTestUtils.getAcceptanceProject() + "-acceptance-tests");
+  }
+
+  public static String getTestBaseGcsDir(String testId) {
+    return String.format("gs://%s/hivebq-tests/%s", getAcceptanceTestBucket(), testId);
   }
 
   public static Blob getBlob(String gcsDirUri, String fileSuffix) throws URISyntaxException {

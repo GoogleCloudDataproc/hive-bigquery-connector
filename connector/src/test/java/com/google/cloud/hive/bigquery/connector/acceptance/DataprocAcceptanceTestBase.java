@@ -23,7 +23,6 @@ import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTest
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_DIRECTORY;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_PREFIX;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
-import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.PROJECT_ID;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.REGION;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.createBqDataset;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
@@ -34,8 +33,8 @@ import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTest
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.uploadConnectorJar;
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.cloud.hive.bigquery.connector.TestUtils;
 import com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.ClusterProperty;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.time.Duration;
 import java.util.Collections;
@@ -65,8 +64,6 @@ public class DataprocAcceptanceTestBase {
 
   protected static final ClusterProperty DISABLE_CONSCRYPT =
       ClusterProperty.of("dataproc:dataproc.conscrypt.provider.enable", "false", "nc");
-  protected static final ImmutableList<ClusterProperty> DISABLE_CONSCRYPT_LIST =
-      ImmutableList.<ClusterProperty>builder().add(DISABLE_CONSCRYPT).build();
 
   private AcceptanceTestContext context;
 
@@ -82,15 +79,18 @@ public class DataprocAcceptanceTestBase {
       String dataprocImageVersion, List<ClusterProperty> clusterProperties) throws Exception {
     String testId = generateTestId(dataprocImageVersion, clusterProperties);
     String clusterName = generateClusterName(testId);
-    String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
+    String testBaseGcsDir = AcceptanceTestUtils.getTestBaseGcsDir(testId);
     String connectorJarUri = testBaseGcsDir + "/connector.jar";
     String connectorInitActionUri = testBaseGcsDir + "/connectors.sh";
     Map<String, String> properties =
         clusterProperties.stream()
             .collect(Collectors.toMap(ClusterProperty::getKey, ClusterProperty::getValue));
-    String bqProject = PROJECT_ID;
+    String bqProject = AcceptanceTestUtils.getAcceptanceProject();
+    ;
     String bqDataset = "hivebq_test_dataset_" + testId.replace("-", "_");
     String bqTable = "hivebq_test_table_" + testId.replace("-", "_");
+
+    TestUtils.createBucket(AcceptanceTestUtils.getAcceptanceTestBucket());
 
     uploadConnectorJar(CONNECTOR_JAR_DIRECTORY, CONNECTOR_JAR_PREFIX, connectorJarUri);
 
@@ -99,12 +99,7 @@ public class DataprocAcceptanceTestBase {
     createBqDataset(bqProject, bqDataset);
 
     createClusterIfNeeded(
-        clusterName,
-        dataprocImageVersion,
-        testId,
-        properties,
-        connectorJarUri,
-        connectorInitActionUri);
+        clusterName, dataprocImageVersion, properties, connectorJarUri, connectorInitActionUri);
 
     AcceptanceTestContext testContext =
         new AcceptanceTestContext(
@@ -155,7 +150,6 @@ public class DataprocAcceptanceTestBase {
   protected static void createClusterIfNeeded(
       String clusterName,
       String dataprocImageVersion,
-      String testId,
       Map<String, String> properties,
       String connectorJarUri,
       String connectorInitActionUri)
@@ -165,12 +159,20 @@ public class DataprocAcceptanceTestBase {
             clusterName, dataprocImageVersion, properties, connectorJarUri, connectorInitActionUri);
     System.out.println("Cluster spec:\n" + clusterSpec);
     System.out.println("Creating cluster " + clusterName + " ...");
-    cluster(client -> client.createClusterAsync(PROJECT_ID, REGION, clusterSpec).get());
+    cluster(
+        client ->
+            client
+                .createClusterAsync(AcceptanceTestUtils.getAcceptanceProject(), REGION, clusterSpec)
+                .get());
   }
 
   protected static void deleteCluster(String clusterName) throws Exception {
     System.out.println("Deleting cluster " + clusterName + " ...");
-    cluster(client -> client.deleteClusterAsync(PROJECT_ID, REGION, clusterName).get());
+    cluster(
+        client ->
+            client
+                .deleteClusterAsync(AcceptanceTestUtils.getAcceptanceProject(), REGION, clusterName)
+                .get());
   }
 
   private static void cluster(ThrowingConsumer<ClusterControllerClient> command) throws Exception {
@@ -189,7 +191,7 @@ public class DataprocAcceptanceTestBase {
       String connectorInitActionUri) {
     return Cluster.newBuilder()
         .setClusterName(clusterName)
-        .setProjectId(PROJECT_ID)
+        .setProjectId(AcceptanceTestUtils.getAcceptanceProject())
         .setConfig(
             ClusterConfig.newBuilder()
                 .addInitializationActions(
@@ -257,12 +259,18 @@ public class DataprocAcceptanceTestBase {
     try (JobControllerClient jobControllerClient =
         JobControllerClient.create(
             JobControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT).build())) {
-      Job request = jobControllerClient.submitJob(PROJECT_ID, REGION, job);
+      Job request =
+          jobControllerClient.submitJob(AcceptanceTestUtils.getAcceptanceProject(), REGION, job);
       String jobId = request.getReference().getJobId();
       System.err.println(String.format("%s job ID: %s", testName, jobId));
       CompletableFuture<Job> finishedJobFuture =
           CompletableFuture.supplyAsync(
-              () -> waitForJobCompletion(jobControllerClient, PROJECT_ID, REGION, jobId));
+              () ->
+                  waitForJobCompletion(
+                      jobControllerClient,
+                      AcceptanceTestUtils.getAcceptanceProject(),
+                      REGION,
+                      jobId));
       Job jobInfo = finishedJobFuture.get(timeout.getSeconds(), TimeUnit.SECONDS);
       return jobInfo;
     }

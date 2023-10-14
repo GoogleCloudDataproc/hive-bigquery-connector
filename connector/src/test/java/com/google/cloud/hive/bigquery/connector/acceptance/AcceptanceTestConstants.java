@@ -15,17 +15,13 @@
  */
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
-import com.google.common.base.Preconditions;
 import org.apache.parquet.Strings;
 
 public class AcceptanceTestConstants {
 
   public static final String REGION = "us-west1";
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
-  public static final String PROJECT_ID =
-      Preconditions.checkNotNull(
-          System.getenv("GOOGLE_CLOUD_PROJECT"),
-          "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
+  public static final String ACCEPTANCE_BUCKET_ENV_VAR = "ACCEPTANCE_BUCKET";
 
   public static final boolean CLEAN_UP_CLUSTER =
       Strings.isNullOrEmpty(System.getenv("CLEAN_UP_CLUSTER"))
