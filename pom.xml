@@ -59,6 +59,8 @@
     <modules>
         <module>hive-bigquery-parent</module>
         <module>shaded-acceptance-tests-dependencies</module>
+        <module>hive-bigquery-connector-common</module>
+        <module>hive-x-bigquery-connector</module>
         <module>connector</module>
     </modules>
 

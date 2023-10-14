@@ -27,14 +27,6 @@
 
   <artifactId>shaded-acceptance-tests-dependencies</artifactId>
 
-  <licenses>
-      <license>
-          <name>Apache License, Version 2.0</name>
-          <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-          <distribution>repo</distribution>
-      </license>
-  </licenses>
-
   <!--
   What is this module for?
 
@@ -114,31 +106,19 @@
         </executions>
       </plugin>
 
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>${nexus-staging-maven-plugin.version}</version>
+        <configuration>
+          <!-- Instruct not to publish this module to Maven Central -->
+          <skipStaging>true</skipStaging>
+        </configuration>
+      </plugin>
 
-      <!-- The build-helper-maven-plugin is useful to add the shaded JAR into the IDE environment, so that -->
-      <!-- IntelliJ can find the repackaged classes. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
-        <version>${build-helper-maven-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>compile</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attach-artifact</goal>
-            </goals>
-            <configuration>
-              <artifacts>
-                <artifact>
-                  <file>${project.build.directory}/${project.build.finalName}-shaded.jar</file>
-                  <type>jar</type>
-                  <classifier>optional</classifier>
-                </artifact>
-              </artifacts>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
     </plugins>
