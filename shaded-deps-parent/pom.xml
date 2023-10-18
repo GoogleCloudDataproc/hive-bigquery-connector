@@ -145,6 +145,60 @@
   </dependencies>
 
   <build>
+      <pluginManagement>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>${maven-shade-plugin.version}</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>shade</goal>
+                </goals>
+                <configuration>
+                  <shadedArtifactAttached>true</shadedArtifactAttached>
+                  <filters>
+                    <filter>
+                      <artifact>*:*</artifact>
+                      <excludes>
+                        <exclude>module-info.class</exclude>
+                        <exclude>META-INF/*.SF</exclude>
+                        <exclude>META-INF/*.DSA</exclude>
+                        <exclude>META-INF/*.RSA</exclude>
+                        <exclude>META-INF/MANIFEST.MF</exclude>
+                        <exclude>META-INF/DEPENDENCIES</exclude>
+                        <exclude>META-INF/LICENSE</exclude>
+                        <exclude>META-INF/NOTICE</exclude>
+                      </excludes>
+                    </filter>
+                  </filters>
+                  <relocations>
+                    <relocation>
+                      <pattern>com</pattern>
+                      <shadedPattern>shaded.for.hive.bq.integration.tests.com</shadedPattern>
+                      <includes>
+                        <include>com.google.protobuf.**</include>
+                        <include>com.google.common.**</include>
+                      </includes>
+                    </relocation>
+                  </relocations>
+                  <transformers>
+                    <!-- ServicesResourceTransformer is necessary to avoid this issue: "java.lang.IllegalStateException: Could not find policy 'pick_first'. Make sure its implementation is either registered to LoadBalancerRegistry or included in META-INF/services/io.grpc.LoadBalancerProvider from your jar files" -->
+                    <transformer
+                      implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                    <transformer
+                      implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
+                  </transformers>
+                  <shadedArtifactAttached>true</shadedArtifactAttached>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </pluginManagement>
+
       <plugins>
         <plugin>
           <groupId>org.sonatype.plugins</groupId>
@@ -155,62 +209,6 @@
             <skipStaging>true</skipStaging>
           </configuration>
         </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-shade-plugin</artifactId>
-          <version>${maven-shade-plugin.version}</version>
-          <executions>
-            <execution>
-              <phase>package</phase>
-              <goals>
-                <goal>shade</goal>
-              </goals>
-              <configuration>
-                <shadedArtifactAttached>true</shadedArtifactAttached>
-                <filters>
-                  <filter>
-                    <artifact>*:*</artifact>
-                    <excludes>
-                      <exclude>module-info.class</exclude>
-                      <exclude>META-INF/*.SF</exclude>
-                      <exclude>META-INF/*.DSA</exclude>
-                      <exclude>META-INF/*.RSA</exclude>
-                      <exclude>META-INF/MANIFEST.MF</exclude>
-                      <exclude>META-INF/DEPENDENCIES</exclude>
-                      <exclude>META-INF/LICENSE</exclude>
-                      <exclude>META-INF/NOTICE</exclude>
-                    </excludes>
-                  </filter>
-                </filters>
-                <relocations>
-                  <relocation>
-                    <pattern>com</pattern>
-                    <shadedPattern>shaded.for.hive.bq.integration.tests.com</shadedPattern>
-                    <includes>
-                      <include>com.google.protobuf.**</include>
-                      <include>com.google.common.**</include>
-                    </includes>
-                  </relocation>
-                </relocations>
-                <transformers>
-                  <!-- ServicesResourceTransformer is necessary to avoid this issue: "java.lang.IllegalStateException: Could not find policy 'pick_first'. Make sure its implementation is either registered to LoadBalancerRegistry or included in META-INF/services/io.grpc.LoadBalancerProvider from your jar files" -->
-                  <transformer
-                          implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                  <transformer
-                          implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
-                </transformers>
-                <shadedArtifactAttached>true</shadedArtifactAttached>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-        </plugin>
-
       </plugins>
   </build>
 </project>
