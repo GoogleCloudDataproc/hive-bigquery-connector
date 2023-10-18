@@ -62,6 +62,7 @@
         <module>hive-bigquery-connector-common</module>
         <module>hive-x-bigquery-connector</module>
         <module>hive-3-bigquery-connector</module>
+        <module>shaded-deps-parent</module>
     </modules>
 
     <profiles>
