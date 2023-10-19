@@ -10,7 +10,7 @@
     <relativePath>../hive-x-bigquery-connector</relativePath>
   </parent>
 
-  <artifactId>hive-bigquery-connector</artifactId>
+  <artifactId>hive-3-bigquery-connector</artifactId>
   <name>Hive-BigQuery Connector For Hive 3</name>
 
   <dependencies>

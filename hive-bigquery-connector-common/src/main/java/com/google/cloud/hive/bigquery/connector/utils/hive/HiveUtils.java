@@ -50,7 +50,7 @@ public class HiveUtils {
     return HiveConf.getVar(conf, HiveConf.ConfVars.HIVEQUERYID);
   }
 
-  public static String getDbTableName(org.apache.hadoop.hive.metastore.api.Table table) {
+  public static String getDbTableName(Table table) {
     return table.getDbName() + "." + table.getTableName();
   }
 

@@ -17,12 +17,12 @@ package com.google.cloud.hive.bigquery.connector.input;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.sql.Timestamp;
 import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
-import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.jupiter.api.Test;
 
-public class BigQueryConstantDescTest {
+public abstract class BigQueryConstantDescTestBase {
 
   @Test
   public void testString() {
@@ -118,18 +118,10 @@ public class BigQueryConstantDescTest {
                 TypeInfoFactory.timestampTypeInfo, Timestamp.valueOf("2010-10-10 1:2:3.123456"))
             .getExprString());
     assertEquals(
-        "DATETIME'2022-01-06 00:00:00'",
+        "DATETIME'2022-01-06 00:00:00.0'",
         new BigQueryConstantDesc(
                 TypeInfoFactory.timestampTypeInfo, Timestamp.valueOf("2022-01-06 00:00:00"))
             .getExprString());
-  }
-
-  @Test
-  public void testTimestampLocalTZ() {
-    BigQueryConstantDesc desc =
-        new BigQueryConstantDesc(
-            TypeInfoFactory.timestampLocalTZTypeInfo, "2010-10-10 1:2:3.123456");
-    assertEquals("TIMESTAMP'2010-10-10 1:2:3.123456'", desc.getExprString());
   }
 
   @Test

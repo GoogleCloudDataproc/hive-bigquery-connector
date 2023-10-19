@@ -20,10 +20,8 @@ import static com.google.cloud.bigquery.connector.common.BigQueryConfigurationUt
 import static com.google.cloud.bigquery.connector.common.BigQueryUtil.firstPresent;
 
 import com.google.api.gax.retrying.RetrySettings;
-import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
-import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.QueryJobConfiguration.Priority;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
@@ -159,13 +157,13 @@ public class HiveBigQueryConfig
   // Misc
   private Optional<Integer> flowControlWindowBytes = empty();
   public static final Priority DEFAULT_JOB_PRIORITY = Priority.INTERACTIVE;
-  private QueryJobConfiguration.Priority queryJobPriority = DEFAULT_JOB_PRIORITY;
+  private Priority queryJobPriority = DEFAULT_JOB_PRIORITY;
 
   // Options currently not implemented:
   HiveBigQueryProxyConfig proxyConfig;
   boolean enableModeCheckForSchemaFields = true;
-  Optional<JobInfo.CreateDisposition> createDisposition = empty();
-  ImmutableList<JobInfo.SchemaUpdateOption> loadSchemaUpdateOptions = ImmutableList.of();
+  Optional<CreateDisposition> createDisposition = empty();
+  ImmutableList<SchemaUpdateOption> loadSchemaUpdateOptions = ImmutableList.of();
   private ImmutableMap<String, String> bigQueryJobLabels = ImmutableMap.of();
   String parentProjectId;
   boolean useParentProjectForMetadataOperations;
@@ -254,7 +252,7 @@ public class HiveBigQueryConfig
     opts.createDisposition =
         Optional.fromNullable(conf.get(CREATE_DISPOSITION_KEY))
             .transform(String::toUpperCase)
-            .transform(JobInfo.CreateDisposition::valueOf);
+            .transform(CreateDisposition::valueOf);
 
     Optional<String> bqTable = getAnyOption(TABLE_KEY, conf, tableParameters);
     if (bqTable.isPresent()) {

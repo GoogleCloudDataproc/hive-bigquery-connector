@@ -15,12 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.avro;
 
-import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.Field.Mode;
 import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -41,7 +38,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.mapred.JobConf;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -99,7 +95,8 @@ public class AvroUtils {
     for (int i = 0; i < allStructFieldRefs.size(); i++) {
       StructField structField = allStructFieldRefs.get(i);
       Schema fieldSchema =
-          getAvroSchema(structField.getFieldObjectInspector(), bigqueryFields.get(i));
+          HiveCompat.getInstance()
+              .getAvroSchema(structField.getFieldObjectInspector(), bigqueryFields.get(i));
       Schema.Field avroField =
           new Schema.Field(structField.getFieldName(), fieldSchema, null, null);
       avroFields.add(avroField);
@@ -112,104 +109,10 @@ public class AvroUtils {
   }
 
   /* Returns a nullable schema if the field is nullable */
-  private static Schema modedAvroSchema(Schema fieldSchema, boolean nullable) {
+  public static Schema nullableAvroSchema(Schema fieldSchema, boolean nullable) {
     return nullable
         ? Schema.createUnion(Arrays.asList(fieldSchema, Schema.create(Schema.Type.NULL)))
         : fieldSchema;
-  }
-
-  public static Schema getAvroSchema(ObjectInspector fieldOi, Field bigqueryField) {
-    boolean nullable = bigqueryField.getMode() != Mode.REQUIRED;
-    if (fieldOi instanceof ListObjectInspector) {
-      ListObjectInspector loi = (ListObjectInspector) fieldOi;
-      ObjectInspector elementOi = loi.getListElementObjectInspector();
-      return modedAvroSchema(Schema.createArray(getAvroSchema(elementOi, bigqueryField)), nullable);
-    }
-    if (fieldOi instanceof StructObjectInspector) {
-      return modedAvroSchema(
-          getAvroSchema((StructObjectInspector) fieldOi, bigqueryField.getSubFields()), nullable);
-    }
-    if (fieldOi instanceof MapObjectInspector) {
-      // Convert the Map type into a list of key/value records
-      MapObjectInspector moi = (MapObjectInspector) fieldOi;
-      Schema keySchema = Schema.create(Schema.Type.STRING);
-      Schema.Field keyField =
-          new Schema.Field(KeyValueObjectInspector.KEY_FIELD_NAME, keySchema, null, null);
-      Schema valueSchema =
-          getAvroSchema(
-              moi.getMapValueObjectInspector(),
-              bigqueryField.getSubFields().get(KeyValueObjectInspector.VALUE_FIELD_NAME));
-      Schema.Field valueField =
-          new Schema.Field(KeyValueObjectInspector.VALUE_FIELD_NAME, valueSchema, null, null);
-      Schema entrySchema =
-          Schema.createRecord(
-              "map_" + UUID.randomUUID().toString().replace("-", ""), null, null, false);
-      entrySchema.setFields(Arrays.asList(keyField, valueField));
-      return modedAvroSchema(Schema.createArray(entrySchema), nullable);
-    }
-    if (fieldOi instanceof ByteObjectInspector
-        || fieldOi instanceof ShortObjectInspector
-        || fieldOi instanceof IntObjectInspector
-        || (fieldOi instanceof LongObjectInspector)) {
-      return modedAvroSchema(Schema.create(Schema.Type.LONG), nullable);
-    }
-    if (fieldOi instanceof TimestampObjectInspector) {
-      Schema schema = Schema.create(Schema.Type.LONG);
-      if (bigqueryField.getType().getStandardType().equals(StandardSQLTypeName.TIMESTAMP)) {
-        AvroUtils.addProp(schema, "logicalType", "timestamp-micros");
-      } else if (bigqueryField.getType().getStandardType().equals(StandardSQLTypeName.DATETIME)) {
-        AvroUtils.addProp(schema, "logicalType", "local-timestamp-micros");
-      } else {
-        throw new RuntimeException(
-            String.format(
-                "Unexpected BigQuery type `%s` for field `%s` with Hive type `%s`",
-                bigqueryField.getType().getStandardType(),
-                bigqueryField.getName(),
-                fieldOi.getTypeName()));
-      }
-      return modedAvroSchema(schema, nullable);
-    }
-    if (fieldOi instanceof TimestampLocalTZObjectInspector) {
-      Schema schema = Schema.create(Schema.Type.LONG);
-      AvroUtils.addProp(schema, "logicalType", "timestamp-micros");
-      return modedAvroSchema(schema, nullable);
-    }
-    if (fieldOi instanceof DateObjectInspector) {
-      Schema schema = Schema.create(Schema.Type.INT);
-      AvroUtils.addProp(schema, "logicalType", "date");
-      return modedAvroSchema(schema, nullable);
-    }
-    if (fieldOi instanceof FloatObjectInspector || fieldOi instanceof DoubleObjectInspector) {
-      return modedAvroSchema(Schema.create(Schema.Type.DOUBLE), nullable);
-    }
-    if (fieldOi instanceof BooleanObjectInspector) {
-      return modedAvroSchema(Schema.create(Schema.Type.BOOLEAN), nullable);
-    }
-    if (fieldOi instanceof BinaryObjectInspector) {
-      return modedAvroSchema(Schema.create(Schema.Type.BYTES), nullable);
-    }
-    if (fieldOi instanceof HiveCharObjectInspector
-        || fieldOi instanceof HiveVarcharObjectInspector
-        || fieldOi instanceof StringObjectInspector) {
-      return modedAvroSchema(Schema.create(Schema.Type.STRING), nullable);
-    }
-    if (fieldOi instanceof HiveDecimalObjectInspector) {
-      HiveDecimalObjectInspector hdoi = (HiveDecimalObjectInspector) fieldOi;
-      Schema schema = Schema.create(Schema.Type.BYTES);
-      AvroUtils.addProp(schema, "logicalType", "decimal");
-      AvroUtils.addProp(schema, "precision", new Integer(hdoi.precision()));
-      AvroUtils.addProp(schema, "scale", new Integer(hdoi.scale()));
-      return modedAvroSchema(schema, nullable);
-    }
-
-    String unsupportedCategory;
-    if (fieldOi instanceof PrimitiveObjectInspector) {
-      unsupportedCategory = ((PrimitiveObjectInspector) fieldOi).getPrimitiveCategory().name();
-    } else {
-      unsupportedCategory = fieldOi.getCategory().name();
-    }
-
-    throw new IllegalStateException("Unexpected type: " + unsupportedCategory);
   }
 
   /**

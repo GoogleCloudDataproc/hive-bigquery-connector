@@ -15,6 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
@@ -24,7 +27,6 @@ import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
-import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -34,7 +36,6 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaHook;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveStoragePredicateHandler;
@@ -43,7 +44,6 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorizationProvider;
 import org.apache.hadoop.hive.ql.security.authorization.HiveAuthorizationProvider;
-import org.apache.hadoop.hive.ql.stats.Partish;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.mapred.InputFormat;
@@ -53,7 +53,8 @@ import org.apache.hadoop.mapred.OutputFormat;
 
 /** Main entrypoint for Hive/BigQuery interactions. */
 @SuppressWarnings({"rawtypes", "deprecated"})
-public class BigQueryStorageHandler implements HiveStoragePredicateHandler, HiveStorageHandler {
+public abstract class BigQueryStorageHandlerBase
+    implements HiveStoragePredicateHandler, HiveStorageHandler {
 
   Configuration conf;
 
@@ -81,11 +82,6 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public Class<? extends AbstractSerDe> getSerDeClass() {
     return BigQuerySerDe.class;
-  }
-
-  @Override
-  public HiveMetaHook getMetaHook() {
-    return new BigQueryMetaHook(conf);
   }
 
   @Override
@@ -117,7 +113,10 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   @Override
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
-    if (engine.equals("mr")) {
+    if ((engine.equals("tez") && HiveUtils.enableCommitterInTez(conf))) {
+      // This version of Hive enables tez committer HIVE-24629
+      conf.set(HiveBigQueryConfig.HADOOP_COMMITTER_CLASS_KEY, NoOpCommitter.class.getName());
+    } else if (engine.equals("mr")) {
       if (conf.get(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "false").equals("true")) {
         // Only set the OutputCommitter class if we're dealing with an actual output job,
         // i.e. where data gets written to BigQuery. Otherwise, the "mr" engine will call
@@ -127,22 +126,26 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
             HiveBigQueryConfig.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
       }
     }
-    String hmsDbTableName = tableDesc.getProperties().getProperty("name");
-    String tables = jobConf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
+    setOutputTables(tableDesc);
+  }
+
+  protected void setOutputTables(TableDesc tableDesc) {
+    // Figure out the output table(s)
+    String hmsDbTableName = tableDesc.getTableName();
+    String tables = conf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
     tables =
         tables == null
             ? hmsDbTableName
             : tables + HiveBigQueryConfig.TABLE_NAME_SEPARATOR + hmsDbTableName;
-    jobConf.set(HiveBigQueryConfig.OUTPUT_TABLES_KEY, tables);
-    setGCSAccessTokenProvider(jobConf);
+    conf.set(HiveBigQueryConfig.OUTPUT_TABLES_KEY, tables);
   }
 
   /**
    * Committer with no-op job commit. Set this for Tez so it uses BigQueryMetaHook's
-   * commitInsertTable to commit per table. For task commit/abort and job abort still use
-   * BigQueryOutputCommitter.
+   * commitInsertTable to commit per table. For task commit/abort and job abort still use our
+   * regular OutputCommitter.
    */
-  static class BigQueryNoJobCommitter extends BigQueryOutputCommitter {
+  static class NoOpCommitter extends BigQueryOutputCommitter {
     @Override
     public void commitJob(JobContext jobContext) throws IOException {
       // do nothing
@@ -151,19 +154,37 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
 
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(),
+            new HiveBigQueryConnectorModule(conf, tableDesc.getProperties()));
+    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+    Properties tableProperties = tableDesc.getProperties();
+    String hmsDbTableName = tableDesc.getTableName();
+
     // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
     conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
 
-    if (HiveUtils.enableCommitterInTez(conf)) {
-      // This version Hive enables tez committer HIVE-24629
-      conf.set(
-          HiveBigQueryConfig.HADOOP_COMMITTER_CLASS_KEY, BigQueryNoJobCommitter.class.getName());
+    // Set config for the GCS Connector
+    setGCSAccessTokenProvider(conf);
+
+    // Retrieve some info from the BQ table
+    TableId tableId =
+        BigQueryUtil.parseTableId(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY));
+    TableInfo bqTableInfo = bqClient.getTable(tableId);
+    if (bqTableInfo == null) {
+      throw new RuntimeException("BigQuery table does not exist: " + tableId);
     }
+    Schema bigQuerySchema = bqTableInfo.getDefinition().getSchema();
+
+    // Save the job details file to disk
     JobDetails jobDetails = new JobDetails();
-    Properties tableProperties = tableDesc.getProperties();
+    jobDetails.setBigquerySchema(bigQuerySchema);
+    jobDetails.setJobTempOutputPath(
+        new Path(JobUtils.getQueryTempOutputPath(conf, opts), hmsDbTableName));
     jobDetails.setTableProperties(tableProperties);
-    jobDetails.setTableId(
-        BigQueryUtil.parseTableId(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY)));
+    jobDetails.setTableId(tableId);
     Path jobDetailsFilePath =
         JobUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
@@ -175,32 +196,7 @@ public class BigQueryStorageHandler implements HiveStoragePredicateHandler, Hive
   }
 
   @Override
-  public void configureInputJobCredentials(TableDesc tableDesc, Map<String, String> map) {
-    // Do nothing
-  }
-
-  @Override
   public void configureTableJobProperties(TableDesc tableDesc, Map<String, String> map) {
     // Deprecated
-  }
-
-  /*
-  The following API may not be available in Hive-3, check running Hive if they are available.
-  */
-  // @Override
-  public boolean canProvideBasicStatistics() {
-    return true;
-  }
-
-  // @Override
-  public Map<String, String> getBasicStatistics(Partish partish) {
-    org.apache.hadoop.hive.ql.metadata.Table hmsTable = partish.getTable();
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, hmsTable.getParameters()));
-    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
-    return BigQueryUtils.getBasicStatistics(bqClient, config.getTableId());
   }
 }

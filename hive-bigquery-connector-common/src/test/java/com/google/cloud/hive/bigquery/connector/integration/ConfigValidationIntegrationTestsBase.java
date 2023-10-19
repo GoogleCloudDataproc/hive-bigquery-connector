@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import org.junit.jupiter.api.Test;
 
-public class ConfigValidationIntegrationTests extends IntegrationTestsBase {
+public abstract class ConfigValidationIntegrationTestsBase extends IntegrationTestsBase {
 
   /**
    * Check that the user didn't forget to provide all the required properties when creating a Hive

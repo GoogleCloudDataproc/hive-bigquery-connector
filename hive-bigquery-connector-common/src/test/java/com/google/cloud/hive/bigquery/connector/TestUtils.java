@@ -25,10 +25,7 @@ import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.common.collect.Lists;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +40,7 @@ public class TestUtils {
   public static final String TEST_VIEW_NAME = "test_view";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
   public static final String ALL_TYPES_TABLE_NAME = "all_types";
+  public static final String TIMESTAMP_TZ_TABLE_NAME = "timestamp_tz_table";
   public static final String MANAGED_TEST_TABLE_NAME = "managed_test";
   public static final String FIELD_TIME_PARTITIONED_TABLE_NAME = "field_time_partitioned";
   public static final String INGESTION_TIME_PARTITIONED_TABLE_NAME = "ingestion_time_partitioned";
@@ -76,7 +74,6 @@ public class TestUtils {
           "str STRING OPTIONS (description = 'A description for a STRING'),",
           "day DATE OPTIONS (description = 'A description for a DATE'),",
           "ts DATETIME OPTIONS (description = 'A description for a TIMESTAMP'),",
-          "tstz TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMPLOCALTZ'),",
           "bin BYTES OPTIONS (description = 'A description for a BINARY'),",
           "fl FLOAT64 OPTIONS (description = 'A description for a FLOAT'),",
           "dbl FLOAT64 OPTIONS (description = 'A description for a DOUBLE'),",
@@ -89,6 +86,10 @@ public class TestUtils {
               + " description for a STRUCT-MIXED'),",
           "mp ARRAY<STRUCT<key STRING, value ARRAY<STRUCT<key STRING, value INT64>>>> OPTIONS"
               + " (description = 'A description for a MAP')");
+
+  public static String BIGQUERY_TIMESTAMP_TZ_TABLE_DDL =
+      String.join(
+          "\n", "tstz TIMESTAMP OPTIONS (description = 'A description for a TIMESTAMPLOCALTZ')");
 
   public static String BIGQUERY_BIGLAKE_TABLE_CREATE_QUERY =
       String.join(
@@ -123,7 +124,6 @@ public class TestUtils {
           "str STRING COMMENT 'A description for a STRING',",
           "day DATE COMMENT 'A description for a DATE',",
           "ts TIMESTAMP COMMENT 'A description for a TIMESTAMP',",
-          "tstz TIMESTAMPLOCALTZ COMMENT 'A description for a TIMESTAMPLOCALTZ',",
           "bin BINARY COMMENT 'A description for a BINARY',",
           "fl FLOAT COMMENT 'A description for a FLOAT',",
           "dbl DOUBLE COMMENT 'A description for a DOUBLE',",
@@ -134,6 +134,9 @@ public class TestUtils {
           "mixed_struct STRUCT<float_field:FLOAT,ts_field:TIMESTAMP> COMMENT 'A description for a"
               + " STRUCT-MIXED',",
           "mp MAP<STRING,MAP<STRING,INT>> COMMENT 'A description for a MAP'");
+
+  public static String HIVE_TIMESTAMP_TZ_TABLE_DDL =
+      String.join("\n", "tstz TIMESTAMPLOCALTZ COMMENT 'A description for a TIMESTAMPLOCALTZ'");
 
   public static String HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL =
       String.join("\n", "int_val BIGINT,", "ts TIMESTAMP");

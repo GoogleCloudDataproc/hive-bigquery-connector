@@ -16,9 +16,9 @@
 package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.cloud.bigquery.*;
+import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,38 +29,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.*;
 
 /** Converts Hive Schema to BigQuery schema. */
 public class BigQuerySchemaConverter {
-
-  private static final ImmutableMap<PrimitiveObjectInspector.PrimitiveCategory, StandardSQLTypeName>
-      hiveToBigQueryTypes =
-          new ImmutableMap.Builder<
-                  PrimitiveObjectInspector.PrimitiveCategory, StandardSQLTypeName>()
-              .put(PrimitiveObjectInspector.PrimitiveCategory.CHAR, StandardSQLTypeName.STRING)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.VARCHAR, StandardSQLTypeName.STRING)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.STRING, StandardSQLTypeName.STRING)
-              .put(
-                  PrimitiveObjectInspector.PrimitiveCategory.BYTE,
-                  StandardSQLTypeName.INT64) // Tiny Int
-              .put(
-                  PrimitiveObjectInspector.PrimitiveCategory.SHORT,
-                  StandardSQLTypeName.INT64) // Small Int
-              .put(
-                  PrimitiveObjectInspector.PrimitiveCategory.INT,
-                  StandardSQLTypeName.INT64) // Regular Int
-              .put(
-                  PrimitiveObjectInspector.PrimitiveCategory.LONG,
-                  StandardSQLTypeName.INT64) // Big Int
-              .put(PrimitiveObjectInspector.PrimitiveCategory.FLOAT, StandardSQLTypeName.FLOAT64)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.DOUBLE, StandardSQLTypeName.FLOAT64)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.BOOLEAN, StandardSQLTypeName.BOOL)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.DATE, StandardSQLTypeName.DATE)
-              .put(
-                  PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP,
-                  StandardSQLTypeName.DATETIME)
-              .put(
-                  PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMPLOCALTZ,
-                  StandardSQLTypeName.TIMESTAMP)
-              .put(PrimitiveObjectInspector.PrimitiveCategory.BINARY, StandardSQLTypeName.BYTES)
-              .build();
 
   public static Schema toBigQuerySchema(StorageDescriptor sd) {
     List<Field> bigQueryFields = new ArrayList<>();
@@ -140,7 +108,7 @@ public class BigQuerySchemaConverter {
       PrimitiveObjectInspector.PrimitiveCategory category =
           ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory();
       return Preconditions.checkNotNull(
-          hiveToBigQueryTypes.get(category),
+          HiveCompat.getInstance().getHiveToBqTypeMappings().get(category),
           new IllegalStateException("Unexpected type: " + category.name()));
     } else {
       throw new IllegalStateException("Unexpected type: " + typeInfo.getCategory().name());

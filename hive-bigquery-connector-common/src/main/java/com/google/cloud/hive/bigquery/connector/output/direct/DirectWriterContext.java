@@ -77,11 +77,11 @@ public class DirectWriterContext {
    * @return The TableId to which Hive will do the writing: whether that is the destination TableID
    *     or a temporary TableId.
    */
-  private TableId getOrCreateTable(TableId tableId, com.google.cloud.bigquery.Schema bigQuerySchema)
+  private TableId getOrCreateTable(TableId tableId, Schema bigQuerySchema)
       throws IllegalArgumentException {
     if (bigQueryClient.tableExists(tableId)) {
       TableInfo destinationTable = bigQueryClient.getTable(tableId);
-      com.google.cloud.bigquery.Schema tableSchema = destinationTable.getDefinition().getSchema();
+      Schema tableSchema = destinationTable.getDefinition().getSchema();
       Preconditions.checkArgument(
           BigQueryUtil.schemaWritable(
               tableSchema,
