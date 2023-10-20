@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Google Inc. All Rights Reserved.
+ * Copyright 2023 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,43 +18,20 @@ package com.google.cloud.hive.bigquery.connector.integration;
 import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.cloud.bigquery.Clustering;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TimePartitioning;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-public class PartitionIntegrationTests extends IntegrationTestsBase {
+public class PartitionIntegrationTests extends PartitionIntegrationTestsBase {
 
-  @Test
-  public void testFieldTimePartition() {
-    initHive();
-    // Make sure the BQ table doesn't exist
-    dropBqTableIfExists(dataset, FIELD_TIME_PARTITIONED_TABLE_NAME);
-    // Create the table using Hive
-    createManagedTable(
-        FIELD_TIME_PARTITIONED_TABLE_NAME,
-        HIVE_FIELD_TIME_PARTITIONED_TABLE_DDL,
-        HIVE_FIELD_TIME_PARTITIONED_TABLE_PROPS,
-        null);
-    // Verify that the BQ table has the right partition & clustering options
-    StandardTableDefinition tableDef =
-        getTableInfo(dataset, FIELD_TIME_PARTITIONED_TABLE_NAME).getDefinition();
-    TimePartitioning timePartitioning = tableDef.getTimePartitioning();
-    assertEquals(2592000000L, Objects.requireNonNull(timePartitioning).getExpirationMs());
-    assertEquals("ts", timePartitioning.getField());
-    assertEquals(TimePartitioning.Type.MONTH, timePartitioning.getType());
-    Clustering clustering = tableDef.getClustering();
-    assertEquals(ImmutableList.of("int_val"), Objects.requireNonNull(clustering).getFields());
-  }
+  // Note: Other tests are inherited from the parent class
 
   @Test
   public void testCreateIngestionTimePartition() {

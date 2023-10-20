@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.cloud.bigquery.TableInfo;
 import org.junit.jupiter.api.Test;
 
-public class ManagedAndExternalHiveTableIntegrationTests extends IntegrationTestsBase {
+public abstract class ManagedAndExternalHiveTableIntegrationTestsBase extends IntegrationTestsBase {
 
   /** Check that creating a managed table using Hive also creates a table in BigQuery */
   @Test

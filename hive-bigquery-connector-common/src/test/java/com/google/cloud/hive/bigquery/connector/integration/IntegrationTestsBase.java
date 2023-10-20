@@ -49,7 +49,7 @@ import org.junit.jupiter.params.provider.Arguments;
 //  so we might have to find a workaround to make those go away with Hive 3.X.X.
 
 @ExtendWith(HiveRunnerExtension.class)
-public class IntegrationTestsBase {
+public abstract class IntegrationTestsBase {
 
   protected static String dataset;
 

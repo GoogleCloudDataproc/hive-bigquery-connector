@@ -29,9 +29,9 @@ import org.apache.hadoop.hive.ql.udf.generic.*;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.jupiter.api.Test;
 
-public class UDFTest {
+public abstract class UDFTestBase {
 
-  public String translateUDF(GenericUDF udf, List<ExprNodeDesc> children) {
+  public static String translateUDF(GenericUDF udf, List<ExprNodeDesc> children) {
     ExprNodeGenericFuncDesc func = new ExprNodeGenericFuncDesc();
     func.setGenericUDF(udf);
     func.setChildren(children);
@@ -208,15 +208,6 @@ public class UDFTest {
   }
 
   @Test
-  public void testCastTimestamp() {
-    String expression =
-        translateUDF(
-            new GenericUDFToTimestampLocalTZ(),
-            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "2010-10-10")));
-    assertEquals("CAST('2010-10-10' AS TIMESTAMP)", expression);
-  }
-
-  @Test
   public void testFromHex() {
     String expression =
         translateUDF(
@@ -243,66 +234,6 @@ public class UDFTest {
                 new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abcd"),
                 new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "xyz")));
     assertEquals("IFNULL('abcd', 'xyz')", expression);
-  }
-
-  @Test
-  public void testYear() {
-    String expression =
-        translateUDF(
-            new UDFYear(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(YEAR FROM DATETIME'2010-10-10')", expression);
-  }
-
-  @Test
-  public void testMonth() {
-    String expression =
-        translateUDF(
-            new UDFMonth(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(MONTH FROM DATETIME'2010-10-10')", expression);
-  }
-
-  @Test
-  public void testDayOfMonth() {
-    String expression =
-        translateUDF(
-            new UDFDayOfMonth(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(DAY FROM DATETIME'2010-10-10')", expression);
-  }
-
-  @Test
-  public void testHour() {
-    String expression =
-        translateUDF(
-            new UDFHour(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(HOUR FROM DATETIME'2010-10-10')", expression);
-  }
-
-  @Test
-  public void testMinute() {
-    String expression =
-        translateUDF(
-            new UDFMinute(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(MINUTE FROM DATETIME'2010-10-10')", expression);
-  }
-
-  @Test
-  public void testSecond() {
-    String expression =
-        translateUDF(
-            new UDFSecond(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(SECOND FROM DATETIME'2010-10-10')", expression);
   }
 
   @Test
@@ -353,42 +284,6 @@ public class UDFTest {
             new GenericUDFOPNotNull(),
             Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abc")));
     assertEquals("('abc' is not null)", expression);
-  }
-
-  @Test
-  public void testIsTrue() {
-    String expression =
-        translateUDF(
-            new GenericUDFOPTrue(),
-            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abc")));
-    assertEquals("('abc' is true)", expression);
-  }
-
-  @Test
-  public void testIsNotTrue() {
-    String expression =
-        translateUDF(
-            new GenericUDFOPNotTrue(),
-            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abc")));
-    assertEquals("('abc' is not true)", expression);
-  }
-
-  @Test
-  public void testIsFalse() {
-    String expression =
-        translateUDF(
-            new GenericUDFOPFalse(),
-            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abc")));
-    assertEquals("('abc' is false)", expression);
-  }
-
-  @Test
-  public void testIsNotFalse() {
-    String expression =
-        translateUDF(
-            new GenericUDFOPNotFalse(),
-            Arrays.asList(new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abc")));
-    assertEquals("('abc' is not false)", expression);
   }
 
   @Test

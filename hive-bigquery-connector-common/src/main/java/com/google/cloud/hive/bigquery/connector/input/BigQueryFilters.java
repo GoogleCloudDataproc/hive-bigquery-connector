@@ -15,204 +15,23 @@
  */
 package com.google.cloud.hive.bigquery.connector.input;
 
+import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.udfs.*;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.plan.*;
-import org.apache.hadoop.hive.ql.udf.*;
 import org.apache.hadoop.hive.ql.udf.generic.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class BigQueryFilters {
-
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryFilters.class);
-
-  protected static String hiveUDFPackage = "org.apache.hadoop.hive.ql.udf.";
-  protected static int hiveUDFPackageLength = hiveUDFPackage.length();
-
-  // Lists of built-in Hive UDFs and operators that are exactly the same in BigQuery
-  // TODO: Make sure we make these lists are as comprehensive as possible
-  protected static List<String> identicalUDFs = new ArrayList<>();
-  protected static List<String> identicalBridgeUDFs = new ArrayList<>();
-  protected static List<String> requireExtraParentheses = new ArrayList<>();
-
-  static {
-    for (Class udf :
-        new Class[] {
-          GenericUDFAbs.class,
-          GenericUDFGreatest.class,
-          GenericUDFLeast.class,
-          GenericUDFIf.class,
-          GenericUDFNullif.class,
-          GenericUDFLength.class,
-          GenericUDFCharacterLength.class,
-          GenericUDFOctetLength.class,
-          GenericUDFTrim.class,
-          GenericUDFLTrim.class,
-          GenericUDFRTrim.class,
-          GenericUDFUpper.class,
-          GenericUDFLower.class,
-          GenericUDFCeil.class,
-          GenericUDFFloor.class,
-          GenericUDFCoalesce.class,
-          GenericUDFConcat.class,
-          GenericUDFOPNot.class,
-          GenericUDFOPEqual.class,
-          GenericUDFOPNotEqual.class,
-          GenericUDFOPGreaterThan.class,
-          GenericUDFOPLessThan.class,
-          GenericUDFOPEqualOrGreaterThan.class,
-          GenericUDFOPEqualOrLessThan.class,
-          GenericUDFIn.class,
-          GenericUDFBetween.class,
-          GenericUDFOPAnd.class,
-          GenericUDFOPOr.class,
-          GenericUDFOPPlus.class,
-          GenericUDFOPMinus.class,
-          GenericUDFOPNegative.class,
-          GenericUDFOPPositive.class,
-          GenericUDFPower.class,
-          GenericUDFOPDivide.class,
-          GenericUDFOPMultiply.class,
-          GenericUDFCbrt.class,
-          GenericUDFCase.class
-        }) {
-      identicalUDFs.add(udf.getName());
-    }
-    for (Class udf :
-        new Class[] {
-          UDFOPBitAnd.class,
-          UDFOPBitOr.class,
-          UDFOPBitNot.class,
-          UDFOPBitXor.class,
-          UDFSqrt.class,
-          UDFCos.class,
-          UDFSin.class,
-          UDFAcos.class,
-          UDFAsin.class,
-          UDFTan.class,
-          UDFAtan.class
-        }) {
-      identicalBridgeUDFs.add(udf.getName());
-    }
-    for (Class udf :
-        new Class[] {
-          GenericUDFOPNull.class,
-          GenericUDFOPNotNull.class,
-          GenericUDFOPTrue.class,
-          GenericUDFOPNotTrue.class,
-          GenericUDFOPFalse.class,
-          GenericUDFOPNotFalse.class,
-        }) {
-      requireExtraParentheses.add(udf.getName());
-    }
-  }
-
-  /** Converts the Hive UDF to the corresponding BigQuery function */
-  protected static GenericUDF convertUDF(ExprNodeGenericFuncDesc expr, Configuration conf) {
-    GenericUDF udf = expr.getGenericUDF();
-    if (identicalUDFs.contains(udf.getUdfName())) {
-      return udf;
-    }
-    if ((udf instanceof GenericUDFBridge)
-        && identicalBridgeUDFs.contains(((GenericUDFBridge) udf).getUdfClassName())) {
-      return udf;
-    }
-    if (requireExtraParentheses.contains(udf.getUdfName())) {
-      return new BigQueryUDFWrapParentheses(udf);
-    }
-    if (udf instanceof GenericUDFNvl) {
-      return new BigQueryUDFIfNull();
-    } else if (udf instanceof UDFYear) {
-      return new BigQueryUDFYear();
-    } else if (udf instanceof UDFMonth) {
-      return new BigQueryUDFMonth();
-    } else if (udf instanceof UDFDayOfMonth) {
-      return new BigQueryUDFDayOfMonth();
-    } else if (udf instanceof UDFHour) {
-      return new BigQueryUDFHour();
-    } else if (udf instanceof UDFMinute) {
-      return new BigQueryUDFMinute();
-    } else if (udf instanceof UDFSecond) {
-      return new BigQueryUDFSecond();
-    } else if (udf instanceof GenericUDFQuarter) {
-      return new BigQueryUDFQuarter();
-    } else if (udf instanceof GenericUDFDateDiff) {
-      return new BigQueryUDFDateDiff();
-    } else if (udf instanceof GenericUDFDateSub) {
-      return new BigQueryUDFDateSub();
-    } else if (udf instanceof GenericUDFDateAdd) {
-      return new BigQueryUDFDateAdd();
-    } else if (udf instanceof GenericUDFOPMod) {
-      return new BigQueryUDFMod();
-    } else if (udf instanceof GenericUDFRegExp) {
-      return new BigQueryUDFRegExpContains();
-    } else if (udf instanceof GenericUDFDate) {
-      return new BigQueryUDFDate();
-    } else if (udf instanceof GenericUDFToDate) {
-      return new BigQueryUDFCastDate();
-    } else if (udf instanceof GenericUDFTimestamp) {
-      return new BigQueryUDFCastDatetime();
-    } else if (udf instanceof GenericUDFToTimestampLocalTZ) {
-      return new BigQueryUDFCastTimestamp();
-    } else if (udf instanceof GenericUDFToBinary) {
-      return new BigQueryUDFCastBytes();
-    } else if (udf instanceof GenericUDFToVarchar) {
-      return new BigQueryUDFCastString();
-    } else if (udf instanceof GenericUDFToChar) {
-      return new BigQueryUDFCastString();
-    } else if (udf instanceof GenericUDFToDecimal) {
-      return new BigQueryUDFCastDecimal();
-    } else if (udf instanceof GenericUDFBridge) {
-      String fullClassName = ((GenericUDFBridge) udf).getUdfClassName();
-      if (fullClassName.startsWith(hiveUDFPackage)) {
-        String className = fullClassName.substring(hiveUDFPackageLength);
-        switch (className) {
-          case "UDFWeekOfYear":
-            return new BigQueryUDFWeekOfYear();
-          case "UDFDayOfWeek":
-            return new BigQueryUDFDayOfWeek();
-          case "UDFHex":
-            return new BigQueryUDFToHex();
-          case "UDFUnhex":
-            return new BigQueryUDFFromHex();
-          case "UDFOPBitShiftLeft":
-            return new BigQueryUDFShiftLeft();
-          case "UDFOPBitShiftRight":
-            return new BigQueryUDFShiftRight();
-          case "UDFToString":
-            return new BigQueryUDFCastString();
-          case "UDFToLong":
-          case "UDFToInteger":
-          case "UDFToShort":
-          case "UDFToByte":
-            return new BigQueryUDFCastInt64();
-          case "UDFToBoolean":
-            return new BigQueryUDFCastBoolean();
-          case "UDFToFloat":
-          case "UDFToDouble":
-            return new BigQueryUDFCastFloat64();
-        }
-      }
-    }
-    String message = "Unsupported UDF or operator: " + udf.getUdfName();
-    if (conf.getBoolean(HiveBigQueryConfig.FAIL_ON_UNSUPPORTED_UDFS, false)) {
-      throw new IllegalArgumentException(message);
-    } else {
-      LOG.info(message);
-      return null;
-    }
-  }
+public abstract class BigQueryFilters {
 
   /** Translates the given filter expression to be compatible with BigQuery. */
   public static ExprNodeDesc translateFilters(ExprNodeDesc filterExpr, Configuration conf) {
     // Check if it's a function
     if (filterExpr instanceof ExprNodeGenericFuncDesc) {
       ExprNodeGenericFuncDesc function = ((ExprNodeGenericFuncDesc) filterExpr);
-      GenericUDF udf = convertUDF(function, conf);
+      GenericUDF udf = HiveCompat.getInstance().convertUDF(function, conf);
       if (udf == null) {
         // Unsupported UDF. Bail.
         return null;
@@ -270,8 +89,9 @@ public class BigQueryFilters {
     // Check if it's a constant value
     if (filterExpr instanceof ExprNodeConstantDesc) {
       // Convert the ExprNodeConstantDesc to a BigQueryConstantDesc
-      // to make sure the value properly formatted for BigQuery.
-      return BigQueryConstantDesc.translate((ExprNodeConstantDesc) filterExpr);
+      // to make sure the value is properly formatted for BigQuery.
+      ExprNodeConstantDesc constantDesc = (ExprNodeConstantDesc) filterExpr;
+      return new BigQueryConstantDesc(constantDesc.getTypeInfo(), constantDesc.getValue());
     }
     if (filterExpr instanceof ExprNodeFieldDesc) {
       ExprNodeFieldDesc fieldDesc = ((ExprNodeFieldDesc) filterExpr);

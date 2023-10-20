@@ -22,7 +22,7 @@ import java.util.List;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-public class BigLakeIntegrationTests extends IntegrationTestsBase {
+public abstract class BigLakeIntegrationTestsBase extends IntegrationTestsBase {
 
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)

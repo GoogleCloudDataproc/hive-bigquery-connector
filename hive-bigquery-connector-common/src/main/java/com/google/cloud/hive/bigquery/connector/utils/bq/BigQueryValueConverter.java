@@ -15,11 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.bq;
 
+import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.utils.DateTimeUtils;
 import java.nio.ByteBuffer;
-import org.apache.hadoop.hive.common.type.Timestamp;
-import org.apache.hadoop.hive.common.type.TimestampTZ;
 import org.apache.hadoop.hive.serde2.io.*;
 import org.apache.hadoop.hive.serde2.io.ByteWritable;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
@@ -75,40 +73,10 @@ public class BigQueryValueConverter {
       return new Long(writable.get());
     }
 
-    if (objectInspector instanceof TimestampObjectInspector) {
-      TimestampWritableV2 writable;
-      if (hiveValue instanceof LazyTimestamp) {
-        writable = ((LazyTimestamp) hiveValue).getWritableObject();
-      } else {
-        writable = (TimestampWritableV2) hiveValue;
-      }
-      Timestamp timestamp = writable.getTimestamp();
-      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-        return DateTimeUtils.getEpochMicrosFromHiveTimestamp(timestamp);
-      } else {
-        return DateTimeUtils.getEncodedProtoLongFromHiveTimestamp(timestamp);
-      }
-    }
-
-    if (objectInspector instanceof TimestampLocalTZObjectInspector) {
-      TimestampLocalTZWritable writable;
-      if (hiveValue instanceof LazyTimestampLocalTZ) {
-        writable = ((LazyTimestampLocalTZ) hiveValue).getWritableObject();
-      } else {
-        writable = (TimestampLocalTZWritable) hiveValue;
-      }
-      TimestampTZ timestampTZ = writable.getTimestampTZ();
-      return DateTimeUtils.getEpochMicrosFromHiveTimestampTZ(timestampTZ);
-    }
-
-    if (objectInspector instanceof DateObjectInspector) {
-      DateWritableV2 writable;
-      if (hiveValue instanceof LazyDate) {
-        writable = ((LazyDate) hiveValue).getWritableObject();
-      } else {
-        writable = (DateWritableV2) hiveValue;
-      }
-      return new Integer(writable.getDays());
+    Object converted =
+        HiveCompat.getInstance().convertHiveTimeUnitToBq(objectInspector, hiveValue, writeMethod);
+    if (converted != null) {
+      return converted;
     }
 
     if (objectInspector instanceof FloatObjectInspector) {

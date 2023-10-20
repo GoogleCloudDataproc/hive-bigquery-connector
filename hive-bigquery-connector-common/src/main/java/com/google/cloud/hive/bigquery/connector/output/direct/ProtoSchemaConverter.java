@@ -15,9 +15,9 @@
  */
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
+import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import java.util.List;
@@ -35,32 +35,6 @@ public class ProtoSchemaConverter {
   public static final String RESERVED_NESTED_TYPE_NAME = "STRUCT";
   // The maximum nesting depth of a BigQuery RECORD:
   public static final int MAX_BIGQUERY_NESTED_DEPTH = 15;
-
-  private static final ImmutableMap<PrimitiveCategory, DescriptorProtos.FieldDescriptorProto.Type>
-      hiveToProtoTypes =
-          new ImmutableMap.Builder<PrimitiveCategory, DescriptorProtos.FieldDescriptorProto.Type>()
-              .put(PrimitiveCategory.CHAR, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
-              .put(
-                  PrimitiveCategory.VARCHAR, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
-              .put(PrimitiveCategory.STRING, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
-              .put(PrimitiveCategory.BYTE, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
-              .put(PrimitiveCategory.SHORT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
-              .put(PrimitiveCategory.INT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
-              .put(PrimitiveCategory.LONG, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
-              .put(PrimitiveCategory.FLOAT, DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE)
-              .put(PrimitiveCategory.DOUBLE, DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE)
-              .put(
-                  PrimitiveCategory.DECIMAL, DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
-              .put(PrimitiveCategory.BOOLEAN, DescriptorProtos.FieldDescriptorProto.Type.TYPE_BOOL)
-              .put(PrimitiveCategory.DATE, DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT32)
-              .put(
-                  PrimitiveCategory.TIMESTAMP,
-                  DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
-              .put(
-                  PrimitiveCategory.TIMESTAMPLOCALTZ,
-                  DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64)
-              .put(PrimitiveCategory.BINARY, DescriptorProtos.FieldDescriptorProto.Type.TYPE_BYTES)
-              .build();
 
   public static Descriptors.Descriptor toDescriptor(StructObjectInspector soi)
       throws Descriptors.DescriptorValidationException {
@@ -148,7 +122,7 @@ public class ProtoSchemaConverter {
     if (oi instanceof PrimitiveObjectInspector) {
       PrimitiveCategory category = ((PrimitiveObjectInspector) oi).getPrimitiveCategory();
       return Preconditions.checkNotNull(
-          hiveToProtoTypes.get(category),
+          HiveCompat.getInstance().getHiveToProtoMappings().get(category),
           new IllegalStateException("Unexpected type: " + category.name()));
     } else {
       throw new IllegalStateException("Unexpected type: " + oi.getCategory().name());

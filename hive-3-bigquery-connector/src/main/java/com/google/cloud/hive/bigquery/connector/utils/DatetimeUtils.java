@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Google Inc. All Rights Reserved.
+ * Copyright 2023 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,14 @@ import java.time.*;
 import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.common.type.TimestampTZ;
 
-public class DateTimeUtils {
+public class DatetimeUtils {
+
+  public static TimestampTZ getHiveTimestampTZFromUTC(long utc) {
+    long seconds = utc / 1_000_000;
+    int nanos = (int) (utc % 1_000_000) * 1_000;
+    ZonedDateTime zonedDateTime = Instant.ofEpochSecond(seconds, nanos).atZone(ZoneId.of("UTC"));
+    return new TimestampTZ(zonedDateTime);
+  }
 
   public static long getEpochMicrosFromHiveTimestampTZ(TimestampTZ timestampTZ) {
     return timestampTZ.getZonedDateTime().toEpochSecond() * 1_000_000
@@ -29,6 +36,11 @@ public class DateTimeUtils {
 
   public static long getEpochMicrosFromHiveTimestamp(Timestamp timestamp) {
     return timestamp.toEpochSecond() * 1_000_000 + timestamp.getNanos() / 1_000;
+  }
+
+  public static Timestamp getHiveTimestampFromLocalDatetime(LocalDateTime localDateTime) {
+    return Timestamp.ofEpochSecond(
+        localDateTime.toEpochSecond(ZoneOffset.UTC), localDateTime.getNano());
   }
 
   public static long getEncodedProtoLongFromHiveTimestamp(Timestamp timestamp) {
@@ -41,17 +53,5 @@ public class DateTimeUtils {
             timestamp.getMinutes(),
             timestamp.getSeconds(),
             timestamp.getNanos()));
-  }
-
-  public static TimestampTZ getHiveTimestampTZFromUTC(long utc) {
-    long seconds = utc / 1_000_000;
-    int nanos = (int) (utc % 1_000_000) * 1_000;
-    ZonedDateTime zonedDateTime = Instant.ofEpochSecond(seconds, nanos).atZone(ZoneId.of("UTC"));
-    return new TimestampTZ(zonedDateTime);
-  }
-
-  public static Timestamp getHiveTimestampFromLocalDatetime(LocalDateTime localDateTime) {
-    return Timestamp.ofEpochSecond(
-        localDateTime.toEpochSecond(ZoneOffset.UTC), localDateTime.getNano());
   }
 }

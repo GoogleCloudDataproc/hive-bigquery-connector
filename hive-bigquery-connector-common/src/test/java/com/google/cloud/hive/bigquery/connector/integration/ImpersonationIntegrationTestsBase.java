@@ -16,18 +16,17 @@
 package com.google.cloud.hive.bigquery.connector.integration;
 
 import static com.google.cloud.hive.bigquery.connector.TestUtils.HIVE_ALL_TYPES_TABLE_DDL;
-import static com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.api.client.http.HttpResponseException;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.jupiter.api.Test;
-import test.hivebqcon.com.google.gson.Gson;
-import test.hivebqcon.com.google.gson.JsonObject;
-import test.hivebqcon.com.google.gson.reflect.TypeToken;
 
-public class ImpersonationIntegrationTests extends IntegrationTestsBase {
+public abstract class ImpersonationIntegrationTestsBase extends IntegrationTestsBase {
 
   public static JsonObject getErrorJsonFromHttpResponseException(
       Throwable e, String stackTraceClassName, String stackTraceMethodName) {
