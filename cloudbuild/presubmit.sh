@@ -24,8 +24,8 @@ fi
 
 readonly ACTION=$1
 
-readonly HIVE2_PROFILE="hive2.3.6-hadoop2.7.0"
-readonly HIVE3_PROFILE="dataproc21"
+readonly HIVE2_PROFILE="hive2-generic"
+readonly HIVE3_PROFILE="hive3-generic"
 readonly MVN="./mvnw -B -e -Dmaven.repo.local=/workspace/.repository"
 
 export TEST_BUCKET=dataproc-integ-tests

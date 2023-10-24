@@ -15,26 +15,9 @@ This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.
 For Hadoop clusters other than Dataproc, the connector has been tested with the following
 software versions:
 
-* Hive 3.1.2 and 3.1.3.
-* Hadoop 2.10.2, 3.2.3 and 3.3.3.
+* Hive 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
+* Hadoop 2.10.2, 3.2.3, and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
-
-## Build
-
-To build the connector jar:
-
-1. Clone this repository:
-   ```sh
-   git clone https://github.com/GoogleCloudPlatform/hive-bigquery-connector
-   cd hive-bigquery-connector
-   ```
-
-2. Compile and package the jar:
-   ``` sh
-   ./mvnw package -DskipTests
-   ```
-   The packaged jar is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT.jar`
-
 
 ## Installation
 
@@ -49,10 +32,35 @@ connector is to use the [connectors init action](https://github.com/GoogleCloudD
 
 ### Option 2: manual installation
 
-You can also download the released connector jar from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.hive/hive-bigquery-connector),
-or build from the source, then install it in your cluster manually:
+You can also download an official release JAR from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.hive/hive-bigquery-connector).
 
-Try with Hive client session or Beeline client session:
+Alternately, you can build a JAR from source:
+
+1. Clone this repository:
+   ```sh
+   git clone https://github.com/GoogleCloudPlatform/hive-bigquery-connector
+   cd hive-bigquery-connector
+   ```
+
+2. Compile and package the jar:
+
+  * For Hive 2:
+
+    ``` sh
+    ./mvnw package -DskipTests -P hive2-generic
+    ```
+
+  * For Hive 3:
+
+    ``` sh
+    ./mvnw package -DskipTests -P hive3-generic
+    ```
+
+   The packaged jar is now available at: `connector/target/hive-bigquery-connector-<version>.jar`
+
+Once you have the connector JAR, deploy the JAR to the classpath of all nodes in your Hive cluster.
+
+You can also provide the JAR as a parameter when starting a Hive or Beeline session:
 
    ```sh
    hive --auxpath <jar path>/hive-bigquery-connector-<version>.jar
@@ -80,7 +88,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (word_count BIGINT, word STRING)
-STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable'
 );
@@ -179,7 +187,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (int_val BIGINT, ts TIMESTAMP)
-STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable',
     'bq.time.partition.field'='ts',
@@ -210,7 +218,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (int_val BIGINT)
-STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable',
     'bq.time.partition.type'='DAY'
@@ -233,7 +241,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (int_val BIGINT, text STRING, purchase_date DATE)
-STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable',
     'bq.clustered.fields'='int_val,text'
@@ -448,7 +456,7 @@ To link a Hive table to a BigQuery table snapshot, simply specify the snapshot's
 
 ```sql
 CREATE TABLE mytable (abc BIGINT, xyz STRING)
-STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mysnapshot'
 );
@@ -614,19 +622,19 @@ There are multiple options to override the default behavior and to provide custo
   for specific users, specific groups, or for all users that run the Hive query by default using
   the below properties:
 
-    - `bq.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
+  - `bq.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
 
-      The service account to be impersonated for a specific user. You can specify multiple
-      properties using that pattern for multiple users.
+    The service account to be impersonated for a specific user. You can specify multiple
+    properties using that pattern for multiple users.
 
-    - `bq.impersonation.service.account.for.group.<GROUP_NAME>` (not set by default)
+  - `bq.impersonation.service.account.for.group.<GROUP_NAME>` (not set by default)
 
-      The service account to be impersonated for a specific group. You can specify multiple
-      properties using that pattern for multiple groups.
+    The service account to be impersonated for a specific group. You can specify multiple
+    properties using that pattern for multiple groups.
 
-    - `bq.impersonation.service.account` (not set by default)
+  - `bq.impersonation.service.account` (not set by default)
 
-      Default service account to be impersonated for all users.
+    Default service account to be impersonated for all users.
 
   If any of the above properties are set then the service account specified will be impersonated by
   generating a short-lived credentials when accessing BigQuery.
@@ -711,7 +719,7 @@ export PROJECT=my-gcp-project
 export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
 export BIGLAKE_CONNECTION=hive-integration-tests
-export BIGLAKE_BUCKET=${USER}-biglake-test
+export BIGLAKE_BUCKET=${PROJECT}-biglake-tests
 ```
 
 Create the test BigLake connection:
