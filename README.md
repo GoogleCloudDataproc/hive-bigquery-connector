@@ -50,13 +50,15 @@ Alternately, you can build a JAR from source:
        ./mvnw package -DskipTests -P hive2-generic
        ```
 
+       The packaged jar is now available at: `hive-2-bigquery-connector/target/hive-2-bigquery-connector-<version>.jar`
+
      * For Hive 3:
 
        ``` sh
        ./mvnw package -DskipTests -P hive3-generic
        ```
 
-     The packaged jar is now available at: `connector/target/hive-bigquery-connector-<version>.jar`
+       The packaged jar is now available at: `hive-3-bigquery-connector/target/hive-3-bigquery-connector-<version>.jar`
 
 Once you have the connector JAR, deploy the JAR to the classpath of all nodes in your Hive cluster.
 
