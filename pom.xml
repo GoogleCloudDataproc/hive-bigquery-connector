@@ -68,7 +68,6 @@
         <profile>
             <id>hive2.3.6-hadoop2.7.0</id>
             <modules>
-                <module>shaded-sparksql</module>
                 <module>shaded-deps-hive2.3.6-hadoop2.7.0</module>
                 <module>hive-2-bigquery-connector</module>
             </modules>
@@ -76,7 +75,6 @@
         <profile>
             <id>hive2.3.9-hadoop2.10.2</id>
             <modules>
-                <module>shaded-sparksql</module>
                 <module>shaded-deps-hive2.3.9-hadoop2.10.2</module>
                 <module>hive-2-bigquery-connector</module>
             </modules>

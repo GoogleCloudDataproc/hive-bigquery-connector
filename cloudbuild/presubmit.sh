@@ -45,7 +45,7 @@ case "$ACTION" in
   build)
     # Install all modules for Hive 2, including parent modules
     $MVN install -DskipTests -P"${HIVE2_PROFILE}"
-    # Install the shaded deps for Hive 3 (all the other shared & parent modules have already been installed with the previous command)
+    # Install the shaded deps for Hive 3 (all the other shaded & parent modules have already been installed with the previous command)
     $MVN install -DskipTests -P"${HIVE3_PROFILE}" -pl shaded-deps-${HIVE3_PROFILE}
     exit
     ;;
