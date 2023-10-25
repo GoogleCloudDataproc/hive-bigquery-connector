@@ -15,26 +15,9 @@ This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.
 For Hadoop clusters other than Dataproc, the connector has been tested with the following
 software versions:
 
-* Hive 3.1.2 and 3.1.3.
-* Hadoop 2.10.2, 3.2.3 and 3.3.3.
+* Hive 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
+* Hadoop 2.10.2, 3.2.3, and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
-
-## Build
-
-To build the connector jar:
-
-1. Clone this repository:
-   ```sh
-   git clone https://github.com/GoogleCloudPlatform/hive-bigquery-connector
-   cd hive-bigquery-connector
-   ```
-
-2. Compile and package the jar:
-   ``` sh
-   ./mvnw package -DskipTests
-   ```
-   The packaged jar is now available at: `connector/target/hive-bigquery-connector-2.0.0-SNAPSHOT.jar`
-
 
 ## Installation
 
@@ -49,10 +32,37 @@ connector is to use the [connectors init action](https://github.com/GoogleCloudD
 
 ### Option 2: manual installation
 
-You can also download the released connector jar from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.hive/hive-bigquery-connector),
-or build from the source, then install it in your cluster manually:
+You can also download an official release JAR from [Maven Central](https://mvnrepository.com/artifact/com.google.cloud.hive/hive-bigquery-connector).
 
-Try with Hive client session or Beeline client session:
+Alternately, you can build a JAR from source:
+
+  1. Clone this repository:
+     ```sh
+     git clone https://github.com/GoogleCloudPlatform/hive-bigquery-connector
+     cd hive-bigquery-connector
+     ```
+
+  2. Compile and package the jar:
+
+     * For Hive 2:
+
+       ``` sh
+       ./mvnw package -DskipTests -P hive2-generic
+       ```
+
+       The packaged jar is now available at: `hive-2-bigquery-connector/target/hive-2-bigquery-connector-<version>.jar`
+
+     * For Hive 3:
+
+       ``` sh
+       ./mvnw package -DskipTests -P hive3-generic
+       ```
+
+       The packaged jar is now available at: `hive-3-bigquery-connector/target/hive-3-bigquery-connector-<version>.jar`
+
+Once you have the connector JAR, deploy the JAR to the classpath of all nodes in your Hive cluster.
+
+You can also provide the JAR as a parameter when starting a Hive or Beeline session:
 
    ```sh
    hive --auxpath <jar path>/hive-bigquery-connector-<version>.jar

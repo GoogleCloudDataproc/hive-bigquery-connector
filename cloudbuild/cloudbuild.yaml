@@ -22,25 +22,44 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 4. Run unit tests
+# 4. Run unit tests for Hive 2
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
-  id: 'unit-tests'
+  id: 'unit-tests-hive2'
   waitFor: ['build']
   entrypoint: 'bash'
-  args: ['/workspace/cloudbuild/presubmit.sh', 'unittest']
-  env:
-    - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
-# 5. Run integration tests
-- name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
-  id: 'integration-tests'
-  waitFor: ['unit-tests']
-  entrypoint: 'bash'
-  args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest']
+  args: ['/workspace/cloudbuild/presubmit.sh', 'unittest_hive2']
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# Tests should take under 60 mins
-timeout: 3600s
+# 5. Run unit tests for Hive 3
+- name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
+  id: 'unit-tests-hive3'
+  waitFor: ['build']
+  entrypoint: 'bash'
+  args: ['/workspace/cloudbuild/presubmit.sh', 'unittest_hive3']
+  env:
+    - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
+
+# 6. Run integration tests for Hive 2
+- name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
+  id: 'integration-tests-hive2'
+  waitFor: ['unit-tests-hive2']
+  entrypoint: 'bash'
+  args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest_hive2']
+  env:
+    - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
+
+# 7. Run integration tests for Hive 3
+- name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
+  id: 'integration-tests-hive3'
+  waitFor: ['unit-tests-hive3']
+  entrypoint: 'bash'
+  args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest_hive3']
+  env:
+    - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
+
+# Tests should take under 90 mins
+timeout: 5400s
 
 options:
   machineType: 'N1_HIGHCPU_32'
