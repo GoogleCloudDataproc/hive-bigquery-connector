@@ -36,7 +36,6 @@ import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.TaskAttemptID;
 
 /**
  * Writes records to a given BQ stream. Each task runs its own instance of this writer class, i.e.
@@ -49,17 +48,19 @@ public class DirectRecordWriter
 
   JobConf jobConf;
   JobDetails jobDetails;
-  TaskAttemptID taskAttemptID;
   BigQueryDirectDataWriterHelper streamWriter;
   StructObjectInspector rowObjectInspector;
   Descriptors.Descriptor descriptor;
-  final String writerId;
+  final Path streamRefFile;
 
   public DirectRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
-    this.taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
-    this.writerId = WriterRegistry.getWriterId();
     this.jobDetails = jobDetails;
+    String taskID = HiveUtils.getTaskID(jobConf);
+    String writerId = WriterRegistry.getWriterId();
+    streamRefFile =
+        JobUtils.getTaskWriterOutputFile(
+            jobDetails, taskID, writerId, HiveBigQueryConfig.STREAM_FILE_EXTENSION);
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);
@@ -97,9 +98,6 @@ public class DirectRecordWriter
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
-      Path streamRefFile =
-          JobUtils.getTaskWriterOutputFile(
-              jobDetails, taskAttemptID, writerId, HiveBigQueryConfig.STREAM_FILE_EXTENSION);
       FSDataOutputStream outputStream = streamRefFile.getFileSystem(jobConf).create(streamRefFile);
       outputStream.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
       outputStream.close();

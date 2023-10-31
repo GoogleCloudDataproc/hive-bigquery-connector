@@ -96,10 +96,9 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
   // ---------------------------------------------------------------------------------------------------
 
   /** Test the `SELECT` statement with explicit columns (i.e. not `SELECT *`) */
-  @ParameterizedTest
-  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
-  public void testSelectExplicitColumns(String engine, String readDataFormat) {
-    initHive(engine, readDataFormat);
+  @Test
+  public void testSelectExplicitColumns() {
+    initHive();
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data into BQ using the BQ SDK
     runBqQuery(

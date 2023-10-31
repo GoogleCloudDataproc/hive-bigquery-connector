@@ -27,6 +27,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.output.OutputCommitterUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
@@ -49,6 +50,7 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
@@ -66,8 +68,8 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
 
   Configuration conf;
 
-  protected List<PrimitiveCategory> getSupportedTypes() {
-    List<PrimitiveCategory> types = new ArrayList<>();
+  protected List<PrimitiveObjectInspector.PrimitiveCategory> getSupportedTypes() {
+    List<PrimitiveObjectInspector.PrimitiveCategory> types = new ArrayList<>();
     types.addAll(
         Arrays.asList(
             PrimitiveCategory.BYTE, // Tiny Int
@@ -389,22 +391,19 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
   @Override
   public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
-    if (engine.equals("mr")) {
-      // In Hive v3, `commitInsertTable()` never gets called for MR -- only for Tez.
-      // But in Hive v2, it does get called. So we exit here since the BigQueryOutputCommitter
-      // is already called automatically for MR.
-      return;
-    }
-    try {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
-      BigQueryOutputCommitter.commit(conf, jobDetails);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    } finally {
-      // deleteOnExit in case of other jobs using the same workdir
-      JobUtils.cleanNotFail(
-          () -> JobUtils.deleteQueryWorkDirOnExit(conf),
-          CleanMessage.DELETE_QUERY_TEMPORARY_DIRECTORY);
+    if (engine.equals("tez")) {
+      try {
+        JobDetails jobDetails =
+            JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
+        OutputCommitterUtils.commitJob(conf, jobDetails);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      } finally {
+        // deleteOnExit in case of other jobs using the same workdir
+        JobUtils.cleanNotFail(
+            () -> JobUtils.deleteQueryWorkDirOnExit(conf),
+            CleanMessage.DELETE_QUERY_TEMPORARY_DIRECTORY);
+      }
     }
   }
 

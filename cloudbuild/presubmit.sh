@@ -26,6 +26,7 @@ readonly ACTION=$1
 
 readonly HIVE2_PROFILE="hive2-generic"
 readonly HIVE3_PROFILE="hive3-generic"
+readonly HIVE3_SHADED_DEPS="shaded-deps-hive3.1.2-hadoop2.10.2"
 readonly MVN="./mvnw -B -e -Dmaven.repo.local=/workspace/.repository"
 
 export TEST_BUCKET=dataproc-integ-tests
@@ -37,16 +38,18 @@ cd /workspace
 case "$ACTION" in
   # Java code style check
   check)
-    ./mvnw spotless:check -P"${HIVE2_PROFILE}" && ./mvnw spotless:check -P"${HIVE3_PROFILE}"
+    $MVN spotless:check -P"${HIVE2_PROFILE}" && $MVN spotless:check -P"${HIVE3_PROFILE}"
     exit
     ;;
 
-  # Download maven and all the dependencies
+  # Build the Maven packages and dependencies
   build)
-    # Install all modules for Hive 2, including parent modules
-    $MVN install -DskipTests -P"${HIVE2_PROFILE}"
-    # Install the shaded deps for Hive 3 (all the other shaded & parent modules have already been installed with the previous command)
-    $MVN install -DskipTests -P"${HIVE3_PROFILE}" -pl shaded-deps-${HIVE3_PROFILE}
+    # Install shaded dependencies for Spark SQL
+    $MVN install -DskipTests -P sparksql -pl shaded-deps-sparksql
+    # Install all modules for Hive 2
+    $MVN install -DskipTests -P"${HIVE2_PROFILE},sparksql-integration"
+    # Install the shaded dependencies for Hive 3 (all the other shaded & parent modules have already been installed with the previous command)
+    $MVN install -DskipTests -P"${HIVE3_PROFILE}" -pl ${HIVE3_SHADED_DEPS}
     exit
     ;;
 
@@ -79,6 +82,15 @@ case "$ACTION" in
   integrationtest_hive3)
     $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate \
       -P"${HIVE3_PROFILE}",coverage,integration
+    # Upload test coverage report to Codecov
+    bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
+    exit
+    ;;
+
+  # Run integration tests for Spark SQL
+  integrationtest_sparksql)
+    $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate \
+      -P${HIVE2_PROFILE},sparksql-integration,coverage
     # Upload test coverage report to Codecov
     bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
     exit

@@ -65,6 +65,17 @@
     </modules>
 
     <profiles>
+        <!-- Hive 2 profiles ************************************************************ -->
+
+        <profile>
+            <!-- Currently the same as "hive2.3.9-hadoop2.10.2" but could be changed later -->
+            <!-- Use this profile if you don't care about specific minor versions of Hive 2.X -->
+            <id>hive2-generic</id>
+            <modules>
+                <module>shaded-deps-hive2.3.9-hadoop2.10.2</module>
+                <module>hive-2-bigquery-connector</module>
+            </modules>
+        </profile>
         <profile>
             <id>hive2.3.6-hadoop2.7.0</id>
             <modules>
@@ -79,22 +90,20 @@
                 <module>hive-2-bigquery-connector</module>
             </modules>
         </profile>
+
+        <!-- Hive 3 profiles ************************************************************ -->
+
         <profile>
-            <id>hive3.1.2-hadoop2.10.2</id>
+            <!-- Currently the same as "hive3.1.2-hadoop2.10.2" but could be changed later -->
+            <!-- Use this profile if you don't care about specific minor versions of Hive 3.X -->
+            <id>hive3-generic</id>
             <modules>
                 <module>shaded-deps-hive3.1.2-hadoop2.10.2</module>
                 <module>hive-3-bigquery-connector</module>
             </modules>
         </profile>
         <profile>
-            <id>hive2-generic</id>
-            <modules>
-                <module>shaded-deps-hive2.3.9-hadoop2.10.2</module>
-                <module>hive-2-bigquery-connector</module>
-            </modules>
-        </profile>
-        <profile>
-            <id>hive3-generic</id>
+            <id>hive3.1.2-hadoop2.10.2</id>
             <modules>
                 <module>shaded-deps-hive3.1.2-hadoop2.10.2</module>
                 <module>hive-3-bigquery-connector</module>
@@ -109,13 +118,20 @@
         </profile>
         <profile>
             <id>dataproc21</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <modules>
                 <module>shaded-deps-dataproc21</module>
                 <module>hive-3-bigquery-connector</module>
             </modules>
         </profile>
+
+        <!-- Spark SQL profiles ************************************************************ -->
+
+        <profile>
+            <id>sparksql</id>
+            <modules>
+                <module>shaded-deps-sparksql</module>
+            </modules>
+        </profile>
+
     </profiles>
 </project>

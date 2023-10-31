@@ -32,7 +32,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.TaskAttemptID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,15 +116,12 @@ public class JobUtils {
    * @return Fully Qualified temporary table path on GCS
    */
   public static Path getTaskWriterOutputFile(
-      JobDetails jobDetails, TaskAttemptID taskAttemptID, String writerId, String suffix) {
+      JobDetails jobDetails, String taskAttemptID, String writerId, String suffix) {
     return new Path(
         jobDetails.getJobTempOutputPath(),
         String.format(
             "%s_%s_%s.%s",
-            getTableIdPrefix(jobDetails.getTableId()),
-            taskAttemptID.getTaskID(),
-            writerId,
-            suffix));
+            getTableIdPrefix(jobDetails.getTableId()), taskAttemptID, writerId, suffix));
   }
 
   /** Return the name prefix for the temp file. */

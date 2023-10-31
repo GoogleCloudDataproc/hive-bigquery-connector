@@ -25,7 +25,7 @@
     <relativePath>../hive-bigquery-parent</relativePath>
   </parent>
 
-  <artifactId>shaded-sparksql</artifactId>
+  <artifactId>shaded-deps-sparksql</artifactId>
 
   <!--
   What is this module for?
@@ -97,13 +97,12 @@
 
   <build>
     <plugins>
-      <!-- TODO: Ok to exclude from Maven Central? -->
-      <!-- Instruct not to publish this module to Maven Central -->
       <plugin>
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>
         <version>${nexus-staging-maven-plugin.version}</version>
         <configuration>
+          <!-- Instruct not to publish this module to Maven Central -->
           <skipStaging>true</skipStaging>
         </configuration>
       </plugin>

@@ -31,6 +31,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
 import org.apache.hadoop.util.Progressable;
 
+/** Output format compatible with the old "mapred" Hadoop API. */
 public class BigQueryOutputFormat
     implements OutputFormat<NullWritable, Writable>, HiveOutputFormat<NullWritable, Writable> {
 

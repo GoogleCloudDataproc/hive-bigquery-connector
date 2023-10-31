@@ -26,6 +26,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.output.MapReduceOutputFormat;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.inject.Guice;
@@ -165,6 +166,13 @@ public abstract class BigQueryStorageHandlerBase
 
     // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
     conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
+
+    if (HiveUtils.isSparkJob(conf)) {
+      // Spark uses the new "mapreduce" Hadoop API for the job output format
+      conf.set("mapreduce.job.outputformat.class", MapReduceOutputFormat.class.getName());
+      tableDesc.setOutputFileFormatClass(BigQueryOutputFormat.class);
+      setOutputTables(tableDesc);
+    }
 
     // Set config for the GCS Connector
     setGCSAccessTokenProvider(conf);

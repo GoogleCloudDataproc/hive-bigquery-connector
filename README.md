@@ -18,6 +18,7 @@ software versions:
 * Hive 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
 * Hadoop 2.10.2, 3.2.3, and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
+* Spark SQL 3.4.1.
 
 ## Installation
 
@@ -473,6 +474,27 @@ consumers read based on a specific point in time. The snapshot time is based on 
 session creation time (i.e. when the `SELECT` query is initiated).
 
 Note that this consistency model currently only applies to the table data, not its metadata.
+
+## Spark SQL integration
+
+The connector supports versions of Spark SQL that vendor Hive v2.X. Therefore, to use Spark SQL,
+you must use the Hive 2 (not Hive 3) version of the connector. See more information in the
+[Installation](#installation) section on how to install the correct connector version in your
+environment.
+
+Example (Java):
+
+```java
+SparkConf sparkConf = new SparkConf().setMaster("local");
+SparkSession spark =
+    SparkSession.builder()
+    .appName("example")
+    .config(sparkConf)
+    .enableHiveSupport()
+    .getOrCreate();
+Dataset<Row> ds = spark.sql("SELECT * FROM mytable");
+Row[] rows = ds.collect();
+```
 
 ## BigLake integration
 

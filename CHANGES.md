@@ -2,6 +2,8 @@
 
 ## Next
 
+* Added support for Hive 2.X.
+* Added support for Spark SQL.
 * Fixed case sensitivity bug with column names. This particularly affected pseudo columns like
   `_PARTITIONTIME` and `_PARTITIONDATE` in time-ingestion partitioned BigQuery tables.
 * **Backward-incompatible change:** The type of the `_PARTITION_TIME` pseudo-column in
