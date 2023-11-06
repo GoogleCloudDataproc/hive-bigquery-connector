@@ -21,11 +21,15 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-/** Output format compatible with the new "mapreduce" Hadoop API. This is used by Spark SQL. */
+/**
+ * Output format compatible with the new "mapreduce" Hadoop API. This is partially used by Spark
+ * SQL.
+ */
 public class MapReduceOutputFormat<T> extends FileOutputFormat<Void, T> {
 
   private MapReduceOutputCommitter committer;
 
+  /** Retrieves the output committer class. This is used by Spark SQL. */
   @Override
   public synchronized OutputCommitter getOutputCommitter(TaskAttemptContext context)
       throws IOException {
@@ -38,7 +42,8 @@ public class MapReduceOutputFormat<T> extends FileOutputFormat<Void, T> {
   @Override
   public RecordWriter<Void, T> getRecordWriter(TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {
-    // Note: Spark and Hive use `BigQueryOutputFormat.getRecordWriter()` instead.
+    // Note: Spark and Hive both use `BigQueryOutputFormat.getRecordWriter()` instead of this
+    // method.
     return null;
   }
 }

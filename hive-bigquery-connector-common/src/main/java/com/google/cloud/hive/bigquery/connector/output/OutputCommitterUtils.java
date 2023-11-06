@@ -43,6 +43,7 @@ public class OutputCommitterUtils {
         DirectOutputCommitter.commitJob(conf, jobDetails);
       }
     } finally {
+      // deleteOnExit in case of other jobs using the same workdir
       JobUtils.cleanNotFail(
           () -> JobUtils.deleteJobTempOutput(conf, jobDetails),
           JobUtils.CleanMessage.DELETE_JOB_TEMPORARY_DIRECTORY);

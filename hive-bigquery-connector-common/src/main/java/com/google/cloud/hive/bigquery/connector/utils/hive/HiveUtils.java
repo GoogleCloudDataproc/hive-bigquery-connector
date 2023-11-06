@@ -104,13 +104,10 @@ public class HiveUtils {
       Method taskAttemptIdMethod = taskContextClass.getMethod("taskAttemptId");
       Object taskAttemptId = taskAttemptIdMethod.invoke(taskContext);
       return taskAttemptId.toString();
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    } catch (InvocationTargetException e) {
-      throw new RuntimeException(e);
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException(e);
-    } catch (IllegalAccessException e) {
+    } catch (ClassNotFoundException
+        | InvocationTargetException
+        | NoSuchMethodException
+        | IllegalAccessException e) {
       throw new RuntimeException(e);
     }
   }

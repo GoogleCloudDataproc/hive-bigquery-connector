@@ -168,9 +168,8 @@ public abstract class BigQueryStorageHandlerBase
     conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
 
     if (HiveUtils.isSparkJob(conf)) {
-      // Spark uses the new "mapreduce" Hadoop API for the job output format
+      // Spark uses the new "mapreduce" Hadoop API for the job output format's committer
       conf.set("mapreduce.job.outputformat.class", MapReduceOutputFormat.class.getName());
-      tableDesc.setOutputFileFormatClass(BigQueryOutputFormat.class);
       setOutputTables(tableDesc);
     }
 
