@@ -29,6 +29,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.OutputCommitterUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanUp;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
@@ -397,6 +398,11 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
         OutputCommitterUtils.commitJob(conf, jobDetails);
       } catch (IOException e) {
         throw new RuntimeException(e);
+      } finally {
+        // delete the query work directory in case of other jobs using the same one.
+        JobUtils.safeCleanUp(
+            () -> JobUtils.deleteQueryWorkDirOnExit(conf),
+            CleanUp.DELETE_QUERY_TEMPORARY_WORK_DIRECTORY);
       }
     }
   }

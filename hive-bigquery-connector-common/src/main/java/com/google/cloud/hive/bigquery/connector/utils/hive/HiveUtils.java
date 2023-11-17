@@ -101,9 +101,11 @@ public class HiveUtils {
       Class<?> taskContextClass = Class.forName("org.apache.spark.TaskContext");
       Method getMethod = taskContextClass.getMethod("get");
       Object taskContext = getMethod.invoke(null);
-      Method taskAttemptIdMethod = taskContextClass.getMethod("taskAttemptId");
-      Object taskAttemptId = taskAttemptIdMethod.invoke(taskContext);
-      return taskAttemptId.toString();
+      Method partitionIdMethod = taskContextClass.getMethod("partitionId");
+      Object partitionId = partitionIdMethod.invoke(taskContext);
+      Method stageIdMethod = taskContextClass.getMethod("stageId");
+      Object stageId = stageIdMethod.invoke(taskContext);
+      return String.format("stage-%s-partition-%s", stageId, partitionId);
     } catch (ClassNotFoundException
         | InvocationTargetException
         | NoSuchMethodException

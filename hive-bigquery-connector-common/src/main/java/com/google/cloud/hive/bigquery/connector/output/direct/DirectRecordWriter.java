@@ -98,7 +98,8 @@ public class DirectRecordWriter
       // Create a stream reference file that contains the stream name, so we can retrieve
       // it later at the end of the job to commit all streams.
       streamWriter.finalizeStream();
-      FSDataOutputStream outputStream = streamRefFile.getFileSystem(jobConf).create(streamRefFile);
+      FSDataOutputStream outputStream =
+          streamRefFile.getFileSystem(jobConf).create(streamRefFile, true);
       outputStream.write(streamWriter.getWriteStreamName().getBytes(StandardCharsets.UTF_8));
       outputStream.close();
     }

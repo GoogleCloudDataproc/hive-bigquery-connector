@@ -496,6 +496,18 @@ Dataset<Row> ds = spark.sql("SELECT * FROM mytable");
 Row[] rows = ds.collect();
 ```
 
+Example (Python):
+
+```python
+spark = SparkSession.builder \
+    .appName("example") \
+    .config("spark.master", "local") \
+    .enableHiveSupport() \
+    .getOrCreate()
+df = spark.sql("SELECT * FROM mytable")
+rows = df.collect()
+```
+
 ## BigLake integration
 
 [BigLake](https://cloud.google.com/biglake) allows you to store your data in open formats

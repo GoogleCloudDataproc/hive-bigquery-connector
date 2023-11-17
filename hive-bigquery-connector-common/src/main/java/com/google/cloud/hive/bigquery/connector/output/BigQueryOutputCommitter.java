@@ -43,11 +43,12 @@ public class BigQueryOutputCommitter extends OutputCommitter {
       JobDetails jobDetails;
       try {
         jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-        OutputCommitterUtils.commitJob(conf, jobDetails);
       } catch (Exception e) {
         // TO-DO: should we abort the job?
         LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
+        continue;
       }
+      OutputCommitterUtils.commitJob(conf, jobDetails);
     }
   }
 

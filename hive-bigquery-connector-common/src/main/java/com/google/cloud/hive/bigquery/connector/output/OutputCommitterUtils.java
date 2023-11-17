@@ -20,6 +20,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanUp;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -43,10 +44,9 @@ public class OutputCommitterUtils {
         DirectOutputCommitter.commitJob(conf, jobDetails);
       }
     } finally {
-      // deleteOnExit in case of other jobs using the same workdir
-      JobUtils.cleanNotFail(
-          () -> JobUtils.deleteJobTempOutput(conf, jobDetails),
-          JobUtils.CleanMessage.DELETE_JOB_TEMPORARY_DIRECTORY);
+      JobUtils.safeCleanUp(
+          () -> JobUtils.deleteJobTempOutputDir(conf, jobDetails),
+          CleanUp.DELETE_JOB_TEMPORARY_OUTPUT_DIRECTORY);
     }
   }
 
@@ -66,7 +66,9 @@ public class OutputCommitterUtils {
       if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
         DirectOutputCommitter.abortJob(conf, jobDetails);
       }
-      JobUtils.deleteJobTempOutput(conf, jobDetails);
+      JobUtils.safeCleanUp(
+          () -> JobUtils.deleteJobTempOutputDir(conf, jobDetails),
+          CleanUp.DELETE_JOB_TEMPORARY_OUTPUT_DIRECTORY);
     }
   }
 

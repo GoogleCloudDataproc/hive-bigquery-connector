@@ -68,7 +68,10 @@ public class JobUtils {
     return !booleans.contains(false);
   }
 
-  /** working directory for a query */
+  /**
+   * Top level working directory for a query. Used to store temporary work files during a write job
+   * (e.g. the JobDetails files)
+   */
   public static Path getQueryWorkDir(Configuration conf) {
     String parentPath = conf.get(HiveBigQueryConfig.WORK_DIR_PARENT_PATH_KEY);
     if (parentPath == null) {
@@ -83,12 +86,13 @@ public class JobUtils {
    */
   public static Path getJobDetailsFilePath(Configuration conf, String hmsDbTableName) {
     Path workDir = getQueryWorkDir(conf);
-    Path tblWorkPath = new Path(workDir, hmsDbTableName);
-    return new Path(tblWorkPath, HiveBigQueryConfig.JOB_DETAILS_FILE);
+    Path tableWorkDir = new Path(workDir, hmsDbTableName);
+    return new Path(tableWorkDir, HiveBigQueryConfig.JOB_DETAILS_FILE);
   }
 
-  private static Path getQuerySubDir(Configuration conf, String pathBase) {
-    String base = StringUtils.removeEnd(pathBase, "/");
+  /** Appends the query ID to the provided parent directory */
+  private static Path getQuerySubDir(Configuration conf, String parentDir) {
+    String base = StringUtils.removeEnd(parentDir, "/");
     return new Path(
         String.format(
             "%s/%s%s",
@@ -132,50 +136,46 @@ public class JobUtils {
         .replace(":", "__");
   }
 
-  public static void deleteJobTempOutput(Configuration conf, JobDetails jobDetails)
+  /**
+   * Deletes the directory that contains the job's temporary output files (i.e. the stream reference
+   * files for direct writes, and the temporary Avro files for indirect writes).
+   */
+  public static void deleteJobTempOutputDir(Configuration conf, JobDetails jobDetails)
       throws IOException {
     LOG.info("Deleting job temporary output directory {}", jobDetails.getJobTempOutputPath());
-    FileSystemUtils.deleteFiles(conf, jobDetails.getJobTempOutputPath());
+    FileSystemUtils.deleteDir(conf, jobDetails.getJobTempOutputPath());
   }
 
-  /** Deletes the job directory for a table. */
-  public static void deleteJobDir(Configuration conf, String hmsDbTableName) throws IOException {
-    Path workDir = getQueryWorkDir(conf);
-    Path tblJobPath = new Path(workDir, hmsDbTableName);
-    FileSystem fs = tblJobPath.getFileSystem(conf);
-    if (fs.exists(tblJobPath)) {
-      fs.delete(tblJobPath);
-    }
-  }
-
-  /** Deletes the work directory for a query. */
+  /** Deletes the work directory for a query when the query is complete (success or fail). */
   public static void deleteQueryWorkDirOnExit(Configuration conf) throws IOException {
     Path workDir = getQueryWorkDir(conf);
-    LOG.info("Deleting query temporary directory {}", workDir);
+    LOG.info("Deleting query temporary work directory {}", workDir);
     FileSystem fs = workDir.getFileSystem(conf);
     if (fs.listStatus(workDir).length == 0) {
       fs.deleteOnExit(workDir);
     }
   }
 
-  public class CleanMessage {
-    public static final String DELETE_BIGQUERY_TEMPORARY_TABLE = "delete bigquery temporary table";
-    public static final String DELETE_JOB_TEMPORARY_DIRECTORY = "delete job temporary directory";
-    public static final String DELETE_QUERY_TEMPORARY_DIRECTORY =
-        "delete query temporary directory";
-  }
-
   public interface CleanUp {
-    void clean() throws Exception;
+    String DELETE_BIGQUERY_TEMPORARY_TABLE =
+        "delete bigquery temporary table for INSERT OVERWRITE query";
+    String DELETE_JOB_TEMPORARY_OUTPUT_DIRECTORY = "delete job temporary output directory";
+    String DELETE_QUERY_TEMPORARY_WORK_DIRECTORY = "delete query temporary directory";
+
+    void cleanUp() throws Exception;
   }
 
-  public static void cleanNotFail(CleanUp cleanJob, String message) {
+  /**
+   * Attempt to clean up the job without risking the job to fail if the cleaning itself somehow
+   * fails.
+   */
+  public static void safeCleanUp(CleanUp cleaner, String message) {
     try {
-      LOG.debug("Start {}", message);
-      cleanJob.clean();
-      LOG.debug("Finished {}", message);
+      LOG.debug("Start cleaning up: {}", message);
+      cleaner.cleanUp();
+      LOG.debug("Finished cleaning up: {}", message);
     } catch (Exception e) {
-      LOG.warn("Failed {}: {}", message, e);
+      LOG.warn("Failed cleaning up: {}. Error: {}", message, e);
     }
   }
 }

@@ -37,7 +37,8 @@ public class JobDetails {
   private TableId tableId;
   private TableId finalTableId;
   private boolean overwrite;
-  // for direct it is where the stream reference files are, for indirect output in gcs temp path
+  // Temp output path: for direct writes it is where the stream reference files are,
+  // for indirect writes it is the gcs path where the temporary Avro files are.
   private Path jobTempOutputPath;
   private Properties hmsTableProperties;
   private transient Schema bigquerySchema;
