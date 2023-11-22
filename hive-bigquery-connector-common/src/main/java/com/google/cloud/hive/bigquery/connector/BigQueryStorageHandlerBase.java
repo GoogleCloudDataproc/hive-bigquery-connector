@@ -20,6 +20,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
@@ -37,6 +38,7 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveStoragePredicateHandler;
@@ -167,12 +169,6 @@ public abstract class BigQueryStorageHandlerBase
     // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
     conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
 
-    if (HiveUtils.isSparkJob(conf)) {
-      // Spark uses the new "mapreduce" Hadoop API for the job output format's committer
-      conf.set("mapreduce.job.outputformat.class", MapReduceOutputFormat.class.getName());
-      setOutputTables(tableDesc);
-    }
-
     // Set config for the GCS Connector
     setGCSAccessTokenProvider(conf);
 
@@ -192,6 +188,24 @@ public abstract class BigQueryStorageHandlerBase
         new Path(JobUtils.getQueryTempOutputPath(conf, opts), hmsDbTableName));
     jobDetails.setTableProperties(tableProperties);
     jobDetails.setTableId(tableId);
+
+    // Special treatment for Spark
+    if (HiveUtils.isSparkJob(conf)) {
+      if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+        HiveBigQueryConfig updatedOpts = HiveBigQueryConfig.from(conf, tableProperties);
+        try {
+          BigQueryMetaHookBase.configJobDetailsForIndirectWrite(
+              updatedOpts, jobDetails, injector.getInstance(BigQueryCredentialsSupplier.class));
+        } catch (MetaException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      // Spark uses the new "mapreduce" Hadoop API for the job output format's committer
+      conf.set("mapreduce.job.outputformat.class", MapReduceOutputFormat.class.getName());
+      setOutputTables(tableDesc);
+    }
+
+    // Save the job details file to disk
     Path jobDetailsFilePath =
         JobUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);

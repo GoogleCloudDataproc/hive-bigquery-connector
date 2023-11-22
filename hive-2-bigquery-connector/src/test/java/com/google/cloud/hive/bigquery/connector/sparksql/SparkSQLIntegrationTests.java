@@ -41,7 +41,7 @@ import scala.collection.mutable.WrappedArray;
 public class SparkSQLIntegrationTests extends IntegrationTestsBase {
 
   public Row[] runSparkSQLQuery(DerbyDiskDB derby, String queryTemplate) {
-    SparkSession spark = getSparkSession(derby);
+    SparkSession spark = getSparkSession(derby, hive.getHiveConf());
     Dataset<Row> ds = spark.sql(renderQueryTemplate(queryTemplate));
     Row[] rows = (Row[]) ds.collect();
     spark.stop();
@@ -171,7 +171,7 @@ public class SparkSQLIntegrationTests extends IntegrationTestsBase {
         TestUtils.HIVE_ALL_TYPES_TABLE_DDL,
         TestUtils.BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using Spark SQL
-    SparkSession spark = SparkTestUtils.getSparkSession(derby);
+    SparkSession spark = getSparkSession(derby, hive.getHiveConf());
     spark.sql(
         String.join(
             "\n",

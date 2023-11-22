@@ -154,16 +154,18 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
     bigQueryService.create(bigQueryTableInfo);
   }
 
-  protected void configJobDetailsForIndirectWrite(
-      HiveBigQueryConfig opts, JobDetails jobDetails, Schema bigQuerySchema, Injector injector)
+  public static void configJobDetailsForIndirectWrite(
+      HiveBigQueryConfig opts,
+      JobDetails jobDetails,
+      BigQueryCredentialsSupplier credentialsSupplier)
       throws MetaException {
     // validate the temp GCS path to store the temporary Avro files
-    validateTempGcsPath(opts.getTempGcsPath(), injector);
+    validateTempGcsPath(opts.getTempGcsPath(), credentialsSupplier);
     // Convert BigQuery schema to Avro schema
     StructObjectInspector rowObjectInspector =
         BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     org.apache.avro.Schema avroSchema =
-        AvroUtils.getAvroSchema(rowObjectInspector, bigQuerySchema.getFields());
+        AvroUtils.getAvroSchema(rowObjectInspector, jobDetails.getBigquerySchema().getFields());
     jobDetails.setAvroSchema(avroSchema);
   }
 
@@ -307,7 +309,8 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
         jobDetails.setBigquerySchema(tableSchema);
 
         if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-          configJobDetailsForIndirectWrite(opts, jobDetails, tableSchema, injector);
+          configJobDetailsForIndirectWrite(
+              opts, jobDetails, injector.getInstance(BigQueryCredentialsSupplier.class));
         }
         Path queryTempOutputPath = JobUtils.getQueryTempOutputPath(conf, opts);
         jobDetails.setJobTempOutputPath(new Path(queryTempOutputPath, hmsDbTableName));
@@ -378,7 +381,8 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
         LOG.info("Insert overwrite temporary table {} ", tempTableInfo.getTableId());
       }
     } else {
-      configJobDetailsForIndirectWrite(opts, jobDetails, jobDetails.getBigquerySchema(), injector);
+      configJobDetailsForIndirectWrite(
+          opts, jobDetails, injector.getInstance(BigQueryCredentialsSupplier.class));
     }
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
   }
@@ -454,14 +458,14 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
     return BigQueryUtil.parseTableId(bqTable);
   }
 
-  protected void validateTempGcsPath(String tempGcsPath, Injector injector) throws MetaException {
+  protected static void validateTempGcsPath(
+      String tempGcsPath, BigQueryCredentialsSupplier credentialsSupplier) throws MetaException {
     if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
       throw new MetaException(
           String.format(
               "The '%s' property must be set when using the '%s' write method.",
               HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
-    } else if (!JobUtils.hasGcsWriteAccess(
-        injector.getInstance(BigQueryCredentialsSupplier.class), tempGcsPath)) {
+    } else if (!JobUtils.hasGcsWriteAccess(credentialsSupplier, tempGcsPath)) {
       throw new MetaException(
           String.format(
               "Does not have write access to the following GCS path, or bucket does not exist: %s",
