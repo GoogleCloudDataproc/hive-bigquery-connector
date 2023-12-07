@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
+import com.google.cloud.hive.bigquery.connector.sparksql.SparkSQLUtils;
 import java.io.IOException;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
@@ -26,12 +27,18 @@ public class MapReduceOutputCommitter extends OutputCommitter {
 
   @Override
   public void commitJob(org.apache.hadoop.mapreduce.JobContext jobContext) throws IOException {
+    if (SparkSQLUtils.isSparkJob(jobContext.getConfiguration())) {
+      SparkSQLUtils.cleanUpSparkJobFile(jobContext.getConfiguration());
+    }
     BigQueryOutputCommitter.commitJob(jobContext.getConfiguration());
     super.commitJob(jobContext);
   }
 
   @Override
   public void abortJob(JobContext jobContext, JobStatus.State state) throws IOException {
+    if (SparkSQLUtils.isSparkJob(jobContext.getConfiguration())) {
+      SparkSQLUtils.cleanUpSparkJobFile(jobContext.getConfiguration());
+    }
     OutputCommitterUtils.abortJob(jobContext.getConfiguration());
     super.abortJob(jobContext, state);
   }

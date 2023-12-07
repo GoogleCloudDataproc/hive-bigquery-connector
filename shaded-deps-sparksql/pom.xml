@@ -65,12 +65,12 @@
       <version>${spark.version}</version>
       <exclusions>
         <exclusion>
-          <artifactId>hadoop-client-api</artifactId>
           <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>hadoop-client-runtime</artifactId>
-          <groupId>org.apache.hadoop</groupId>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -87,8 +87,16 @@
       <version>${spark.version}</version>
       <exclusions>
         <exclusion>
-          <artifactId>hadoop-client-runtime</artifactId>
           <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

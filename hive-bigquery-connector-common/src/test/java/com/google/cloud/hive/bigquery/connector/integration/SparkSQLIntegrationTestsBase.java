@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.sparksql;
+package com.google.cloud.hive.bigquery.connector.integration;
 
-import static com.google.cloud.hive.bigquery.connector.sparksql.SparkTestUtils.DerbyDiskDB;
-import static com.google.cloud.hive.bigquery.connector.sparksql.SparkTestUtils.getSparkSession;
+import static com.google.cloud.hive.bigquery.connector.SparkSQLTestUtils.DerbyDiskDB;
+import static com.google.cloud.hive.bigquery.connector.SparkSQLTestUtils.getSparkSession;
+import static com.google.cloud.hive.bigquery.connector.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.hive.bigquery.connector.TestUtils;
+import com.google.cloud.hive.bigquery.connector.SparkSQLTestUtils;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.integration.IntegrationTestsBase;
+import com.google.cloud.hive.bigquery.connector.sparksql.HiveBigQuerySparkSQLExtension;
 import com.google.common.collect.Streams;
 import java.io.IOException;
 import java.util.Arrays;
@@ -38,7 +39,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import scala.collection.immutable.Map;
 import scala.collection.mutable.WrappedArray;
 
-public class SparkSQLIntegrationTests extends IntegrationTestsBase {
+public abstract class SparkSQLIntegrationTestsBase extends IntegrationTestsBase {
 
   public Row[] runSparkSQLQuery(DerbyDiskDB derby, String queryTemplate) {
     SparkSession spark = getSparkSession(derby, hive.getHiveConf());
@@ -49,49 +50,41 @@ public class SparkSQLIntegrationTests extends IntegrationTestsBase {
   }
 
   @ParameterizedTest
-  @MethodSource(IntegrationTestsBase.EXECUTION_ENGINE_READ_FORMAT)
+  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testWhereClause(String engine, String readDataFormat) {
     DerbyDiskDB derby = new DerbyDiskDB(hive);
     initHive(engine, readDataFormat);
-    createExternalTable(
-        TestUtils.TEST_TABLE_NAME,
-        TestUtils.HIVE_TEST_TABLE_DDL,
-        TestUtils.BIGQUERY_TEST_TABLE_DDL);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
         String.format(
-            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')",
-            TestUtils.TEST_TABLE_NAME));
+            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
     // Read data with Spark SQL
     Row[] rows =
         runSparkSQLQuery(
-            derby,
-            String.format(
-                "SELECT * FROM default.%s WHERE number = 999", TestUtils.TEST_TABLE_NAME));
+            derby, String.format("SELECT * FROM default.%s WHERE number = 999", TEST_TABLE_NAME));
     assertArrayEquals(
         new Object[] {
           new Object[] {999L, "abcd"},
         },
-        SparkTestUtils.simplifySparkRows(rows));
+        SparkSQLTestUtils.simplifySparkRows(rows));
   }
 
   // ---------------------------------------------------------------------------------------------------
 
   /** Check that we can read all types of data from BigQuery. */
   @ParameterizedTest
-  @MethodSource(IntegrationTestsBase.READ_FORMAT)
+  @MethodSource(READ_FORMAT)
   public void testReadAllTypes(String readDataFormat) throws IOException {
     DerbyDiskDB derby = new DerbyDiskDB(hive);
-    initHive(IntegrationTestsBase.getDefaultExecutionEngine(), readDataFormat);
+    initHive(getDefaultExecutionEngine(), readDataFormat);
     createExternalTable(
-        TestUtils.ALL_TYPES_TABLE_NAME,
-        TestUtils.HIVE_ALL_TYPES_TABLE_DDL,
-        TestUtils.BIGQUERY_ALL_TYPES_TABLE_DDL);
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using the BQ SDK
     runBqQuery(
         String.join(
             "\n",
-            String.format("INSERT `${dataset}.%s` VALUES (", TestUtils.ALL_TYPES_TABLE_NAME),
+            String.format("INSERT `${dataset}.%s` VALUES (", ALL_TYPES_TABLE_NAME),
             "11,",
             "22,",
             "33,",
@@ -119,7 +112,7 @@ public class SparkSQLIntegrationTests extends IntegrationTestsBase {
                 + " 999)])]",
             ")"));
     // Read the data using Spark SQL
-    Row[] rows = runSparkSQLQuery(derby, "SELECT * FROM default." + TestUtils.ALL_TYPES_TABLE_NAME);
+    Row[] rows = runSparkSQLQuery(derby, "SELECT * FROM default." + ALL_TYPES_TABLE_NAME);
     assertEquals(1, rows.length);
     Row row = rows[0];
     assertEquals(18, row.size()); // Number of columns
@@ -138,17 +131,17 @@ public class SparkSQLIntegrationTests extends IntegrationTestsBase {
     assertEquals(4.2, row.getDouble(12));
     assertEquals(
         "{min=-99999999999999999999999999999.999999999, max=99999999999999999999999999999.999999999, pi=3.140000000, big_pi=31415926535897932384626433832.795028841}",
-        SparkTestUtils.convertSparkRowToMap((GenericRowWithSchema) row.get(13)).toString());
+        SparkSQLTestUtils.convertSparkRowToMap((GenericRowWithSchema) row.get(13)).toString());
     assertArrayEquals(
-        new Long[] {1l, 2l, 3l}, SparkTestUtils.convertSparkArray((WrappedArray) row.get(14)));
+        new Long[] {1l, 2l, 3l}, SparkSQLTestUtils.convertSparkArray((WrappedArray) row.get(14)));
     assertEquals(
         "{i=111},{i=222},{i=333}",
-        Arrays.stream(SparkTestUtils.convertSparkArray((WrappedArray) row.get(15)))
+        Arrays.stream(SparkSQLTestUtils.convertSparkArray((WrappedArray) row.get(15)))
             .map(s -> s.toString())
             .collect(Collectors.joining(",")));
     assertEquals(
         "{float_field=4.2, ts_field=2019-03-18 11:23:45.678901}",
-        SparkTestUtils.convertSparkRowToMap((GenericRowWithSchema) row.get(16)).toString());
+        SparkSQLTestUtils.convertSparkRowToMap((GenericRowWithSchema) row.get(16)).toString());
     // Map type
     Map map = (Map) row.get(17);
     assertEquals(2, map.size());
@@ -160,22 +153,21 @@ public class SparkSQLIntegrationTests extends IntegrationTestsBase {
 
   /** Check that we can write all types of data to BigQuery. */
   @ParameterizedTest
-  @MethodSource(IntegrationTestsBase.EXECUTION_ENGINE_WRITE_METHOD)
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteAllTypes(String engine, String writeMethod) {
     DerbyDiskDB derby = new DerbyDiskDB(hive);
     hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    hive.setHiveConfValue("spark.sql.extensions", HiveBigQuerySparkSQLExtension.class.getName());
     initHive(engine, HiveBigQueryConfig.AVRO);
     // Create the BQ table
     createExternalTable(
-        TestUtils.ALL_TYPES_TABLE_NAME,
-        TestUtils.HIVE_ALL_TYPES_TABLE_DDL,
-        TestUtils.BIGQUERY_ALL_TYPES_TABLE_DDL);
+        ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using Spark SQL
     SparkSession spark = getSparkSession(derby, hive.getHiveConf());
     spark.sql(
         String.join(
             "\n",
-            "INSERT INTO " + TestUtils.ALL_TYPES_TABLE_NAME + " SELECT",
+            "INSERT INTO " + ALL_TYPES_TABLE_NAME + " SELECT",
             "11,",
             "22,",
             "33,",
@@ -204,7 +196,7 @@ public class SparkSQLIntegrationTests extends IntegrationTestsBase {
             "FROM (select '1') t"));
     // Read the data using the BQ SDK
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TestUtils.ALL_TYPES_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", ALL_TYPES_TABLE_NAME));
     // Verify we get the expected values
     assertEquals(1, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
@@ -258,5 +250,34 @@ public class SparkSQLIntegrationTests extends IntegrationTestsBase {
     FieldValueList subEntry = entry.get(1).getRepeatedValue().get(0).getRecordValue();
     assertEquals("subkey", subEntry.get(0).getStringValue());
     assertEquals(999, subEntry.get(1).getLongValue());
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testInsertOverwrite(String engine, String writeMethod) {
+    DerbyDiskDB derby = new DerbyDiskDB(hive);
+    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    hive.setHiveConfValue("spark.sql.extensions", HiveBigQuerySparkSQLExtension.class.getName());
+    initHive(engine, HiveBigQueryConfig.AVRO);
+    createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    // Create some initial data in BQ
+    runBqQuery(
+        String.format(
+            "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    // Make sure the initial data is there
+    assertEquals(2, result.getTotalRows());
+    // Run INSERT OVERWRITE with Spark SQL
+    SparkSession spark = getSparkSession(derby, hive.getHiveConf());
+    spark.sql("INSERT OVERWRITE TABLE " + TEST_TABLE_NAME + " VALUES (888, 'xyz')");
+    // Make sure the new data erased the old one
+    result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    assertEquals(1, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    assertEquals(888L, rows.get(0).get(0).getLongValue());
+    assertEquals("xyz", rows.get(0).get(1).getStringValue());
   }
 }

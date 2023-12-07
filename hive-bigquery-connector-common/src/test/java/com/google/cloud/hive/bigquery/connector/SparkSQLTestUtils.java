@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.sparksql;
+package com.google.cloud.hive.bigquery.connector;
 
 import com.klarna.hiverunner.HiveShell;
 import java.io.IOException;
@@ -30,7 +30,7 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
 import scala.collection.mutable.WrappedArray;
 
-public class SparkTestUtils {
+public class SparkSQLTestUtils {
 
   /**
    * Creates the Metastore derby database on disk instead of in-memory so it can be shared between

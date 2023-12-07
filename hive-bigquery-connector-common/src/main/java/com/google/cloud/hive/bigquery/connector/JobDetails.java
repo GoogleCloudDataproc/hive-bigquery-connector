@@ -45,6 +45,7 @@ public class JobDetails {
   private String bigquerySchemaJSON;
   private transient org.apache.avro.Schema avroSchema; // Only used by the 'indirect' write method
   private String avroSchemaJSON; // Only used by the 'indirect' write method
+  private String writeMethod;
 
   public JobDetails() {}
 
@@ -90,6 +91,14 @@ public class JobDetails {
 
   public void setTableProperties(Properties hmsTableProperties) {
     this.hmsTableProperties = hmsTableProperties;
+  }
+
+  public String getWriteMethod() {
+    return writeMethod;
+  }
+
+  public void setWriteMethod(String writeMethod) {
+    this.writeMethod = writeMethod;
   }
 
   public Schema getBigquerySchema() {

@@ -44,10 +44,8 @@ case "$ACTION" in
 
   # Build the Maven packages and dependencies
   build)
-    # Install shaded dependencies for Spark SQL
-    $MVN install -DskipTests -P sparksql -pl shaded-deps-sparksql
     # Install all modules for Hive 2
-    $MVN install -DskipTests -P"${HIVE2_PROFILE},sparksql-integration"
+    $MVN install -DskipTests -P"${HIVE2_PROFILE}"
     # Install the shaded dependencies for Hive 3 (all the other shaded & parent modules have already been installed with the previous command)
     $MVN install -DskipTests -P"${HIVE3_PROFILE}" -pl ${HIVE3_SHADED_DEPS}
     exit
@@ -82,15 +80,6 @@ case "$ACTION" in
   integrationtest_hive3)
     $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate \
       -P"${HIVE3_PROFILE}",coverage,integration
-    # Upload test coverage report to Codecov
-    bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
-    exit
-    ;;
-
-  # Run integration tests for Spark SQL
-  integrationtest_sparksql)
-    $MVN failsafe:integration-test failsafe:verify jacoco:report jacoco:report-aggregate \
-      -P${HIVE2_PROFILE},sparksql-integration,coverage
     # Upload test coverage report to Codecov
     bash <(curl -s https://codecov.io/bash) -K -F "${ACTION}"
     exit

@@ -15,8 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.hive;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import com.google.cloud.hive.bigquery.connector.sparksql.SparkSQLUtils;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
@@ -44,10 +43,6 @@ public class HiveUtils {
       return false;
     }
     return "TRUE".equalsIgnoreCase(params.get("EXTERNAL"));
-  }
-
-  public static boolean isSparkJob(Configuration conf) {
-    return conf.get("spark.app.id", "").length() != 0;
   }
 
   public static String getQueryId(Configuration conf) {
@@ -86,32 +81,10 @@ public class HiveUtils {
   }
 
   public static String getTaskID(Configuration conf) {
-    if (isSparkJob(conf)) {
-      return getSparkTaskID();
+    if (SparkSQLUtils.isSparkJob(conf)) {
+      return SparkSQLUtils.getSparkTaskID();
     }
     return getHiveTaskAttemptIDWrapper(conf).getTaskID().toString();
-  }
-
-  /**
-   * Retrieves the Spark task ID from the Spark context. Uses reflection to avoid this library
-   * requiring dependencies on Spark packages.
-   */
-  public static String getSparkTaskID() {
-    try {
-      Class<?> taskContextClass = Class.forName("org.apache.spark.TaskContext");
-      Method getMethod = taskContextClass.getMethod("get");
-      Object taskContext = getMethod.invoke(null);
-      Method partitionIdMethod = taskContextClass.getMethod("partitionId");
-      Object partitionId = partitionIdMethod.invoke(taskContext);
-      Method stageIdMethod = taskContextClass.getMethod("stageId");
-      Object stageId = stageIdMethod.invoke(taskContext);
-      return String.format("stage-%s-partition-%s", stageId, partitionId);
-    } catch (ClassNotFoundException
-        | InvocationTargetException
-        | NoSuchMethodException
-        | IllegalAccessException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   private static class HiveTaskAttemptIDWrapper extends TaskAttemptID {

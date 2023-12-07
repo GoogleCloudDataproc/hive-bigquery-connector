@@ -61,6 +61,7 @@
         <module>shaded-acceptance-tests-dependencies</module>
         <module>hive-bigquery-connector-common</module>
         <module>hive-x-bigquery-connector</module>
+        <module>shaded-deps-sparksql</module>
         <module>shaded-deps-parent</module>
     </modules>
 
@@ -121,15 +122,6 @@
             <modules>
                 <module>shaded-deps-dataproc21</module>
                 <module>hive-3-bigquery-connector</module>
-            </modules>
-        </profile>
-
-        <!-- Spark SQL profiles ************************************************************ -->
-
-        <profile>
-            <id>sparksql</id>
-            <modules>
-                <module>shaded-deps-sparksql</module>
             </modules>
         </profile>
 

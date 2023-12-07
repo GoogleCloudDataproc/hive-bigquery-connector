@@ -58,15 +58,6 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 7. Run integration tests for Spark SQL
-- name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
-  id: 'integration-tests-sparksql'
-  waitFor: ['unit-tests-hive2']
-  entrypoint: 'bash'
-  args: ['/workspace/cloudbuild/presubmit.sh', 'integrationtest_sparksql']
-  env:
-    - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
-
 # Tests should take under 90 mins
 timeout: 5400s
 

@@ -477,12 +477,32 @@ Note that this consistency model currently only applies to the table data, not i
 
 ## Spark SQL integration
 
-The connector supports versions of Spark SQL that vendor Hive v2.X. Therefore, to use Spark SQL,
-you must use the Hive 2 (not Hive 3) version of the connector. See more information in the
-[Installation](#installation) section on how to install the correct connector version in your
-environment.
+Dataproc uses a patched version of Spark that automatically detects a table that has the `bq.table`
+table property, in which case Spark will use the [`Spark-BigQuery Connector`](https://github.com/GoogleCloudDataproc/spark-bigquery-connector)
+to access the table's data. This means that on Dataproc you actually do not need to use the
+Hive-BigQuery Connector for Spark SQL.
 
-Example (Java):
+However, if you want to use Spark SQL outside of Dataproc (e.g. in a self-managed Hadoop cluster
+on-premise or in a different cloud) to access BigQuery tables, then you must do the following:
+
+* Use Spark 3, which is currently the supported version. We plan to add support for Spark 2 in the
+  future –– stay tuned for that if that is the version you need.
+* Install the "Hive 2" version of the Hive-BigQuery Connector. This is because Spark 3 itself
+  vendors Hive 2 in its codebase. See more information in the [Installation](#installation) section
+  on how to install the appropriate connector version in your environment.
+* To be able to run `INSERT` queries, set the `spark.sql.extensions` configuration property to
+  register the connector's Spark extension:
+  ```xml
+  <property>
+  <name>spark.sql.extensions</name>
+  <value>com.google.cloud.hive.bigquery.connector.sparksql.HiveBigQuerySparkSQLExtension</value>
+  </property>
+  ```
+  This property isn't necessary if you just need to read data with `SELECT` queries.
+
+### Code samples
+
+Java example:
 
 ```java
 SparkConf sparkConf = new SparkConf().setMaster("local");
@@ -496,7 +516,7 @@ Dataset<Row> ds = spark.sql("SELECT * FROM mytable");
 Row[] rows = ds.collect();
 ```
 
-Example (Python):
+Python example:
 
 ```python
 spark = SparkSession.builder \
