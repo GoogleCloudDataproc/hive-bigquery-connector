@@ -331,8 +331,6 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
           BigQueryStorageHandlerBase.configureJobDetailsForIndirectWrite(
               opts, jobDetails, injector.getInstance(BigQueryCredentialsSupplier.class));
         }
-        Path queryTempOutputPath = JobUtils.getQueryTempOutputPath(conf, opts);
-        jobDetails.setJobTempOutputPath(new Path(queryTempOutputPath, hmsDbTableName));
         JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
       }
     } catch (IOException e) {

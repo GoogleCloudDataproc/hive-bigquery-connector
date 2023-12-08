@@ -37,10 +37,8 @@ public class SparkSQLUtils {
     return conf.get("spark.app.id", "").length() != 0;
   }
 
-  /** Retrieves the Spark task ID from the Spark context. */
-  public static String getSparkTaskID() {
-    TaskContext taskContext = TaskContext.get();
-    return String.format("stage-%s-partition-%s", taskContext.stageId(), taskContext.partitionId());
+  public static String getSparkPartitionID() {
+    return String.format("part-%s", TaskContext.get().partitionId());
   }
 
   public static void cleanUpSparkJobFile(Configuration conf) throws IOException {

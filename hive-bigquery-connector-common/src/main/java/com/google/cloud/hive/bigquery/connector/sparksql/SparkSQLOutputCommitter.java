@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.output;
+package com.google.cloud.hive.bigquery.connector.sparksql;
 
-import com.google.cloud.hive.bigquery.connector.sparksql.SparkSQLUtils;
+import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.output.OutputCommitterUtils;
 import java.io.IOException;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
@@ -23,22 +24,18 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /** Output committer compatible with the new "mapreduce" Hadoop API. */
-public class MapReduceOutputCommitter extends OutputCommitter {
+public class SparkSQLOutputCommitter extends OutputCommitter {
 
   @Override
   public void commitJob(org.apache.hadoop.mapreduce.JobContext jobContext) throws IOException {
-    if (SparkSQLUtils.isSparkJob(jobContext.getConfiguration())) {
-      SparkSQLUtils.cleanUpSparkJobFile(jobContext.getConfiguration());
-    }
+    SparkSQLUtils.cleanUpSparkJobFile(jobContext.getConfiguration());
     BigQueryOutputCommitter.commitJob(jobContext.getConfiguration());
     super.commitJob(jobContext);
   }
 
   @Override
   public void abortJob(JobContext jobContext, JobStatus.State state) throws IOException {
-    if (SparkSQLUtils.isSparkJob(jobContext.getConfiguration())) {
-      SparkSQLUtils.cleanUpSparkJobFile(jobContext.getConfiguration());
-    }
+    SparkSQLUtils.cleanUpSparkJobFile(jobContext.getConfiguration());
     OutputCommitterUtils.abortJob(jobContext.getConfiguration());
     super.abortJob(jobContext, state);
   }

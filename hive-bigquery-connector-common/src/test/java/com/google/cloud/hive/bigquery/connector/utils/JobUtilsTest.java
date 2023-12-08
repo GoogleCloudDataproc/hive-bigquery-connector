@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.output.WriterRegistry;
-import java.util.regex.Pattern;
+import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.junit.jupiter.api.Test;
@@ -70,16 +70,44 @@ public class JobUtilsTest {
 
   @Test
   public void testGetTaskWriterOutputFile() {
+    Configuration conf = new Configuration();
+    conf.set("hive.query.id", "query123");
+    conf.set("hadoop.tmp.dir", "/hadoop-tmp/");
     JobDetails jobDetails = new JobDetails();
-    String tmp = "/tmp/bq-hive-query123/default.mytable";
-    jobDetails.setJobTempOutputPath(new Path(tmp));
+    jobDetails.setTableProperties(new Properties());
+    jobDetails.getTableProperties().put("name", "default.mytable");
     TableId tableId = TableId.of("myproject", "mydataset", "mytable");
     jobDetails.setTableId(tableId);
     String taskAttemptID = "abcd1234";
     String writerId = WriterRegistry.getWriterId();
-    Path path = JobUtils.getTaskWriterOutputFile(jobDetails, taskAttemptID, writerId, "json");
+    Path path = JobUtils.getTaskWriterOutputFile(conf, jobDetails, taskAttemptID, writerId, "jpeg");
     String pattern =
-        "^" + Pattern.quote(tmp) + "/myproject_mydataset_mytable_abcd1234_w\\d+\\.json$";
+        "^/hadoop-tmp/bq-hive-hive-query-id-query123/default.mytable/output/myproject_mydataset_mytable_abcd1234_w\\d+\\.jpeg";
+    assertThat(path.toString(), matchesPattern(pattern));
+  }
+
+  /**
+   * Same as {@link #testGetTaskWriterOutputFile} but with the ".hive-staging" directory, when the
+   * `mapreduce.output.fileoutputformat.outputdir` conf property is set. This happens when using
+   * Spark SQL.
+   */
+  @Test
+  public void testGetTaskWriterOutputFileWithHiveStagingDir() {
+    Configuration conf = new Configuration();
+    conf.set("hive.query.id", "query123");
+    conf.set("hadoop.tmp.dir", "/hadoop-tmp/");
+    conf.set(
+        "mapreduce.output.fileoutputformat.outputdir", "/abc/def/.hive-staging-xyz/-ext-10000/");
+    JobDetails jobDetails = new JobDetails();
+    jobDetails.setTableProperties(new Properties());
+    jobDetails.getTableProperties().put("name", "default.mytable");
+    TableId tableId = TableId.of("myproject", "mydataset", "mytable");
+    jobDetails.setTableId(tableId);
+    String taskID = "abcd1234";
+    String writerId = WriterRegistry.getWriterId();
+    Path path = JobUtils.getTaskWriterOutputFile(conf, jobDetails, taskID, writerId, "jpeg");
+    String pattern =
+        "^/hadoop-tmp/bq-hive-hive-query-id-query123/default.mytable/.hive-staging-xyz/-ext-10000/myproject_mydataset_mytable_abcd1234_w\\d+\\.jpeg";
     assertThat(path.toString(), matchesPattern(pattern));
   }
 }

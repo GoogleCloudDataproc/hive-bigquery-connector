@@ -82,7 +82,7 @@ public class HiveUtils {
 
   public static String getTaskID(Configuration conf) {
     if (SparkSQLUtils.isSparkJob(conf)) {
-      return SparkSQLUtils.getSparkTaskID();
+      return SparkSQLUtils.getSparkPartitionID();
     }
     return getHiveTaskAttemptIDWrapper(conf).getTaskID().toString();
   }

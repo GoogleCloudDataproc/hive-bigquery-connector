@@ -27,7 +27,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
-import com.google.cloud.hive.bigquery.connector.output.MapReduceOutputFormat;
+import com.google.cloud.hive.bigquery.connector.sparksql.SparkSQLOutputFormat;
 import com.google.cloud.hive.bigquery.connector.sparksql.SparkSQLUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
@@ -216,8 +216,6 @@ public abstract class BigQueryStorageHandlerBase
     JobDetails jobDetails = new JobDetails();
     jobDetails.setWriteMethod(opts.getWriteMethod());
     jobDetails.setBigquerySchema(bigQuerySchema);
-    jobDetails.setJobTempOutputPath(
-        new Path(JobUtils.getQueryTempOutputPath(conf, opts), hmsDbTableName));
     jobDetails.setTableProperties(tableProperties);
     jobDetails.setTableId(tableId);
 
@@ -229,7 +227,7 @@ public abstract class BigQueryStorageHandlerBase
     // Special treatment for Spark
     if (SparkSQLUtils.isSparkJob(conf)) {
       // Spark uses the new "mapreduce" Hadoop API for the job output format's committer
-      conf.set("mapreduce.job.outputformat.class", MapReduceOutputFormat.class.getName());
+      conf.set("mapreduce.job.outputformat.class", SparkSQLOutputFormat.class.getName());
       setOutputTables(tableDesc);
       if (SparkSQLUtils.isOverwrite(conf, tableDesc.getTableName())) {
         BigQueryMetaHookBase.makeOverwrite(conf, jobDetails);

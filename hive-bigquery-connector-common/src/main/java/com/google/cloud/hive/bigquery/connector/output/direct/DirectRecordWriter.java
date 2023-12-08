@@ -60,7 +60,7 @@ public class DirectRecordWriter
     String writerId = WriterRegistry.getWriterId();
     streamRefFile =
         JobUtils.getTaskWriterOutputFile(
-            jobDetails, taskID, writerId, HiveBigQueryConfig.STREAM_FILE_EXTENSION);
+            jobConf, jobDetails, taskID, writerId, HiveBigQueryConfig.STREAM_FILE_EXTENSION);
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     try {
       descriptor = ProtoSchemaConverter.toDescriptor(this.rowObjectInspector);

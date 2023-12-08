@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector.output;
+package com.google.cloud.hive.bigquery.connector.sparksql;
 
 import java.io.IOException;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -25,16 +25,16 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
  * Output format compatible with the new "mapreduce" Hadoop API. This is partially used by Spark
  * SQL.
  */
-public class MapReduceOutputFormat<T> extends FileOutputFormat<Void, T> {
+public class SparkSQLOutputFormat<T> extends FileOutputFormat<Void, T> {
 
-  private MapReduceOutputCommitter committer;
+  private SparkSQLOutputCommitter committer;
 
   /** Retrieves the output committer class. This is used by Spark SQL. */
   @Override
   public synchronized OutputCommitter getOutputCommitter(TaskAttemptContext context)
       throws IOException {
     if (committer == null) {
-      committer = new MapReduceOutputCommitter();
+      committer = new SparkSQLOutputCommitter();
     }
     return committer;
   }
@@ -42,8 +42,8 @@ public class MapReduceOutputFormat<T> extends FileOutputFormat<Void, T> {
   @Override
   public RecordWriter<Void, T> getRecordWriter(TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {
-    // Note: Spark and Hive both use `BigQueryOutputFormat.getRecordWriter()` instead of this
-    // method.
-    return null;
+    // Note: Spark and Hive both use `BigQueryOutputFormat.getRecordWriter()` instead
+    // of this method.
+    throw new UnsupportedOperationException("Not used");
   }
 }

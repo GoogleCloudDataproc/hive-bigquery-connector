@@ -37,9 +37,6 @@ public class JobDetails {
   private TableId tableId;
   private TableId finalTableId;
   private boolean overwrite;
-  // Temp output path: for direct writes it is where the stream reference files are,
-  // for indirect writes it is the gcs path where the temporary Avro files are.
-  private Path jobTempOutputPath;
   private Properties hmsTableProperties;
   private transient Schema bigquerySchema;
   private String bigquerySchemaJSON;
@@ -71,14 +68,6 @@ public class JobDetails {
 
   public void setOverwrite(boolean overwrite) {
     this.overwrite = overwrite;
-  }
-
-  public Path getJobTempOutputPath() {
-    return jobTempOutputPath;
-  }
-
-  public void setJobTempOutputPath(Path tempPath) {
-    this.jobTempOutputPath = tempPath;
   }
 
   public String getHmsDbTableName() {
