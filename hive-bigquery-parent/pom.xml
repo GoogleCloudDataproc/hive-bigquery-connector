@@ -192,12 +192,6 @@
                 <groupId>com.google.cloud.spark</groupId>
                 <artifactId>bigquery-connector-common</artifactId>
                 <version>${bigquery-connector-common.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>io.grpc</groupId>
-                        <artifactId>grpc-netty-shaded</artifactId>
-                    </exclusion>
-                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.google.protobuf</groupId>
