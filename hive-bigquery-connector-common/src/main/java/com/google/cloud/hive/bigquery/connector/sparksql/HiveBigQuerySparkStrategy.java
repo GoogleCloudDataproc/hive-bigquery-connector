@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.sparksql;
 
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,29 +34,25 @@ public class HiveBigQuerySparkStrategy extends SparkStrategy {
 
   @Override
   public Seq<SparkPlan> apply(LogicalPlan plan) {
-    Seq<SparkPlan> emptySeq =
-        JavaConverters.asScalaBufferConverter(new ArrayList<SparkPlan>()).asScala().toSeq();
-
     // Check if the Spark job file was already created
     SparkSession session = SparkSession.getActiveSession().get();
     Configuration conf = convertSparkConfToHadoopConf(session.conf());
-    Path path = new Path(JobUtils.getQueryWorkDir(conf), "spark-job.json");
+    Path path = SparkSQLUtils.getSparkJobFilePath(conf);
     try {
       FileSystem fileSystem = path.getFileSystem(conf);
-      if (fileSystem.exists(path)) {
-        // File already created, so we're done
-        return emptySeq;
+      if (!fileSystem.exists(path)) {
+        List<String> overwriteTables = new ArrayList<>();
+        List<String> insertTables = new ArrayList<>();
+        parsePlan(plan, insertTables, overwriteTables);
+        if (insertTables.size() > 0 || overwriteTables.size() > 0) {
+          SparkSQLUtils.writeSparkJobFile(conf, insertTables, overwriteTables);
+        }
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    List<String> overwriteTables = new ArrayList<>();
-    List<String> insertTables = new ArrayList<>();
-    parsePlan(plan, insertTables, overwriteTables);
-    if (insertTables.size() > 0 || overwriteTables.size() > 0) {
-      SparkSQLUtils.writeSparkJobFile(conf, insertTables, overwriteTables);
-    }
-    return emptySeq;
+    // Return empty sequence
+    return JavaConverters.asScalaBufferConverter(new ArrayList<SparkPlan>()).asScala().toSeq();
   }
 
   public static Configuration convertSparkConfToHadoopConf(RuntimeConfig sparkConf) {

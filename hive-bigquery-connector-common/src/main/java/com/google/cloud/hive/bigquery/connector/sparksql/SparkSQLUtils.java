@@ -41,8 +41,12 @@ public class SparkSQLUtils {
     return String.format("part-%s", TaskContext.get().partitionId());
   }
 
+  public static Path getSparkJobFilePath(Configuration conf) {
+    return new Path(JobUtils.getQueryWorkDir(conf), SPARK_JOB_FILE_NAME);
+  }
+
   public static void cleanUpSparkJobFile(Configuration conf) throws IOException {
-    Path path = new Path(JobUtils.getQueryWorkDir(conf), SPARK_JOB_FILE_NAME);
+    Path path = getSparkJobFilePath(conf);
     FileSystem fileSystem = path.getFileSystem(conf);
     fileSystem.delete(path, true);
   }
@@ -74,7 +78,7 @@ public class SparkSQLUtils {
       Map<String, Object> data = new HashMap<>();
       data.put("insertTables", insertTables);
       data.put("overwriteTables", overwriteTables);
-      Path path = new Path(JobUtils.getQueryWorkDir(conf), SPARK_JOB_FILE_NAME);
+      Path path = getSparkJobFilePath(conf);
       FSDataOutputStream jobFile = path.getFileSystem(conf).create(path);
       Gson gson = new Gson();
       jobFile.write(gson.toJson(data).getBytes(StandardCharsets.UTF_8));
