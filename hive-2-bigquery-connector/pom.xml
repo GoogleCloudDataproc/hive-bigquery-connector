@@ -73,6 +73,7 @@
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-sparksql</artifactId>
                     <version>${project.version}</version>
+                    <classifier>shaded</classifier>
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
@@ -91,13 +92,14 @@
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-hive2.3.6-hadoop2.7.0</artifactId>
                     <version>${project.version}</version>
-                    <classifier>shaded</classifier>
                     <scope>provided</scope>
+                    <classifier>shaded</classifier>
                 </dependency>
                 <dependency>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-sparksql</artifactId>
                     <version>${project.version}</version>
+                    <classifier>shaded</classifier>
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
@@ -116,6 +118,7 @@
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-sparksql</artifactId>
                     <version>${project.version}</version>
+                    <classifier>shaded</classifier>
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
