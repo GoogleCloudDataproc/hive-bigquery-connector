@@ -18,18 +18,13 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>hive-bigquery-connector-common</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>grpc-netty-shaded</artifactId>
-                    <groupId>io.grpc</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>com.google.cloud.bigdataoss</groupId>
             <artifactId>gcs-connector</artifactId>
             <classifier>shaded</classifier>
+            <scope>provided</scope>
         </dependency>
 
         <!-- **************** Test dependencies **************** -->
@@ -40,12 +35,6 @@
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>grpc-netty-shaded</artifactId>
-                    <groupId>io.grpc</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
@@ -72,7 +61,6 @@
                 <dependency>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-sparksql</artifactId>
-                    <version>${project.version}</version>
                     <classifier>shaded</classifier>
                     <scope>provided</scope>
                 </dependency>
@@ -92,13 +80,12 @@
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-hive2.3.6-hadoop2.7.0</artifactId>
                     <version>${project.version}</version>
-                    <scope>provided</scope>
                     <classifier>shaded</classifier>
+                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-sparksql</artifactId>
-                    <version>${project.version}</version>
                     <classifier>shaded</classifier>
                     <scope>provided</scope>
                 </dependency>
@@ -117,7 +104,6 @@
                 <dependency>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>shaded-deps-sparksql</artifactId>
-                    <version>${project.version}</version>
                     <classifier>shaded</classifier>
                     <scope>provided</scope>
                 </dependency>

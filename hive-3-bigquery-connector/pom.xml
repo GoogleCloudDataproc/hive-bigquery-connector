@@ -24,6 +24,7 @@
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
       <classifier>shaded</classifier>
+      <scope>provided</scope>
     </dependency>
 
     <!-- **************** Test dependencies **************** -->
