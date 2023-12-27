@@ -190,6 +190,13 @@
                         <include>io.netty.**</include>
                       </includes>
                     </relocation>
+                    <relocation>
+                      <pattern>org</pattern>
+                      <shadedPattern>shaded.for.hive.bq.integration.tests.org</shadedPattern>
+                      <includes>
+                        <include>org.apache.commons.**</include>
+                      </includes>
+                    </relocation>
                   </relocations>
                   <transformers>
                     <!-- ServicesResourceTransformer is necessary to avoid this issue: "java.lang.IllegalStateException: Could not find policy 'pick_first'. Make sure its implementation is either registered to LoadBalancerRegistry or included in META-INF/services/io.grpc.LoadBalancerProvider from your jar files" -->
