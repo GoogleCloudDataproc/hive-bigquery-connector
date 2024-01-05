@@ -45,13 +45,16 @@ public class DirectOutputCommitter {
    * created in the job's work directory. The reference files essentially contain the stream names.
    */
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
+    Path tempOutputPath =
+        JobUtils.getQueryTempOutputPath(
+            conf, jobDetails.getTableProperties(), jobDetails.getHmsDbTableName());
     List<String> streamFiles =
         FileSystemUtils.getFiles(
             conf,
-            jobDetails.getJobTempOutputPath(),
+            tempOutputPath,
             JobUtils.getTableIdPrefix(jobDetails.getTableId()),
             HiveBigQueryConfig.STREAM_FILE_EXTENSION);
-    if (streamFiles.size() <= 0) {
+    if (streamFiles.size() == 0) {
       LOG.info("Nothing to commit, found 0 stream files.");
       return;
     }

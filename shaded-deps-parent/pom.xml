@@ -183,6 +183,13 @@
                         <include>com.google.common.**</include>
                       </includes>
                     </relocation>
+                    <relocation>
+                      <pattern>io</pattern>
+                      <shadedPattern>shaded.for.hive.bq.integration.tests.io</shadedPattern>
+                      <includes>
+                        <include>io.netty.**</include>
+                      </includes>
+                    </relocation>
                   </relocations>
                   <transformers>
                     <!-- ServicesResourceTransformer is necessary to avoid this issue: "java.lang.IllegalStateException: Could not find policy 'pick_first'. Make sure its implementation is either registered to LoadBalancerRegistry or included in META-INF/services/io.grpc.LoadBalancerProvider from your jar files" -->

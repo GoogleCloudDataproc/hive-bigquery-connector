@@ -20,13 +20,17 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.sparksql.SparkSQLOutputFormat;
+import com.google.cloud.hive.bigquery.connector.sparksql.SparkSQLUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -46,6 +50,7 @@ import org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorization
 import org.apache.hadoop.hive.ql.security.authorization.HiveAuthorizationProvider;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
@@ -152,6 +157,35 @@ public abstract class BigQueryStorageHandlerBase
     }
   }
 
+  protected static void validateTempGcsPath(
+      String tempGcsPath, BigQueryCredentialsSupplier credentialsSupplier) {
+    if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
+      throw new RuntimeException(
+          String.format(
+              "The '%s' property must be set when using the '%s' write method.",
+              HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
+    } else if (!JobUtils.hasGcsWriteAccess(credentialsSupplier, tempGcsPath)) {
+      throw new RuntimeException(
+          String.format(
+              "Does not have write access to the following GCS path, or bucket does not exist: %s",
+              tempGcsPath));
+    }
+  }
+
+  public static void configureJobDetailsForIndirectWrite(
+      HiveBigQueryConfig opts,
+      JobDetails jobDetails,
+      BigQueryCredentialsSupplier credentialsSupplier) {
+    // validate the temp GCS path to store the temporary Avro files
+    validateTempGcsPath(opts.getTempGcsPath(), credentialsSupplier);
+    // Convert BigQuery schema to Avro schema
+    StructObjectInspector rowObjectInspector =
+        BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
+    org.apache.avro.Schema avroSchema =
+        AvroUtils.getAvroSchema(rowObjectInspector, jobDetails.getBigquerySchema().getFields());
+    jobDetails.setAvroSchema(avroSchema);
+  }
+
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
     Injector injector =
@@ -180,11 +214,27 @@ public abstract class BigQueryStorageHandlerBase
 
     // Save the job details file to disk
     JobDetails jobDetails = new JobDetails();
+    jobDetails.setWriteMethod(opts.getWriteMethod());
     jobDetails.setBigquerySchema(bigQuerySchema);
-    jobDetails.setJobTempOutputPath(
-        new Path(JobUtils.getQueryTempOutputPath(conf, opts), hmsDbTableName));
     jobDetails.setTableProperties(tableProperties);
     jobDetails.setTableId(tableId);
+
+    if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+      configureJobDetailsForIndirectWrite(
+          opts, jobDetails, injector.getInstance(BigQueryCredentialsSupplier.class));
+    }
+
+    // Special treatment for Spark
+    if (SparkSQLUtils.isSparkJob(conf)) {
+      // Spark uses the new "mapreduce" Hadoop API for the job output format's committer
+      conf.set("mapreduce.job.outputformat.class", SparkSQLOutputFormat.class.getName());
+      setOutputTables(tableDesc);
+      if (SparkSQLUtils.isOverwrite(conf, tableDesc.getTableName())) {
+        BigQueryMetaHookBase.makeOverwrite(conf, jobDetails);
+      }
+    }
+
+    // Save the job details file to disk
     Path jobDetailsFilePath =
         JobUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);

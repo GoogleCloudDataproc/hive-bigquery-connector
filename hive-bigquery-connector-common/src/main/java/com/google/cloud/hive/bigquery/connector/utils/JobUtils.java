@@ -26,13 +26,14 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.TaskAttemptID;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +70,10 @@ public class JobUtils {
     return !booleans.contains(false);
   }
 
-  /** working directory for a query */
+  /**
+   * Top level working directory for a query. Used to store temporary work files during a write job
+   * (e.g. the JobDetails files)
+   */
   public static Path getQueryWorkDir(Configuration conf) {
     String parentPath = conf.get(HiveBigQueryConfig.WORK_DIR_PARENT_PATH_KEY);
     if (parentPath == null) {
@@ -84,12 +88,13 @@ public class JobUtils {
    */
   public static Path getJobDetailsFilePath(Configuration conf, String hmsDbTableName) {
     Path workDir = getQueryWorkDir(conf);
-    Path tblWorkPath = new Path(workDir, hmsDbTableName);
-    return new Path(tblWorkPath, HiveBigQueryConfig.JOB_DETAILS_FILE);
+    Path tableWorkDir = new Path(workDir, hmsDbTableName);
+    return new Path(tableWorkDir, HiveBigQueryConfig.JOB_DETAILS_FILE);
   }
 
-  private static Path getQuerySubDir(Configuration conf, String pathBase) {
-    String base = StringUtils.removeEnd(pathBase, "/");
+  /** Appends the query ID to the provided parent directory */
+  private static Path getQuerySubDir(Configuration conf, String parentDir) {
+    String base = StringUtils.removeEnd(parentDir, "/");
     return new Path(
         String.format(
             "%s/%s%s",
@@ -100,13 +105,26 @@ public class JobUtils {
             HiveUtils.getQueryId(conf)));
   }
 
-  public static Path getQueryTempOutputPath(Configuration conf, HiveBigQueryConfig opts) {
+  public static Path getQueryTempOutputPath(
+      Configuration conf, Properties tableProperties, String hmsDbTableName) {
+    HiveBigQueryConfig opts = HiveBigQueryConfig.from(conf, tableProperties);
+    Path subDir;
+    String outputDir = conf.get(FileOutputFormat.OUTDIR);
+    if (outputDir != null) {
+      Path outputDirPath = new Path(outputDir);
+      String hiveStagingDir =
+          new Path(outputDirPath.getParent().getName(), outputDirPath.getName()).toString();
+      subDir = new Path(hmsDbTableName, hiveStagingDir);
+    } else {
+      subDir = new Path(hmsDbTableName, "output");
+    }
+
     // direct method writes stream ref files in workdir, indirect writes to gcs temp dir.
     if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      return getQueryWorkDir(conf);
+      return new Path(getQueryWorkDir(conf), subDir);
     } else {
       String parentPath = opts.getTempGcsPath();
-      return getQuerySubDir(conf, parentPath);
+      return new Path(getQuerySubDir(conf, parentPath), subDir);
     }
   }
 
@@ -117,15 +135,14 @@ public class JobUtils {
    * @return Fully Qualified temporary table path on GCS
    */
   public static Path getTaskWriterOutputFile(
-      JobDetails jobDetails, TaskAttemptID taskAttemptID, String writerId, String suffix) {
+      Configuration conf, JobDetails jobDetails, String taskID, String writerId, String suffix) {
+    Path tempOutputPath =
+        JobUtils.getQueryTempOutputPath(
+            conf, jobDetails.getTableProperties(), jobDetails.getHmsDbTableName());
     return new Path(
-        jobDetails.getJobTempOutputPath(),
+        tempOutputPath,
         String.format(
-            "%s_%s_%s.%s",
-            getTableIdPrefix(jobDetails.getTableId()),
-            taskAttemptID.getTaskID(),
-            writerId,
-            suffix));
+            "%s_%s_%s.%s", getTableIdPrefix(jobDetails.getTableId()), taskID, writerId, suffix));
   }
 
   /** Return the name prefix for the temp file. */
@@ -136,50 +153,49 @@ public class JobUtils {
         .replace(":", "__");
   }
 
-  public static void deleteJobTempOutput(Configuration conf, JobDetails jobDetails)
+  /**
+   * Deletes the directory that contains the job's temporary output files (i.e. the stream reference
+   * files for direct writes, and the temporary Avro files for indirect writes).
+   */
+  public static void deleteJobTempOutputDir(Configuration conf, JobDetails jobDetails)
       throws IOException {
-    LOG.info("Deleting job temporary output directory {}", jobDetails.getJobTempOutputPath());
-    FileSystemUtils.deleteFiles(conf, jobDetails.getJobTempOutputPath());
+    Path tempOutputPath =
+        JobUtils.getQueryTempOutputPath(
+            conf, jobDetails.getTableProperties(), jobDetails.getHmsDbTableName());
+    LOG.info("Deleting job temporary output directory {}", conf);
+    FileSystemUtils.deleteDir(conf, tempOutputPath);
   }
 
-  /** Deletes the job directory for a table. */
-  public static void deleteJobDir(Configuration conf, String hmsDbTableName) throws IOException {
-    Path workDir = getQueryWorkDir(conf);
-    Path tblJobPath = new Path(workDir, hmsDbTableName);
-    FileSystem fs = tblJobPath.getFileSystem(conf);
-    if (fs.exists(tblJobPath)) {
-      fs.delete(tblJobPath);
-    }
-  }
-
-  /** Deletes the work directory for a query. */
+  /** Deletes the work directory for a query when the query is complete (success or fail). */
   public static void deleteQueryWorkDirOnExit(Configuration conf) throws IOException {
     Path workDir = getQueryWorkDir(conf);
-    LOG.info("Deleting query temporary directory {}", workDir);
+    LOG.info("Deleting query temporary work directory {}", workDir);
     FileSystem fs = workDir.getFileSystem(conf);
     if (fs.listStatus(workDir).length == 0) {
       fs.deleteOnExit(workDir);
     }
   }
 
-  public class CleanMessage {
-    public static final String DELETE_BIGQUERY_TEMPORARY_TABLE = "delete bigquery temporary table";
-    public static final String DELETE_JOB_TEMPORARY_DIRECTORY = "delete job temporary directory";
-    public static final String DELETE_QUERY_TEMPORARY_DIRECTORY =
-        "delete query temporary directory";
-  }
-
   public interface CleanUp {
-    void clean() throws Exception;
+    String DELETE_BIGQUERY_TEMPORARY_TABLE =
+        "delete bigquery temporary table for INSERT OVERWRITE query";
+    String DELETE_JOB_TEMPORARY_OUTPUT_DIRECTORY = "delete job temporary output directory";
+    String DELETE_QUERY_TEMPORARY_WORK_DIRECTORY = "delete query temporary directory";
+
+    void cleanUp() throws Exception;
   }
 
-  public static void cleanNotFail(CleanUp cleanJob, String message) {
+  /**
+   * Attempt to clean up the job without risking the job to fail if the cleaning itself somehow
+   * fails.
+   */
+  public static void safeCleanUp(CleanUp cleaner, String message) {
     try {
-      LOG.debug("Start {}", message);
-      cleanJob.clean();
-      LOG.debug("Finished {}", message);
+      LOG.debug("Start cleaning up: {}", message);
+      cleaner.cleanUp();
+      LOG.debug("Finished cleaning up: {}", message);
     } catch (Exception e) {
-      LOG.warn("Failed {}: {}", message, e);
+      LOG.warn("Failed cleaning up: {}. Error: {}", message, e);
     }
   }
 }

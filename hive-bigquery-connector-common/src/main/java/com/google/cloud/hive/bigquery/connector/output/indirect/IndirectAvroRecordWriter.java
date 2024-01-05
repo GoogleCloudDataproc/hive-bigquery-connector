@@ -34,7 +34,6 @@ import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.TaskAttemptID;
 
 /**
  * Writes records to an Avro file in GCS. Each task runs its own instance of this writer class, i.e.
@@ -50,18 +49,21 @@ public class IndirectAvroRecordWriter
   StructObjectInspector rowObjectInspector;
   Schema avroSchema;
   final DataFileWriter<GenericRecord> dataFileWriter;
-  final String writerId;
 
   public IndirectAvroRecordWriter(JobConf jobConf, JobDetails jobDetails) {
     this.jobConf = jobConf;
     this.jobDetails = jobDetails;
     this.rowObjectInspector = BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
     this.avroSchema = jobDetails.getAvroSchema();
-    this.writerId = WriterRegistry.getWriterId();
-    TaskAttemptID taskAttemptID = HiveUtils.taskAttemptIDWrapper(jobConf);
+    String taskID = HiveUtils.getTaskID(jobConf);
+    String writerId = WriterRegistry.getWriterId();
     Path filePath =
         JobUtils.getTaskWriterOutputFile(
-            jobDetails, taskAttemptID, writerId, HiveBigQueryConfig.LOAD_FILE_EXTENSION);
+            jobConf,
+            jobDetails,
+            taskID.toString(),
+            writerId,
+            HiveBigQueryConfig.LOAD_FILE_EXTENSION);
     this.dataFileWriter = AvroUtils.createDataFileWriter(jobConf, jobDetails, filePath);
   }
 

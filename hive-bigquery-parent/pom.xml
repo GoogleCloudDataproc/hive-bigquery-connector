@@ -63,16 +63,19 @@
         <gcs-connector.version>hadoop2-2.2.14</gcs-connector.version>
         <google-cloud-dataproc.version>4.7.0</google-cloud-dataproc.version>
         <google-cloud-storage.version>2.20.1</google-cloud-storage.version>
-        <grpc.version>1.53.0</grpc.version>
         <guava.version>32.1.2-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <hiverunner.version>6.1.0</hiverunner.version>
         <jackson.version>2.12.7.1</jackson.version>
         <junit-jupiter.version>5.10.0</junit-jupiter.version>
+        <junit-platform-engine.version>1.10.0</junit-platform-engine.version>
         <junit-platform-launcher.version>1.9.2</junit-platform-launcher.version>
         <protobuf.version>3.21.12</protobuf.version>
         <spark.version>3.4.1</spark.version>
         <truth.version>1.1.3</truth.version>
+        <conscrypt-openjdk-uber.version>2.5.2</conscrypt-openjdk-uber.version>
+        <slf4j-api.version>1.7.36</slf4j-api.version>
+        <javax.el.version>3.0.0</javax.el.version>
 
         <!-- Plugins -->
         <maven-spotless-plugin.version>2.14.0</maven-spotless-plugin.version>
@@ -109,19 +112,11 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.36</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.conscrypt</groupId>
             <artifactId>conscrypt-openjdk-uber</artifactId>
-            <version>2.5.2</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.platform</groupId>
@@ -131,13 +126,11 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-launcher</artifactId>
-            <version>${junit-platform-launcher.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -213,36 +206,27 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
-                <groupId>com.lmax</groupId>
-                <artifactId>disruptor</artifactId>
-                <version>3.4.2</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-bom</artifactId>
-                <version>${grpc.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.13.2</version>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-engine</artifactId>
+                <version>${junit-platform-engine.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.junit.platform</groupId>
-                <artifactId>junit-platform-engine</artifactId>
-                <version>1.10.0</version>
+                <artifactId>junit-platform-launcher</artifactId>
+                <version>${junit-platform-launcher.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter</artifactId>
                 <version>${junit-jupiter.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.glassfish</groupId>
                 <artifactId>javax.el</artifactId>
-                <version>3.0.0</version>
+                <version>${javax.el.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.hiverunner</groupId>
@@ -294,6 +278,10 @@
                         <artifactId>jackson-annotations</artifactId>
                         <groupId>com.fasterxml.jackson.core</groupId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>org.junit.vintage</groupId>
+                        <artifactId>junit-vintage-engine</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
             <dependency>
@@ -306,7 +294,30 @@
                         <groupId>com.google.guava</groupId>
                         <artifactId>guava</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>junit</groupId>
+                        <artifactId>junit</artifactId>
+                    </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.conscrypt</groupId>
+                <artifactId>conscrypt-openjdk-uber</artifactId>
+                <version>${conscrypt-openjdk-uber.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j-api.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>shaded-deps-sparksql</artifactId>
+                <version>${project.version}</version>
+                <classifier>shaded</classifier>
+                <scope>provided</scope>
             </dependency>
         </dependencies>
 
@@ -388,6 +399,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
+                        <forkCount>0</forkCount> <!-- Needed to work on Cloud Build -->
                         <excludes>
                             <exclude>**/*IntegrationTests.java</exclude>
                             <exclude>**/*AcceptanceTest.java</exclude>
@@ -540,7 +552,7 @@
                             <reuseForks>false</reuseForks>
                             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                             <includes>
-                                <include>**/*IntegrationTests.java</include>
+                                <include>**/integration/*Tests.java</include>
                             </includes>
                         </configuration>
                         <executions>

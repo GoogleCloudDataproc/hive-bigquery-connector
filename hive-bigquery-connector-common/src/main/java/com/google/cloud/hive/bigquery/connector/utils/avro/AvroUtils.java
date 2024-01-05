@@ -161,7 +161,7 @@ public class AvroUtils {
     dataFileWriter.setCodec(factory);
     try {
       FileSystem fileSystem = filePath.getFileSystem(jobConf);
-      FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath);
+      FSDataOutputStream fsDataOutputStream = fileSystem.create(filePath, true);
       dataFileWriter.create(schema, fsDataOutputStream);
     } catch (IOException e) {
       throw new RuntimeException(e);

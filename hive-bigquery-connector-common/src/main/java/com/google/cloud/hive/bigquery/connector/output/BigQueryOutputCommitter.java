@@ -16,82 +16,45 @@
 package com.google.cloud.hive.bigquery.connector.output;
 
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
-import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
-import com.google.common.collect.Sets;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Output committer compatible with the old "mapred" Hadoop API. */
 public class BigQueryOutputCommitter extends OutputCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);
 
-  public static void commit(Configuration conf, JobDetails jobDetails) throws IOException {
-    HiveBigQueryConfig opts = HiveBigQueryConfig.from(conf, jobDetails.getTableProperties());
-    String writeMethod = opts.getWriteMethod();
-    // Pick the appropriate OutputCommitter (direct or indirect) based on the
-    // configured write method
-    try {
-      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-        IndirectOutputCommitter.commitJob(conf, jobDetails);
-      } else {
-        DirectOutputCommitter.commitJob(conf, jobDetails);
-      }
-    } finally {
-      JobUtils.cleanNotFail(
-          () -> JobUtils.deleteJobTempOutput(conf, jobDetails),
-          CleanMessage.DELETE_JOB_TEMPORARY_DIRECTORY);
-    }
-  }
-
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
-    JobConf jobConf = jobContext.getJobConf();
-    Set<String> outputTables = getOutputTables(jobConf);
-    LOG.info("Committing job {} with output tables {}", jobContext.getJobID(), outputTables);
+    commitJob(jobContext.getJobConf());
+    super.commitJob(jobContext);
+  }
+
+  public static void commitJob(Configuration conf) throws IOException {
+    Set<String> outputTables = OutputCommitterUtils.getOutputTables(conf);
+    LOG.info("Committing job {} with output tables {}", HiveUtils.getQueryId(conf), outputTables);
     for (String hmsDbTableName : outputTables) {
       JobDetails jobDetails;
       try {
-        jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
+        jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
       } catch (Exception e) {
         // TO-DO: should we abort the job?
         LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
         continue;
       }
-      commit(jobConf, jobDetails);
+      OutputCommitterUtils.commitJob(conf, jobDetails);
     }
-    super.commitJob(jobContext);
   }
 
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
-    JobConf jobConf = jobContext.getJobConf();
-    Set<String> outputTables = getOutputTables(jobConf);
-    LOG.info("aborting job {} with output tables {}", jobContext.getJobID(), outputTables);
-    for (String hmsDbTableName : outputTables) {
-      JobDetails jobDetails;
-      try {
-        jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
-      } catch (Exception e) {
-        LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
-        continue;
-      }
-      HiveBigQueryConfig opts = HiveBigQueryConfig.from(jobConf, jobDetails.getTableProperties());
-      String writeMethod = opts.getWriteMethod();
-      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-        DirectOutputCommitter.abortJob(jobConf, jobDetails);
-      }
-      JobUtils.deleteJobTempOutput(jobConf, jobDetails);
-    }
+    OutputCommitterUtils.abortJob(jobContext.getJobConf());
     super.abortJob(jobContext, status);
   }
 
@@ -119,10 +82,5 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   @Override
   public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
     // Do nothing
-  }
-
-  private Set<String> getOutputTables(JobConf jobConf) {
-    String outputTables = jobConf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
-    return Sets.newHashSet(HiveBigQueryConfig.TABLE_NAME_SPLITTER.split(outputTables));
   }
 }

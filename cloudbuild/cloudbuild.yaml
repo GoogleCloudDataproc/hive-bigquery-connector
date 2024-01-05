@@ -1,10 +1,10 @@
 steps:
-# 1. Create a Docker image containing hadoop-connectors repo
+# 0. Create a Docker image containing hadoop-connectors repo
 - name: 'gcr.io/cloud-builders/docker'
   id: 'docker-build'
   args: ['build', '--tag=gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit', '-f', 'cloudbuild/Dockerfile', '.']
 
-# 2. Build the connector and download dependencies without running tests.
+# 1. Build the connector and download dependencies without running tests.
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'check'
   waitFor: ['docker-build']
@@ -13,7 +13,7 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 3. Build the connector and download dependencies without running tests.
+# 2. Build the connector and download dependencies without running tests.
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'build'
   waitFor: ['check']
@@ -22,7 +22,7 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 4. Run unit tests for Hive 2
+# 3. Run unit tests for Hive 2
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'unit-tests-hive2'
   waitFor: ['build']
@@ -31,7 +31,7 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 5. Run unit tests for Hive 3
+# 4. Run unit tests for Hive 3
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'unit-tests-hive3'
   waitFor: ['build']
@@ -40,7 +40,7 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 6. Run integration tests for Hive 2
+# 5. Run integration tests for Hive 2
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'integration-tests-hive2'
   waitFor: ['unit-tests-hive2']
@@ -49,7 +49,7 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# 7. Run integration tests for Hive 3
+# 6. Run integration tests for Hive 3
 - name: 'gcr.io/$PROJECT_ID/dataproc-hive-bigquery-connector-presubmit'
   id: 'integration-tests-hive3'
   waitFor: ['unit-tests-hive3']
@@ -58,8 +58,8 @@ steps:
   env:
     - 'CODECOV_TOKEN=${_CODECOV_TOKEN}'
 
-# Tests should take under 90 mins
-timeout: 5400s
+# Tests should take under 120 mins
+timeout: 7200s
 
 options:
   machineType: 'N1_HIGHCPU_32'

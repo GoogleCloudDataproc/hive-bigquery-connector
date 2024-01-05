@@ -27,7 +27,7 @@ import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanUp;
 import com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.List;
@@ -139,13 +139,13 @@ public class DirectWriterContext {
   }
 
   public void clean() {
-    // Deletes the preliminary table we wrote to (if it exists):
+    // Special case for "INSERT OVERWRITE" statements: delete the temporary table.
     if (deleteTableOnAbort
         || (destinationTableId != null && !destinationTableId.equals(tableIdToWrite))) {
       LOG.info("Deleting BigQuery table {}", tableIdToWrite);
-      JobUtils.cleanNotFail(
+      JobUtils.safeCleanUp(
           () -> bigQueryClient.deleteTable(tableIdToWrite),
-          CleanMessage.DELETE_BIGQUERY_TEMPORARY_TABLE);
+          CleanUp.DELETE_BIGQUERY_TEMPORARY_TABLE);
     }
   }
 }

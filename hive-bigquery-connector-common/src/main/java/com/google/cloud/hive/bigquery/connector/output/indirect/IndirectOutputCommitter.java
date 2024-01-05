@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,10 +46,13 @@ public class IndirectOutputCommitter {
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
     LOG.info("Committing BigQuery load job");
     // Retrieve the list of Avro files from GCS
+    Path tempOutputPath =
+        JobUtils.getQueryTempOutputPath(
+            conf, jobDetails.getTableProperties(), jobDetails.getHmsDbTableName());
     List<String> avroFiles =
         FileSystemUtils.getFiles(
             conf,
-            jobDetails.getJobTempOutputPath(),
+            tempOutputPath,
             JobUtils.getTableIdPrefix(jobDetails.getTableId()),
             HiveBigQueryConfig.LOAD_FILE_EXTENSION);
     if (avroFiles.size() > 0) {
