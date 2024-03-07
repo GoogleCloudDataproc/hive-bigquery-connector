@@ -54,7 +54,7 @@ public class HiveBigQueryConfig
   public static final String TEMP_GCS_PATH_KEY = "bq.temp.gcs.path";
   public static final String WORK_DIR_PARENT_PATH_KEY = "bq.work.dir.parent.path";
   public static final String WORK_DIR_NAME_PREFIX_KEY = "bq.work.dir.name.prefix";
-  public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "bq-hive-";
+  public static final String WORK_DIR_NAME_PREFIX_DEFAULT = "hive-bq-";
   public static final String READ_DATA_FORMAT_KEY = "bq.read.data.format";
   public static final String READ_CREATE_SESSION_TIMEOUT_KEY = "bq.read.create.session.timeout";
   public static final String READ_MAX_PARALLELISM = "maxParallelism";
@@ -91,8 +91,9 @@ public class HiveBigQueryConfig
   static final String GCS_CONFIG_CREDENTIALS_FILE_PROPERTY =
       "google.cloud.auth.service.account.json.keyfile";
 
-  public static final String TABLE_NAME_SEPARATOR = "|";
-  public static final Splitter TABLE_NAME_SPLITTER = Splitter.on(TABLE_NAME_SEPARATOR);
+  public static final String OUTPUT_TABLE_NAMES_SEPARATOR = "|";
+  public static final Splitter OUTPUT_TABLE_NAMES_SPLITTER =
+      Splitter.on(OUTPUT_TABLE_NAMES_SEPARATOR);
   public static final String THIS_IS_AN_OUTPUT_JOB = "...this.is.an.output.job...";
   public static final String LOAD_FILE_EXTENSION = "avro";
   public static final String STREAM_FILE_EXTENSION = "stream";

@@ -52,8 +52,8 @@ public abstract class ConfigValidationIntegrationTestsBase extends IntegrationTe
   /** Check that the user provides a GCS temporary path when using the "indirect" write method. */
   @Test
   public void testMissingGcsTempPath() {
-    hive.setHiveConfValue(
-        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    System.getProperties()
+        .setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
     initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, "");
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL);
     Throwable exception =
@@ -74,8 +74,8 @@ public abstract class ConfigValidationIntegrationTestsBase extends IntegrationTe
    */
   @Test
   public void testMissingBucketPermissions() {
-    hive.setHiveConfValue(
-        HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
+    System.getProperties()
+        .setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT);
     initHive(getDefaultExecutionEngine(), HiveBigQueryConfig.AVRO, NON_EXISTING_PATH);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     Throwable exception =

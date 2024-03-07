@@ -34,7 +34,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
 
   /** Insert data into a simple table. */
   public void insert(String engine, String writeMethod, String tempGcsPath) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     if (tempGcsPath != null) {
       initHive(engine, HiveBigQueryConfig.AVRO, tempGcsPath);
     } else {
@@ -93,7 +93,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testInsertOverwrite(String engine, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Create some initial data in BQ
@@ -120,7 +120,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testITAS(String engine, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     String itasSource = "itas_source";
     String itasDestination = "itas_destination";
@@ -151,7 +151,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testOverwriteITAS(String engine, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     String itasOverwriteSource = "itas_overwrite_source";
     String itasOverwriteDestination = "itas_overwrite_destination";
@@ -194,9 +194,10 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testMultiInsert(String engine, String writeMethod) {
     // TODO: Figure out why vectorization and map-joins must be disabled for this test to pass
-    hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "false");
-    hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "false");
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "false");
+    System.getProperties()
+        .setProperty(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "false");
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     createExternalTable("bq_a", "id int, name string", "id int64, name string");
     createExternalTable("bq_b", "id int, name string", "id int64, name string");
@@ -231,7 +232,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteAllTypes(String engine, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     // Create the BQ table
     createExternalTable(
@@ -331,7 +332,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteAllTypesNull(String engine, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     // Create the BQ table
     createExternalTable(
@@ -382,7 +383,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteRequiredFields(String engine, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     String bq_table_ddl =
         String.join(
@@ -420,7 +421,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteDecimals(String engine, String writeMethod) {
     // To-Do: fix avro when upgrade bigquery-connector-common
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     // Create the BQ table
     createExternalTable(
@@ -456,7 +457,7 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT_WRITE_METHOD)
   public void testMultiReadWrite(String engine, String readDataFormat, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, readDataFormat);
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);

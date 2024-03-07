@@ -21,11 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
+import com.google.cloud.hive.bigquery.connector.TestUtils;
 import com.google.cloud.hive.bigquery.connector.output.WriterRegistry;
-import java.util.regex.Pattern;
+import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.TaskAttemptID;
 import org.junit.jupiter.api.Test;
 
 public class JobUtilsTest {
@@ -47,39 +47,40 @@ public class JobUtilsTest {
 
   @Test
   public void testGetWorkDir() {
-    Configuration conf = new Configuration();
-    conf.set("hive.query.id", "query123");
+    Configuration conf = TestUtils.getMockHadoopConf();
     conf.set("hadoop.tmp.dir", "/tmp");
     Path path = JobUtils.getQueryWorkDir(conf);
-    assertEquals("/tmp/bq-hive-query123", path.toString());
+    assertEquals("/tmp/hive-bq-hive-query-id-query123", path.toString());
     conf.set("bq.work.dir.parent.path", "/my/workdir");
     path = JobUtils.getQueryWorkDir(conf);
-    assertEquals("/my/workdir/bq-hive-query123", path.toString());
+    assertEquals("/my/workdir/hive-bq-hive-query-id-query123", path.toString());
   }
 
   @Test
   public void testGetJobDetailsFilePath() {
-    Configuration conf = new Configuration();
-    conf.set("hive.query.id", "query123");
+    Configuration conf = TestUtils.getMockHadoopConf();
     conf.set("hadoop.tmp.dir", "/tmp");
     String hmsDbTable = "default.mytable";
     Path jobDetailsFilePath = JobUtils.getJobDetailsFilePath(conf, hmsDbTable);
     assertEquals(
-        "/tmp/bq-hive-query123/default.mytable/job-details.json", jobDetailsFilePath.toString());
+        "/tmp/hive-bq-hive-query-id-query123/default.mytable/job-details.json",
+        jobDetailsFilePath.toString());
   }
 
   @Test
   public void testGetTaskWriterOutputFile() {
+    Configuration conf = TestUtils.getMockHadoopConf();
+    conf.set("hadoop.tmp.dir", "/hadoop-tmp/");
     JobDetails jobDetails = new JobDetails();
-    String tmp = "/tmp/bq-hive-query123/default.mytable";
-    jobDetails.setJobTempOutputPath(new Path(tmp));
+    jobDetails.setTableProperties(new Properties());
+    jobDetails.getTableProperties().put("name", "default.mytable");
     TableId tableId = TableId.of("myproject", "mydataset", "mytable");
     jobDetails.setTableId(tableId);
-    TaskAttemptID taskAttemptID = new TaskAttemptID();
+    String taskAttemptID = "abcd1234";
     String writerId = WriterRegistry.getWriterId();
-    Path path = JobUtils.getTaskWriterOutputFile(jobDetails, taskAttemptID, writerId, "json");
+    Path path = JobUtils.getTaskWriterOutputFile(conf, jobDetails, taskAttemptID, writerId, "jpeg");
     String pattern =
-        "^" + Pattern.quote(tmp) + "/myproject_mydataset_mytable_task__0000_r_000000_w\\d+\\.json$";
+        "^/hadoop-tmp/hive-bq-hive-query-id-query123/default.mytable/myproject_mydataset_mytable_abcd1234_w\\d+\\.jpeg";
     assertThat(path.toString(), matchesPattern(pattern));
   }
 }

@@ -36,6 +36,7 @@ public class TestUtils {
   public static final String HIVECONF_SYSTEM_OVERRIDE_PREFIX = "hiveconf_";
   public static final String LOCATION = "us";
   public static final String TEST_TABLE_NAME = "test";
+  public static final String SCHEMA_MISMATCH_TABLE_NAME = "schema_mismatch";
   public static final String BIGLAKE_TABLE_NAME = "biglake";
   public static final String TEST_VIEW_NAME = "test_view";
   public static final String ANOTHER_TEST_TABLE_NAME = "another_test";
@@ -57,6 +58,8 @@ public class TestUtils {
           "NUMBER INT64,", // Intentionally set this column uppercase to test Hive's case
           // insensitivity. See PR #98
           "text STRING");
+
+  public static String BIGQUERY_SCHEMA_MISMATCH_TABLE_DDL = String.join("\n", "number BYTES");
 
   public static String BIGQUERY_ANOTHER_TEST_TABLE_DDL =
       String.join("\n", "num INT64,", "str_val STRING");
@@ -102,6 +105,8 @@ public class TestUtils {
           ")");
 
   public static String HIVE_TEST_TABLE_DDL = String.join("\n", "number BIGINT,", "text STRING");
+
+  public static String HIVE_SCHEMA_MISMATCH_TABLE_DDL = String.join("\n", "number BIGINT");
 
   public static String HIVE_TEST_VIEW_DDL = String.join("\n", "number BIGINT,", "text STRING");
 
@@ -153,6 +158,12 @@ public class TestUtils {
 
   public static String HIVE_INGESTION_TIME_PARTITIONED_PROPS = "'bq.time.partition.type'='DAY'";
 
+  public static Configuration getMockHadoopConf() {
+    Configuration conf = new Configuration();
+    conf.set("hive.query.id", "query123");
+    return conf;
+  }
+
   /** Return Hive config values passed from system properties */
   public static Map<String, String> getHiveConfSystemOverrides() {
     Map<String, String> overrides = new HashMap<>();
@@ -167,26 +178,26 @@ public class TestUtils {
   }
 
   private static com.google.auth.Credentials getCredentials() {
-    Configuration config = new Configuration();
+    Configuration conf = getMockHadoopConf();
     Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
     for (String key : hiveConfSystemOverrides.keySet()) {
-      config.set(key, hiveConfSystemOverrides.get(key));
+      conf.set(key, hiveConfSystemOverrides.get(key));
     }
     Injector injector =
-        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(config));
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf));
     BigQueryCredentialsSupplier credentialsSupplier =
         injector.getInstance(BigQueryCredentialsSupplier.class);
     return credentialsSupplier.getCredentials();
   }
 
   public static BigQueryClient getBigqueryClient() {
-    Configuration config = new Configuration();
+    Configuration conf = getMockHadoopConf();
     Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
     for (String key : hiveConfSystemOverrides.keySet()) {
-      config.set(key, hiveConfSystemOverrides.get(key));
+      conf.set(key, hiveConfSystemOverrides.get(key));
     }
     Injector injector =
-        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(config));
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf));
     return injector.getInstance(BigQueryClient.class);
   }
 

@@ -31,7 +31,7 @@ public abstract class ViewIntegrationTestsBase extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testViewsDisabled(String engine, String readDataFormat) {
     // Disable views
-    hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "false");
+    System.getProperties().setProperty(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "false");
     initHive(engine, readDataFormat);
     // Create the table in BigQuery
     createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
@@ -51,7 +51,7 @@ public abstract class ViewIntegrationTestsBase extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testReadEmptyView(String engine, String readDataFormat) {
     // Enable views
-    hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
+    System.getProperties().setProperty(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
     initHive(engine, readDataFormat);
     // Create the table in BigQuery
     createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
@@ -69,7 +69,7 @@ public abstract class ViewIntegrationTestsBase extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testWhereClause(String engine, String readDataFormat) {
     // Enable views
-    hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
+    System.getProperties().setProperty(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
     initHive(engine, readDataFormat);
     // Create the table in BigQuery
     createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);
@@ -101,7 +101,7 @@ public abstract class ViewIntegrationTestsBase extends IntegrationTestsBase {
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testMaterializedView(String engine, String readDataFormat) {
     // Enable views
-    hive.setHiveConfValue(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
+    System.getProperties().setProperty(HiveBigQueryConfig.VIEWS_ENABLED_KEY, "true");
     initHive(engine, readDataFormat);
     // Create the table in BigQuery
     createBqTable(TEST_TABLE_NAME, BIGQUERY_TEST_TABLE_DDL);

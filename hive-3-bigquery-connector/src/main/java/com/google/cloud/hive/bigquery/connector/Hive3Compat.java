@@ -33,6 +33,7 @@ import org.apache.arrow.vector.TimeStampMicroVector;
 import org.apache.avro.Schema;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.common.type.TimestampTZ;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
@@ -55,13 +56,14 @@ public class Hive3Compat extends HiveCompat {
   public Object convertHiveTimeUnitToBq(
       ObjectInspector objectInspector, Object hiveValue, String writeMethod) {
     if (objectInspector instanceof TimestampObjectInspector) {
-      TimestampWritableV2 writable;
-      if (hiveValue instanceof LazyTimestamp) {
-        writable = ((LazyTimestamp) hiveValue).getWritableObject();
+      Timestamp timestamp;
+      if (hiveValue instanceof Timestamp) {
+        timestamp = (Timestamp) hiveValue;
+      } else if (hiveValue instanceof LazyTimestamp) {
+        timestamp = ((LazyTimestamp) hiveValue).getWritableObject().getTimestamp();
       } else {
-        writable = (TimestampWritableV2) hiveValue;
+        timestamp = ((TimestampWritableV2) hiveValue).getTimestamp();
       }
-      Timestamp timestamp = writable.getTimestamp();
       if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
         return DatetimeUtils.getEpochMicrosFromHiveTimestamp(timestamp);
       } else {
@@ -79,13 +81,13 @@ public class Hive3Compat extends HiveCompat {
       return DatetimeUtils.getEpochMicrosFromHiveTimestampTZ(timestampTZ);
     }
     if (objectInspector instanceof DateObjectInspector) {
-      DateWritableV2 writable;
-      if (hiveValue instanceof LazyDate) {
-        writable = ((LazyDate) hiveValue).getWritableObject();
-      } else {
-        writable = (DateWritableV2) hiveValue;
+      if (hiveValue instanceof Date) {
+        return ((Date) hiveValue).toEpochDay();
       }
-      return new Integer(writable.getDays());
+      if (hiveValue instanceof LazyDate) {
+        return ((LazyDate) hiveValue).getWritableObject().getDays();
+      }
+      return ((DateWritableV2) hiveValue).getDays();
     }
     return null;
   }

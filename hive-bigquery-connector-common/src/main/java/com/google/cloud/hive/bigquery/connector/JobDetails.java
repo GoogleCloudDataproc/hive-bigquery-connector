@@ -37,13 +37,12 @@ public class JobDetails {
   private TableId tableId;
   private TableId finalTableId;
   private boolean overwrite;
-  // for direct it is where the stream reference files are, for indirect output in gcs temp path
-  private Path jobTempOutputPath;
   private Properties hmsTableProperties;
   private transient Schema bigquerySchema;
   private String bigquerySchemaJSON;
   private transient org.apache.avro.Schema avroSchema; // Only used by the 'indirect' write method
   private String avroSchemaJSON; // Only used by the 'indirect' write method
+  private String writeMethod;
 
   public JobDetails() {}
 
@@ -71,14 +70,6 @@ public class JobDetails {
     this.overwrite = overwrite;
   }
 
-  public Path getJobTempOutputPath() {
-    return jobTempOutputPath;
-  }
-
-  public void setJobTempOutputPath(Path tempPath) {
-    this.jobTempOutputPath = tempPath;
-  }
-
   public String getHmsDbTableName() {
     return this.hmsTableProperties.getProperty("name");
   }
@@ -89,6 +80,14 @@ public class JobDetails {
 
   public void setTableProperties(Properties hmsTableProperties) {
     this.hmsTableProperties = hmsTableProperties;
+  }
+
+  public String getWriteMethod() {
+    return writeMethod;
+  }
+
+  public void setWriteMethod(String writeMethod) {
+    this.writeMethod = writeMethod;
   }
 
   public Schema getBigquerySchema() {

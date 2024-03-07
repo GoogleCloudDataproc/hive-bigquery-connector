@@ -19,6 +19,7 @@ import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectRecordWriter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectAvroRecordWriter;
+import com.google.cloud.hive.bigquery.connector.utils.hcatalog.HCatalogUtils;
 import java.io.IOException;
 import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
@@ -30,7 +31,9 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
 import org.apache.hadoop.util.Progressable;
+import org.apache.hive.hcatalog.mapreduce.OutputJobInfo;
 
+/** Output format compatible with the old "mapred" Hadoop API. */
 public class BigQueryOutputFormat
     implements OutputFormat<NullWritable, Writable>, HiveOutputFormat<NullWritable, Writable> {
 
@@ -44,6 +47,14 @@ public class BigQueryOutputFormat
   public org.apache.hadoop.mapred.RecordWriter<NullWritable, Writable> getRecordWriter(
       FileSystem fileSystem, JobConf jobConf, String hmsDbTableName, Progressable progressable)
       throws IOException {
+    if (HCatalogUtils.isHCatalogOutputJob(jobConf)) {
+      OutputJobInfo outputJobInfo = HCatalogUtils.getHCatalogOutputJobInfo(jobConf);
+      hmsDbTableName =
+          String.format("%s.%s", outputJobInfo.getDatabaseName(), outputJobInfo.getTableName());
+    }
+    if (hmsDbTableName == null) {
+      throw new RuntimeException("properties do not have a hive table name");
+    }
     JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
     String writeMethod =
         HiveBigQueryConfig.getWriteMethod(jobConf, jobDetails.getTableProperties());
@@ -63,11 +74,7 @@ public class BigQueryOutputFormat
       Properties properties,
       Progressable progressable)
       throws IOException {
-    String hmsDbTableName = properties.getProperty("name");
-    if (hmsDbTableName == null) {
-      throw new RuntimeException("properties do have have hive table name");
-    }
-    return (RecordWriter) getRecordWriter(null, jobConf, hmsDbTableName, null);
+    return (RecordWriter) getRecordWriter(null, jobConf, properties.getProperty("name"), null);
   }
 
   @Override

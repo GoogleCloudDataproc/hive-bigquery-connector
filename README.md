@@ -18,6 +18,7 @@ software versions:
 * Hive 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
 * Hadoop 2.10.2, 3.2.3, and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
+* Pig 0.17.0.
 
 ## Installation
 
@@ -276,7 +277,7 @@ You can set the following Hive/Hadoop configuration properties in your environme
 | `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                                |
 | `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temporary Avro files to GCS before loading into BigQuery). |
 | `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
-| `bq.work.dir.name.prefix` | `bq-hive-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
+| `bq.work.dir.name.prefix` | `hive-bq-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
 | `materializationProject`  |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                     |
 | `materializationDataset`  |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                     |
 | `maxParallelism`          |                     | Maximum initial number of read streams                                                                                                                                                              |
@@ -473,6 +474,59 @@ consumers read based on a specific point in time. The snapshot time is based on 
 session creation time (i.e. when the `SELECT` query is initiated).
 
 Note that this consistency model currently only applies to the table data, not its metadata.
+
+## Spark SQL integration
+
+Dataproc uses a patched version of Spark that automatically detects a table that has the `bq.table`
+table property, in which case Spark will use the [`Spark-BigQuery Connector`](https://github.com/GoogleCloudDataproc/spark-bigquery-connector)
+to access the table's data. This means that on Dataproc you actually do not need to use the
+Hive-BigQuery Connector for Spark SQL.
+
+### Code samples
+
+Java example:
+
+```java
+SparkConf sparkConf = new SparkConf().setMaster("local");
+SparkSession spark =
+    SparkSession.builder()
+    .appName("example")
+    .config(sparkConf)
+    .enableHiveSupport()
+    .getOrCreate();
+Dataset<Row> ds = spark.sql("SELECT * FROM mytable");
+Row[] rows = ds.collect();
+```
+
+Python example:
+
+```python
+spark = SparkSession.builder \
+    .appName("example") \
+    .config("spark.master", "local") \
+    .enableHiveSupport() \
+    .getOrCreate()
+df = spark.sql("SELECT * FROM mytable")
+rows = df.collect()
+```
+
+## Apache Pig integration
+
+The connector supports Apache Pig via HCatalog.
+
+Here's an example reading from a BigQuery table and writing to another, assuming that
+`my-database.my-table` and `my-database.my-other-table` have been registered as BigQuery tables:
+
+```pig
+some_data = LOAD 'my-database.my-table' USING org.apache.hive.hcatalog.pig.HCatLoader();
+STORE some_data INTO 'my-database.my-other-table' USING org.apache.hive.hcatalog.pig.HCatStorer();
+```
+
+Notes:
+
+* Pig only supports `datetime` types with milliseconds precision, so you may encounter precision
+  loss if you have values with nanoseconds in Hive or BigQuery. Learn more in the HCatalog
+  documentation on [data type mappings](https://cwiki.apache.org/confluence/display/hive/hcatalog+loadstore#HCatalogLoadStore-DataTypeMappings).
 
 ## BigLake integration
 

@@ -27,9 +27,9 @@ import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
+import com.google.cloud.hive.bigquery.connector.output.OutputCommitterUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanMessage;
-import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
+import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanUp;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.bq.BigQueryUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
@@ -49,8 +49,8 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
 import org.apache.hadoop.mapred.JobContext;
 import org.slf4j.Logger;
@@ -66,8 +66,8 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
 
   Configuration conf;
 
-  protected List<PrimitiveCategory> getSupportedTypes() {
-    List<PrimitiveCategory> types = new ArrayList<>();
+  protected List<PrimitiveObjectInspector.PrimitiveCategory> getSupportedTypes() {
+    List<PrimitiveObjectInspector.PrimitiveCategory> types = new ArrayList<>();
     types.addAll(
         Arrays.asList(
             PrimitiveCategory.BYTE, // Tiny Int
@@ -152,17 +152,40 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
     bigQueryService.create(bigQueryTableInfo);
   }
 
-  protected void configJobDetailsForIndirectWrite(
-      HiveBigQueryConfig opts, JobDetails jobDetails, Schema bigQuerySchema, Injector injector)
-      throws MetaException {
-    // validate the temp GCS path to store the temporary Avro files
-    validateTempGcsPath(opts.getTempGcsPath(), injector);
-    // Convert BigQuery schema to Avro schema
-    StructObjectInspector rowObjectInspector =
-        BigQuerySerDe.getRowObjectInspector(jobDetails.getTableProperties());
-    org.apache.avro.Schema avroSchema =
-        AvroUtils.getAvroSchema(rowObjectInspector, bigQuerySchema.getFields());
-    jobDetails.setAvroSchema(avroSchema);
+  public static void makeOverwrite(Configuration conf, JobDetails jobDetails) {
+    jobDetails.setOverwrite(true);
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(),
+            new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
+    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+    if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+      // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
+      // write method. In this case, we will stream-write to a temporary table
+      // and then finally overwrite the final destination table with the temporary
+      // table's contents. This special case doesn't apply to the 'indirect'
+      // write method, which doesn't need a temporary table -- instead that method
+      // uses the 'WRITE_TRUNCATE' option available in the BigQuery Load Job API when
+      // loading the Avro files into the BigQuery table (see more about that in the
+      // `IndirectOutputCommitter` class).
+
+      // Set the final destination table as the job's original table
+      TableId destTableId = jobDetails.getTableId();
+      jobDetails.setFinalTableId(destTableId);
+      // Create a temporary table with the same schema
+      // TODO: It'd be useful to add a description to the table explaining that it was
+      //  created as a temporary table for a Hive query.
+      TableInfo tempTableInfo =
+          bqClient.createTempTable(
+              TableId.of(
+                  destTableId.getProject(),
+                  destTableId.getDataset(),
+                  destTableId.getTable() + "-" + HiveUtils.getQueryId(conf) + "-"),
+              jobDetails.getBigquerySchema());
+      // Set the temp table as the job's output table
+      jobDetails.setTableId(tempTableInfo.getTableId());
+      LOG.info("Insert overwrite temporary table {} ", tempTableInfo.getTableId());
+    }
   }
 
   protected abstract void setupStats(Table table);
@@ -289,7 +312,7 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
     tables =
         tables == null
             ? hmsDbTableName
-            : tables + HiveBigQueryConfig.TABLE_NAME_SEPARATOR + hmsDbTableName;
+            : tables + HiveBigQueryConfig.OUTPUT_TABLE_NAMES_SEPARATOR + hmsDbTableName;
     conf.set(HiveBigQueryConfig.CREATE_TABLES_KEY, tables);
 
     try {
@@ -305,10 +328,9 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
         jobDetails.setBigquerySchema(tableSchema);
 
         if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-          configJobDetailsForIndirectWrite(opts, jobDetails, tableSchema, injector);
+          BigQueryStorageHandlerBase.configureJobDetailsForIndirectWrite(
+              opts, jobDetails, injector.getInstance(BigQueryCredentialsSupplier.class));
         }
-        Path queryTempOutputPath = JobUtils.getQueryTempOutputPath(conf, opts);
-        jobDetails.setJobTempOutputPath(new Path(queryTempOutputPath, hmsDbTableName));
         JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
       }
     } catch (IOException e) {
@@ -324,13 +346,6 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
   /** Called before insert query. */
   @Override
   public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-    Map<String, String> tableParameters = table.getParameters();
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableParameters));
-    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
-
     // Load the job details file from HDFS
     JobDetails jobDetails;
     String hmsDbTableName = HiveUtils.getDbTableName(table);
@@ -340,43 +355,8 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-
-    TableId destTableId =
-        BigQueryUtil.parseTableId(tableParameters.get(HiveBigQueryConfig.TABLE_KEY));
-
-    if (jobDetails.getTableId() == null) {
-      jobDetails.setTableId(destTableId);
-    }
-    jobDetails.setOverwrite(overwrite);
-
-    if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-      // Special case: 'INSERT OVERWRITE' operation while using the 'direct'
-      // write method. In this case, we will stream-write to a temporary table
-      // and then finally overwrite the final destination table with the temporary
-      // table's contents. This special case doesn't apply to the 'indirect'
-      // write method, which doesn't need a temporary table -- instead that method
-      // uses the 'WRITE_TRUNCATE' option available in the BigQuery Load Job API when
-      // loading the Avro files into the BigQuery table (see more about that in the
-      // `IndirectOutputCommitter` class).
-      if (overwrite) {
-        // Set the final destination table as the job's original table
-        jobDetails.setFinalTableId(destTableId);
-        // Create a temporary table with the same schema
-        // TODO: It'd be useful to add a description to the table explaining that it was
-        //  created as a temporary table for a Hive query.
-        TableInfo tempTableInfo =
-            bqClient.createTempTable(
-                TableId.of(
-                    destTableId.getProject(),
-                    destTableId.getDataset(),
-                    destTableId.getTable() + "-" + HiveUtils.getQueryId(conf) + "-"),
-                jobDetails.getBigquerySchema());
-        // Set the temp table as the job's output table
-        jobDetails.setTableId(tempTableInfo.getTableId());
-        LOG.info("Insert overwrite temporary table {} ", tempTableInfo.getTableId());
-      }
-    } else {
-      configJobDetailsForIndirectWrite(opts, jobDetails, jobDetails.getBigquerySchema(), injector);
+    if (overwrite) {
+      makeOverwrite(conf, jobDetails);
     }
     JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
   }
@@ -389,22 +369,19 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
   @Override
   public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
-    if (engine.equals("mr")) {
-      // In Hive v3, `commitInsertTable()` never gets called for MR -- only for Tez.
-      // But in Hive v2, it does get called. So we exit here since the BigQueryOutputCommitter
-      // is already called automatically for MR.
-      return;
-    }
-    try {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
-      BigQueryOutputCommitter.commit(conf, jobDetails);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    } finally {
-      // deleteOnExit in case of other jobs using the same workdir
-      JobUtils.cleanNotFail(
-          () -> JobUtils.deleteQueryWorkDirOnExit(conf),
-          CleanMessage.DELETE_QUERY_TEMPORARY_DIRECTORY);
+    if (engine.equals("tez")) {
+      try {
+        JobDetails jobDetails =
+            JobDetails.readJobDetailsFile(conf, HiveUtils.getDbTableName(table));
+        OutputCommitterUtils.commitJob(conf, jobDetails);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      } finally {
+        // delete the query work directory in case of other jobs using the same one.
+        JobUtils.safeCleanUp(
+            () -> JobUtils.deleteQueryWorkDirOnExit(conf),
+            CleanUp.DELETE_QUERY_TEMPORARY_WORK_DIRECTORY);
+      }
     }
   }
 
@@ -453,20 +430,5 @@ public abstract class BigQueryMetaHookBase extends DefaultHiveMetaHook {
               + " use default project.");
     }
     return BigQueryUtil.parseTableId(bqTable);
-  }
-
-  protected void validateTempGcsPath(String tempGcsPath, Injector injector) throws MetaException {
-    if (tempGcsPath == null || tempGcsPath.trim().equals("")) {
-      throw new MetaException(
-          String.format(
-              "The '%s' property must be set when using the '%s' write method.",
-              HiveBigQueryConfig.TEMP_GCS_PATH_KEY, HiveBigQueryConfig.WRITE_METHOD_INDIRECT));
-    } else if (!JobUtils.hasGcsWriteAccess(
-        injector.getInstance(BigQueryCredentialsSupplier.class), tempGcsPath)) {
-      throw new MetaException(
-          String.format(
-              "Does not have write access to the following GCS path, or bucket does not exist: %s",
-              tempGcsPath));
-    }
   }
 }

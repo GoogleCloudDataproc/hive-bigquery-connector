@@ -29,9 +29,11 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrSubstitutor;
@@ -52,6 +54,9 @@ import org.junit.jupiter.params.provider.Arguments;
 public abstract class IntegrationTestsBase {
 
   protected static String dataset;
+
+  // Stores the current system properties before each test so we can restore them afterwards
+  private Properties systemPropertiesBackup;
 
   // Temp bucket for indirect writes.
   protected static String testBucketName;
@@ -92,6 +97,17 @@ public abstract class IntegrationTestsBase {
 
   @BeforeEach
   public void setUpEach(TestInfo testInfo) {
+    // Save the current state of system properties before each test
+    systemPropertiesBackup = new Properties();
+    Enumeration<?> propertyNames = System.getProperties().propertyNames();
+    while (propertyNames.hasMoreElements()) {
+      String key = propertyNames.nextElement().toString();
+      String value = System.getProperty(key);
+      if (value != null) {
+        systemPropertiesBackup.put(key, value);
+      }
+    }
+
     // Display which test is running
     String methodName = testInfo.getTestMethod().get().getName();
     String displayName = testInfo.getDisplayName();
@@ -108,19 +124,24 @@ public abstract class IntegrationTestsBase {
     // Set default Hadoop/Hive configuration -----------------------------------
     // TODO: Match with Dataproc's default config as much as possible
     // Enable map-joins
-    hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "true");
+    System.getProperties().setProperty(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "true");
     // Enable vectorize mode
-    hive.setHiveConfValue(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
+    System.getProperties()
+        .setProperty(HiveConf.ConfVars.HIVE_VECTORIZATION_ENABLED.varname, "true");
     String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
     this.tempGcsDir = TEMP_GCS_DIR_PREFIX + timestamp;
   }
 
   @AfterEach
   public void tearDownEach(TestInfo testInfo) {
+    // Clean up GCS
     if (tempGcsDir != null && tempGcsDir.startsWith(TEMP_GCS_DIR_PREFIX)) {
       emptyGcsDir(testBucketName, tempGcsDir);
       tempGcsDir = null;
     }
+
+    // Restore the original system properties after each test
+    System.setProperties(systemPropertiesBackup);
   }
 
   @AfterAll
@@ -255,18 +276,29 @@ public abstract class IntegrationTestsBase {
     // Load potential Hive config values passed from system properties
     Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
     for (String key : hiveConfSystemOverrides.keySet()) {
-      hive.setHiveConfValue(key, hiveConfSystemOverrides.get(key));
+      System.getProperties().setProperty(key, hiveConfSystemOverrides.get(key));
     }
-    hive.setHiveConfValue(HiveConf.ConfVars.HIVE_EXECUTION_ENGINE.varname, engine);
-    hive.setHiveConfValue(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, readDataFormat);
-    hive.setHiveConfValue(HiveBigQueryConfig.TEMP_GCS_PATH_KEY, tempGcsPath);
-    hive.setHiveConfValue(
-        "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
-    hive.setHiveConfValue("datanucleus.autoStartMechanismMode", "ignored");
+    System.getProperties().setProperty(HiveConf.ConfVars.HIVE_EXECUTION_ENGINE.varname, engine);
+    System.getProperties().setProperty(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, readDataFormat);
+    System.getProperties().setProperty(HiveBigQueryConfig.TEMP_GCS_PATH_KEY, tempGcsPath);
+    System.getProperties()
+        .setProperty(
+            "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
+    System.getProperties().setProperty("datanucleus.autoStartMechanismMode", "ignored");
 
     // This is needed to avoid an odd exception when running the tests with Tez and Hadoop 3.
     // Similar issue to what's described in https://issues.apache.org/jira/browse/HIVE-24734
-    hive.setHiveConfValue(MRJobConfig.MAP_MEMORY_MB, "1024");
+    System.getProperties().setProperty(MRJobConfig.MAP_MEMORY_MB, "1024");
+
+    // Apply system properties to the Hive conf
+    Enumeration<?> propertyNames = System.getProperties().propertyNames();
+    while (propertyNames.hasMoreElements()) {
+      String key = propertyNames.nextElement().toString();
+      String value = System.getProperty(key);
+      if (value != null) {
+        hive.setHiveConfValue(key, value);
+      }
+    }
 
     hive.start();
     runHiveQuery("CREATE DATABASE source_db");
