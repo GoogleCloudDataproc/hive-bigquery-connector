@@ -27,6 +27,7 @@ import com.google.common.collect.Streams;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -41,16 +42,21 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
       initHive(engine, HiveBigQueryConfig.AVRO);
     }
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
-    // Insert data using Hive
+    // Run two insert queries using Hive
     runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (123, 'hello')");
+    runHiveQuery("INSERT INTO " + TEST_TABLE_NAME + " VALUES (789, 'abcd')");
     // Read the data using the BQ SDK
     TableResult result =
-        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s` ORDER BY number", TEST_TABLE_NAME));
     // Verify we get the expected values
-    assertEquals(1, result.getTotalRows());
+    assertEquals(2, result.getTotalRows());
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     assertEquals(123L, rows.get(0).get(0).getLongValue());
     assertEquals("hello", rows.get(0).get(1).getStringValue());
+    assertEquals(789L, rows.get(1).get(0).getLongValue());
+    assertEquals("abcd", rows.get(1).get(1).getStringValue());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   /** Insert data using the "direct" write method. */
@@ -76,15 +82,6 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
 
     // Insert data using Hive
     insert(engine, HiveBigQueryConfig.WRITE_METHOD_INDIRECT, testGcsPath);
-
-    // Query workdir not deleted yet, but there should be no temporary avro files
-    blobs = getBlobs(testBucketName, testGcsDir);
-    for (int i = 0; i < blobs.size(); i++) {
-      String blobName = blobs.get(i).getName();
-      assertTrue(
-          blobName.startsWith(testGcsDir) && !blobName.endsWith(".avro"),
-          "Unexpected blob name: " + blobName);
-    }
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -112,6 +109,8 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     assertEquals(888L, rows.get(0).get(0).getLongValue());
     assertEquals("xyz", rows.get(0).get(1).getStringValue());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -143,6 +142,8 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     assertEquals("hello", rows.get(0).get(1).getStringValue());
     assertEquals(2L, rows.get(1).get(0).getLongValue());
     assertEquals("bonjour", rows.get(1).get(1).getStringValue());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -185,6 +186,8 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     assertEquals("hello", rows.get(0).get(1).getStringValue());
     assertEquals(2L, rows.get(1).get(0).getLongValue());
     assertEquals("bonjour", rows.get(1).get(1).getStringValue());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -224,6 +227,8 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     rows = Streams.stream(resultB.iterateAll()).collect(Collectors.toList());
     assertEquals(20L, rows.get(0).get(0).getLongValue());
     assertEquals("aaa", rows.get(0).get(1).getStringValue());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -257,10 +262,10 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
             "2.0,",
             "4.2,",
             "NAMED_STRUCT(",
-            "  'min', CAST(-99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
-            "  'max', CAST(99999999999999999999999999999.999999999 AS" + " DECIMAL(38,9)),",
-            "  'pi', CAST(3.14 AS DECIMAL(38,9)),",
-            "  'big_pi', CAST(31415926535897932384626433832.795028841 AS" + " DECIMAL(38,9))",
+            "  'min', CAST('-99999999999999999999999999999.999999999' AS" + " DECIMAL(38,9)),",
+            "  'max', CAST('99999999999999999999999999999.999999999' AS" + " DECIMAL(38,9)),",
+            "  'pi', CAST('3.14' AS DECIMAL(38,9)),",
+            "  'big_pi', CAST('31415926535897932384626433832.795028841' AS" + " DECIMAL(38,9))",
             "),",
             "ARRAY(CAST (1 AS BIGINT), CAST (2 AS BIGINT), CAST (3 AS" + " BIGINT)),",
             "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
@@ -324,6 +329,8 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     FieldValueList subEntry = entry.get(1).getRepeatedValue().get(0).getRecordValue();
     assertEquals("subkey", subEntry.get(0).getStringValue());
     assertEquals(999, subEntry.get(1).getLongValue());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -338,7 +345,6 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
     // Insert data into the BQ table using Hive
-    // TODO: Figure out why Hive won't let us insert NULL values for some fields below
     runHiveQuery(
         String.join(
             "\n",
@@ -356,16 +362,22 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
             "NULL,",
             "NULL,",
             "NULL,",
-            "NAMED_STRUCT(",
+            // Note: Hive doesn't allow just passing "NULL" as a value for complex types,
+            // so we use a workaround using "IF(FALSE, ..., NULL)" as suggested here:
+            // https://issues.apache.org/jira/browse/HIVE-4022?focusedCommentId=14268625#comment-14268625
+            "IF(FALSE, NAMED_STRUCT(",
             "  'min', CAST(0.0 AS" + " DECIMAL(38,9)),",
             "  'max', CAST(0.0 AS" + " DECIMAL(38,9)),",
             "  'pi', CAST(0.0 AS DECIMAL(38,9)),",
             "  'big_pi', CAST(0.0 AS" + " DECIMAL(38,9))",
-            "),",
-            "ARRAY(CAST (1 AS BIGINT)),",
-            "ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))),",
-            "NAMED_STRUCT('float_field', CAST(0.0 AS FLOAT), 'ts_field', CAST ('' AS TIMESTAMP)),",
-            "MAP('mykey', MAP('subkey', 0))"));
+            "), NULL),",
+            "IF(FALSE, ARRAY(CAST (1 AS BIGINT)), NULL),",
+            "IF(FALSE, ARRAY(NAMED_STRUCT('i', CAST (1 AS BIGINT))), NULL),",
+            "IF(FALSE, NAMED_STRUCT('float_field', CAST(0.0 AS FLOAT), 'ts_field', CAST ('' AS TIMESTAMP)), NULL),",
+            "IF(FALSE, MAP('mykey', MAP('subkey', 0)), NULL)",
+            // Note: In old versions of Hive you need to use a dummy table here.
+            // See: https://issues.apache.org/jira/browse/HIVE-12200
+            "from (select 'a') dummy"));
     // Read the data using the BQ SDK
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", ALL_TYPES_TABLE_NAME));
@@ -374,7 +386,15 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     FieldValueList row = rows.get(0);
     assertEquals(18, row.size()); // Number of columns
-    // TODO: Verify the returned values
+    for (int i = 0; i < 14; i++) {
+      assertNull(row.get(i).getValue());
+    }
+    assertEquals(0, ((FieldValueList) row.get(14).getValue()).size());
+    assertEquals(0, ((FieldValueList) row.get(15).getValue()).size());
+    assertNull(row.get(16).getValue());
+    assertEquals(0, ((FieldValueList) row.get(17).getValue()).size());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -407,11 +427,16 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
             "1,",
             "'james',",
             "NAMED_STRUCT('type', 'apartment', 'info', NAMED_STRUCT('units', 2, 'label', 'medium')),",
-            "MAP('mykey', MAP('subkey', 0))"));
+            "MAP('mykey', MAP('subkey', 0))",
+            // Note: In old versions of Hive you need to use a dummy table here.
+            // See: https://issues.apache.org/jira/browse/HIVE-12200
+            "from (select 'a') dummy"));
     // Read the data using the BQ SDK
     TableResult result = runBqQuery("SELECT * FROM `${dataset}.test_required`");
     // Verify we get the expected values
     assertEquals(1, result.getTotalRows());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -449,6 +474,8 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     for (int i = 0; i <= 6; i++) {
       assertEquals(values[i], row.get(i).getValue().toString());
     }
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -500,5 +527,49 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
     List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
     assertEquals(999, rows.get(0).get(0).getLongValue());
     assertEquals("hello3", rows.get(0).get(1).getStringValue());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we correctly clean things up in case of a query failure */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testWriteFailure(String engine, String writeMethod) {
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine);
+
+    // Create the two mismatched tables
+    createExternalTable(SCHEMA_MISMATCH_TABLE_NAME, HIVE_SCHEMA_MISMATCH_TABLE_DDL);
+    createBqTable(SCHEMA_MISMATCH_TABLE_NAME, BIGQUERY_SCHEMA_MISMATCH_TABLE_DDL);
+
+    // Make sure the query fails
+    Throwable exception =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                runHiveQuery(
+                    String.format("INSERT INTO %s VALUES (123)", SCHEMA_MISMATCH_TABLE_NAME)));
+
+    // Check for error messages, which are only available when using Tez
+    if (hive.getHiveConf().getVar(ConfVars.HIVE_EXECUTION_ENGINE).equals("tez")) {
+      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+        // Error message from the Storage Write API
+        assertTrue(exception.getMessage().contains("The proto field mismatched with BigQuery"));
+      } else {
+        // Error message from the Load Job API
+        assertTrue(
+            exception.getMessage().contains("Field number has changed type from BYTES to INTEGER"));
+      }
+    }
+
+    // Make sure no rows were inserted
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", SCHEMA_MISMATCH_TABLE_NAME));
+    assertEquals(0, result.getTotalRows());
+
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 }

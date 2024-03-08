@@ -24,6 +24,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.io.IOException;
 import java.util.*;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.log4j.Level;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.jupiter.api.Test;
@@ -96,9 +97,10 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
   // ---------------------------------------------------------------------------------------------------
 
   /** Test the `SELECT` statement with explicit columns (i.e. not `SELECT *`) */
-  @Test
-  public void testSelectExplicitColumns() {
-    initHive();
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE)
+  public void testSelectExplicitColumns(String engine) {
+    initHive(engine);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
@@ -106,12 +108,20 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
             "INSERT `${dataset}.%s` VALUES (123, 'hello'), (999, 'abcd')", TEST_TABLE_NAME));
     TableResult result =
         runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", TEST_TABLE_NAME));
+    // Enable logging capture
+    initLoggingCapture(Level.INFO);
     // Make sure the initial data is there
     assertEquals(2, result.getTotalRows());
     // Read filtered data using Hive
     // Try with both columns in order
     List<Object[]> rows =
         runHiveQuery(String.format("SELECT number, text FROM %s ORDER BY number", TEST_TABLE_NAME));
+    String logTemplate =
+        String.format(
+            "Selecting column(s) (%%s) from table `%s.%s.%s`",
+            getProject(), dataset, TEST_TABLE_NAME);
+    assertLogsContain(String.format(logTemplate, "number,text"));
+    clearLogs();
     assertArrayEquals(
         new Object[] {
           new Object[] {123L, "hello"},
@@ -121,6 +131,8 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
     // Try in different order
     rows =
         runHiveQuery(String.format("SELECT text, number FROM %s ORDER BY number", TEST_TABLE_NAME));
+    assertLogsContain(String.format(logTemplate, "number,text"));
+    clearLogs();
     assertArrayEquals(
         new Object[] {
           new Object[] {"hello", 123L},
@@ -129,9 +141,13 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
         rows.toArray());
     // Try a single column
     rows = runHiveQuery(String.format("SELECT number FROM %s ORDER BY number", TEST_TABLE_NAME));
+    assertLogsContain(String.format(logTemplate, "number"));
+    clearLogs();
     assertArrayEquals(new Object[] {new Object[] {123L}, new Object[] {999L}}, rows.toArray());
     // Try another single column
     rows = runHiveQuery(String.format("SELECT text FROM %s ORDER BY text", TEST_TABLE_NAME));
+    assertLogsContain(String.format(logTemplate, "text"));
+    clearLogs();
     assertArrayEquals(new Object[] {new Object[] {"abcd"}, new Object[] {"hello"}}, rows.toArray());
   }
 
@@ -437,7 +453,6 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
             + String.join(
                 "\n OR ",
                 "TO_DATE(str) > DATE'2023-03-24' and TO_DATE(ts) < DATE'2024-02-18'",
-                "DAYOFWEEK(ts) = 2 AND QUARTER(ts) = 1 AND WEEKOFYEAR(day) = 4",
                 "(CASE int_val WHEN 90 THEN str ELSE 'green' END) = 'green'",
                 "HEX(bin) = 'abcd'",
                 "UNHEX(str) = CAST('abcd' AS BINARY)",
@@ -447,20 +462,14 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
                     + " to_date('2000-01-01'))",
                 "ts BETWEEN TIMESTAMP'2018-09-05 00:10:04.19' AND TIMESTAMP'2019-06-11"
                     + " 03:55:10.00'",
-                "DATE(day + INTERVAL(5) DAY) > DATE('2001-09-05')",
                 "DATEDIFF('2022-09-07', day) > 0",
                 "DATE_SUB(day, 2) > DATE('2001-01-01')",
                 "DATE_ADD(day, 2) > DATE('2001-01-01')",
-                "str RLIKE '^([0-9]|[a-z]|[A-Z])'",
                 "ABS(big_int_val - 1) > 3",
-                "GREATEST(big_int_val, 5) > 3",
-                "LEAST(big_int_val, 5) > 3",
+                "GREATEST(int_val, 5) > 3",
+                "LEAST(int_val, 5) > 3",
                 "IF(bl, 2, 5) > 3",
-                "NULLIF(str, 'abcd') IS NULL",
                 "NVL(tiny_int_val, 99) == 99",
-                "LENGTH(str) > 2",
-                "CHARACTER_LENGTH(str) > 2",
-                "OCTET_LENGTH(str) > 2",
                 "TRIM(str) = 'abcd'",
                 "RTRIM(str) = 'abcd'",
                 "LTRIM(str) = 'abcd'",

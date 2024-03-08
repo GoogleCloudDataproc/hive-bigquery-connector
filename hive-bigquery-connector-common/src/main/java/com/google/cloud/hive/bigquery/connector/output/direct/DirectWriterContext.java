@@ -26,8 +26,6 @@ import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanUp;
 import com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.List;
@@ -143,9 +141,11 @@ public class DirectWriterContext {
     if (deleteTableOnAbort
         || (destinationTableId != null && !destinationTableId.equals(tableIdToWrite))) {
       LOG.info("Deleting BigQuery table {}", tableIdToWrite);
-      JobUtils.safeCleanUp(
-          () -> bigQueryClient.deleteTable(tableIdToWrite),
-          CleanUp.DELETE_BIGQUERY_TEMPORARY_TABLE);
+      try {
+        bigQueryClient.deleteTable(tableIdToWrite);
+      } catch (Exception e) {
+        LOG.warn("Failed cleaning up BigQuery table {}: {}", tableIdToWrite, e.getMessage());
+      }
     }
   }
 }

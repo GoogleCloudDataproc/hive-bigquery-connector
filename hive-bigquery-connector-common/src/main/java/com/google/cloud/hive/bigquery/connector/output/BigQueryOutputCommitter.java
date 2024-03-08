@@ -15,41 +15,18 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
-import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.io.IOException;
-import java.util.Set;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Output committer compatible with the old "mapred" Hadoop API. */
 public class BigQueryOutputCommitter extends OutputCommitter {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);
 
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
-    commitJob(jobContext.getJobConf());
+    OutputCommitterUtils.commitJob(jobContext.getJobConf());
     super.commitJob(jobContext);
-  }
-
-  public static void commitJob(Configuration conf) throws IOException {
-    Set<String> outputTables = OutputCommitterUtils.getOutputTables(conf);
-    LOG.info("Committing job {} with output tables {}", HiveUtils.getQueryId(conf), outputTables);
-    for (String hmsDbTableName : outputTables) {
-      JobDetails jobDetails;
-      try {
-        jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-      } catch (Exception e) {
-        // TO-DO: should we abort the job?
-        LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
-        continue;
-      }
-      OutputCommitterUtils.commitJob(conf, jobDetails);
-    }
   }
 
   @Override

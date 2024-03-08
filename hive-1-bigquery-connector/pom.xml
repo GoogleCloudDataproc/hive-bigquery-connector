@@ -1,0 +1,128 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.google.cloud.hive</groupId>
+        <artifactId>hive-x-bigquery-connector</artifactId>
+        <version>${revision}</version>
+        <relativePath>../hive-x-bigquery-connector</relativePath>
+    </parent>
+
+    <artifactId>hive-1-bigquery-connector</artifactId>
+    <name>Hive-BigQuery Connector For Hive 1.x.x</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>hive-bigquery-connector-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.cloud.bigdataoss</groupId>
+            <artifactId>gcs-connector</artifactId>
+            <classifier>shaded</classifier>
+        </dependency>
+
+        <!-- **************** Test dependencies **************** -->
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>hive-bigquery-connector-common</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.hiverunner</groupId>
+            <artifactId>hiverunner</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <!-- Currently the same as "hive1.2.1-hadoop2.6.4" but could be changed later -->
+            <!-- Use this profile if you don't care about specific minor versions of Hive 1.X -->
+            <id>hive1-generic</id>
+            <properties>
+                <!--
+                As of the time of writing (August 2023), the latest GCS connector isn't
+                compatible with Hadoop <= 2.7, so we use an older version
+                -->
+                <gcs-connector.version>hadoop2-2.2.3</gcs-connector.version>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>shaded-deps-hive1.2.1-hadoop2.6.4</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>shaded</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>hive1.2.1-hadoop2.6.4</id>
+            <properties>
+                <!--
+                As of the time of writing (August 2023), the latest GCS connector isn't
+                compatible with Hadoop <= 2.7, so we use an older version
+                -->
+                <gcs-connector.version>hadoop2-2.2.3</gcs-connector.version>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>shaded-deps-hive1.2.1-hadoop2.6.4</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>shaded</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

@@ -56,9 +56,7 @@ public class BigQueryOutputFormat
       throw new RuntimeException("properties do not have a hive table name");
     }
     JobDetails jobDetails = JobDetails.readJobDetailsFile(jobConf, hmsDbTableName);
-    String writeMethod =
-        HiveBigQueryConfig.getWriteMethod(jobConf, jobDetails.getTableProperties());
-    if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+    if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
       return new IndirectAvroRecordWriter(jobConf, jobDetails);
     } else {
       return new DirectRecordWriter(jobConf, jobDetails);

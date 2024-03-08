@@ -65,8 +65,24 @@
     </modules>
 
     <profiles>
+        <!-- Hive 1 profiles ************************************************************ -->
+        <profile>
+            <!-- Currently the same as "hive1.2.1-hadoop2.6.4" but could be changed later -->
+            <!-- Use this profile if you don't care about specific minor versions of Hive 2.X -->
+            <id>hive1-generic</id>
+            <modules>
+                <module>shaded-deps-hive1.2.1-hadoop2.6.4</module>
+                <module>hive-1-bigquery-connector</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>hive1.2.1-hadoop2.6.4</id>
+            <modules>
+                <module>shaded-deps-hive1.2.1-hadoop2.6.4</module>
+                <module>hive-1-bigquery-connector</module>
+            </modules>
+        </profile>
         <!-- Hive 2 profiles ************************************************************ -->
-
         <profile>
             <!-- Currently the same as "hive2.3.9-hadoop2.10.2" but could be changed later -->
             <!-- Use this profile if you don't care about specific minor versions of Hive 2.X -->
