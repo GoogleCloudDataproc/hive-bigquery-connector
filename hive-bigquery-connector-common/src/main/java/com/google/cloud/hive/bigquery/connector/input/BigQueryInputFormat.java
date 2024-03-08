@@ -19,12 +19,14 @@ import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.arrow.ArrowRecordReader;
 import com.google.cloud.hive.bigquery.connector.input.avro.AvroRecordReader;
+import com.google.cloud.hive.bigquery.connector.utils.hcatalog.HCatalogUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.mapred.*;
+import org.apache.hive.hcatalog.mapreduce.InputJobInfo;
 
 public class BigQueryInputFormat
     implements InputFormat<NullWritable, ObjectWritable>,
@@ -41,12 +43,20 @@ public class BigQueryInputFormat
    */
   @Override
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) {
+    if (HCatalogUtils.isHCatalogInputJob(jobConf)) {
+      InputJobInfo inputJobInfo = HCatalogUtils.getHCatalogInputJobInfo(jobConf);
+      HCatalogUtils.updateHadoopConfForHCatalog(jobConf, inputJobInfo.getTableInfo());
+    }
     return BigQueryInputSplit.createSplitsFromBigQueryReadStreams(jobConf, numSplits);
   }
 
   @Override
   public RecordReader<NullWritable, ObjectWritable> getRecordReader(
       InputSplit inputSplit, JobConf jobConf, Reporter reporter) {
+    if (HCatalogUtils.isHCatalogInputJob(jobConf)) {
+      InputJobInfo inputJobInfo = HCatalogUtils.getHCatalogInputJobInfo(jobConf);
+      HCatalogUtils.updateHadoopConfForHCatalog(jobConf, inputJobInfo.getTableInfo());
+    }
     DataFormat readDataFormat = HiveBigQueryConfig.from(jobConf).getReadDataFormat();
     if (readDataFormat.equals(DataFormat.ARROW)) {
       return new ArrowRecordReader((BigQueryInputSplit) inputSplit, jobConf);

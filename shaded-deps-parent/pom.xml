@@ -102,9 +102,24 @@
           <groupId>org.pentaho</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.lmax</groupId>
+          <artifactId>disruptor</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.hive.hcatalog</groupId>
+      <artifactId>hive-hcatalog-pig-adapter</artifactId>
+      <version>${hive.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>hive-exec</artifactId>
+          <groupId>org.apache.hive</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
     <dependency>
       <artifactId>tez-dag</artifactId>
@@ -181,6 +196,13 @@
                       <includes>
                         <include>com.google.protobuf.**</include>
                         <include>com.google.common.**</include>
+                      </includes>
+                    </relocation>
+                    <relocation>
+                      <pattern>io</pattern>
+                      <shadedPattern>shaded.for.hive.bq.integration.tests.io</shadedPattern>
+                      <includes>
+                        <include>io.netty.**</include>
                       </includes>
                     </relocation>
                   </relocations>

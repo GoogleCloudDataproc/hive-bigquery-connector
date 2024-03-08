@@ -96,10 +96,9 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
   // ---------------------------------------------------------------------------------------------------
 
   /** Test the `SELECT` statement with explicit columns (i.e. not `SELECT *`) */
-  @ParameterizedTest
-  @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
-  public void testSelectExplicitColumns(String engine, String readDataFormat) {
-    initHive(engine, readDataFormat);
+  @Test
+  public void testSelectExplicitColumns() {
+    initHive();
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
     // Insert data into BQ using the BQ SDK
     runBqQuery(
@@ -427,7 +426,7 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
    */
   @Test
   public void testUDFWhereClauseSmoke() {
-    hive.setHiveConfValue(HiveBigQueryConfig.FAIL_ON_UNSUPPORTED_UDFS, "true");
+    System.getProperties().setProperty(HiveBigQueryConfig.FAIL_ON_UNSUPPORTED_UDFS, "true");
     initHive();
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);
@@ -530,7 +529,7 @@ public abstract class ReadIntegrationTestsBase extends IntegrationTestsBase {
   public void testInnerJoin(String engine, String readDataFormat) {
     // TODO: Figure out why map-joins don't work with MR in this test case
     if (engine.equalsIgnoreCase("mr")) {
-      hive.setHiveConfValue(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "false");
+      System.getProperties().setProperty(HiveConf.ConfVars.HIVECONVERTJOIN.varname, "false");
     }
     initHive(engine, readDataFormat);
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);

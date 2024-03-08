@@ -35,7 +35,7 @@ public class WriteIntegrationTests extends WriteIntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteTimestampTz(String engine, String writeMethod) {
-    hive.setHiveConfValue(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine, HiveBigQueryConfig.AVRO);
     // Create the BQ table
     createExternalTable(

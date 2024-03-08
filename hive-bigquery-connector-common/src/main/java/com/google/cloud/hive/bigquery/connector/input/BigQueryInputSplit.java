@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.io.HiveInputFormat.HiveInputSplit;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
@@ -187,7 +188,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     String engine = HiveConf.getVar(jobConf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
     if (engine.equals("mr")) {
       // To-Do: a workaround for HIVE-27115, remove when fix available.
-      List<String> neededFields = getMRColumnProject(jobConf);
+      List<String> neededFields = getMRColumnProjections(jobConf);
       selectedFields =
           neededFields.isEmpty() ? new HashSet<>(columnNames) : new HashSet<>(neededFields);
     } else {
@@ -233,7 +234,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
         readSessionCreator.create(opts.getTableId(), ImmutableList.copyOf(selectedFields), filter);
     ReadSession readSession = readSessionResponse.getReadSession();
 
-    Path warehouseLocation = new Path(jobConf.get("location"));
+    Path tableLocation = new Path(jobConf.get(hive_metastoreConstants.META_TABLE_LOCATION));
     // To-Do: replace when each ReadStream has size estimation.
     long totalSize = readSession.getEstimatedTotalBytesScanned();
     int streamsCount = readSession.getStreamsCount();
@@ -243,7 +244,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
             readStream -> {
               BigQueryInputSplit split =
                   new BigQueryInputSplit(
-                      warehouseLocation, readStream.getName(), columnNames, bqClientFactory, opts);
+                      tableLocation, readStream.getName(), columnNames, bqClientFactory, opts);
               split.setHiveSplitLength(hiveSplitSize);
               return split;
             })
@@ -294,7 +295,7 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
   }
 
   // This is a workaround for HIVE-27115, used in MR mode.
-  private static List<String> getMRColumnProject(JobConf jobConf) {
+  private static List<String> getMRColumnProjections(JobConf jobConf) {
     String dir = jobConf.get("mapreduce.input.fileinputformat.inputdir");
     Path path = new Path(dir);
     try {

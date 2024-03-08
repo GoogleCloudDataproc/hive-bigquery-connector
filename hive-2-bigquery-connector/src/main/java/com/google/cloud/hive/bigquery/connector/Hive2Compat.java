@@ -17,6 +17,7 @@ package com.google.cloud.hive.bigquery.connector;
 
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.DatetimeUtils;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.*;
 import org.apache.arrow.vector.DateDayVector;
@@ -36,27 +37,27 @@ public class Hive2Compat extends HiveCompat {
   public Object convertHiveTimeUnitToBq(
       ObjectInspector objectInspector, Object hiveValue, String writeMethod) {
     if (objectInspector instanceof TimestampObjectInspector) {
-      TimestampWritable writable;
-      if (hiveValue instanceof LazyTimestamp) {
-        writable = ((LazyTimestamp) hiveValue).getWritableObject();
+      Timestamp timestamp;
+      if (hiveValue instanceof Timestamp) {
+        timestamp = (Timestamp) hiveValue;
+      } else if (hiveValue instanceof LazyTimestamp) {
+        timestamp = ((LazyTimestamp) hiveValue).getWritableObject().getTimestamp();
       } else {
-        writable = (TimestampWritable) hiveValue;
+        timestamp = ((TimestampWritable) hiveValue).getTimestamp();
       }
-      Timestamp timestamp = writable.getTimestamp();
       if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
         return DatetimeUtils.getEpochMicrosFromHiveTimestamp(timestamp);
-      } else {
-        return DatetimeUtils.getEncodedProtoLongFromHiveTimestamp(timestamp);
       }
+      return DatetimeUtils.getEncodedProtoLongFromHiveTimestamp(timestamp);
     }
     if (objectInspector instanceof DateObjectInspector) {
-      DateWritable writable;
-      if (hiveValue instanceof LazyDate) {
-        writable = ((LazyDate) hiveValue).getWritableObject();
-      } else {
-        writable = (DateWritable) hiveValue;
+      if (hiveValue instanceof Date) {
+        return (int) ((Date) hiveValue).toLocalDate().toEpochDay();
       }
-      return new Integer(writable.getDays());
+      if (hiveValue instanceof LazyDate) {
+        return (int) ((LazyDate) hiveValue).getWritableObject().get().toLocalDate().toEpochDay();
+      }
+      return ((DateWritable) hiveValue).getDays();
     }
 
     return null;

@@ -18,6 +18,7 @@ package com.google.cloud.hive.bigquery.connector.utils.bq;
 import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.nio.ByteBuffer;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.io.*;
 import org.apache.hadoop.hive.serde2.io.ByteWritable;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
@@ -34,79 +35,73 @@ public class BigQueryValueConverter {
   public static Object convertHiveValueToBigQuery(
       ObjectInspector objectInspector, Object hiveValue, String writeMethod) {
     if (objectInspector instanceof ByteObjectInspector) { // Tiny Int
-      ByteWritable writable;
-      if (hiveValue instanceof LazyByte) {
-        writable = ((LazyByte) hiveValue).getWritableObject();
-      } else {
-        writable = (ByteWritable) hiveValue;
+      if (hiveValue instanceof Byte) {
+        return ((Byte) hiveValue).longValue();
       }
-      return new Long(writable.get());
+      if (hiveValue instanceof LazyByte) {
+        return (long) ((LazyByte) hiveValue).getWritableObject().get();
+      }
+      return (long) ((ByteWritable) hiveValue).get();
     }
 
     if (objectInspector instanceof ShortObjectInspector) { // Small Int
-      ShortWritable writable;
-      if (hiveValue instanceof LazyShort) {
-        writable = ((LazyShort) hiveValue).getWritableObject();
-      } else {
-        writable = (ShortWritable) hiveValue;
+      if (hiveValue instanceof Short) {
+        return ((Short) hiveValue).longValue();
       }
-      return new Long(writable.get());
+      if (hiveValue instanceof LazyShort) {
+        return (long) ((LazyShort) hiveValue).getWritableObject().get();
+      }
+      return (long) ((ShortWritable) hiveValue).get();
     }
 
     if (objectInspector instanceof IntObjectInspector) { // Regular Int
-      IntWritable writable;
-      if (hiveValue instanceof LazyInteger) {
-        writable = ((LazyInteger) hiveValue).getWritableObject();
-      } else {
-        writable = (IntWritable) hiveValue;
+      if (hiveValue instanceof Integer) {
+        return ((Integer) hiveValue).longValue();
       }
-      return new Long(writable.get());
+      if (hiveValue instanceof LazyInteger) {
+        return (long) ((LazyInteger) hiveValue).getWritableObject().get();
+      }
+      return (long) ((IntWritable) hiveValue).get();
     }
 
     if (objectInspector instanceof LongObjectInspector) { // Big Int
-      LongWritable writable;
-      if (hiveValue instanceof LazyLong) {
-        writable = ((LazyLong) hiveValue).getWritableObject();
-      } else {
-        writable = (LongWritable) hiveValue;
+      if (hiveValue instanceof Long) {
+        return hiveValue;
       }
-      return new Long(writable.get());
-    }
-
-    Object converted =
-        HiveCompat.getInstance().convertHiveTimeUnitToBq(objectInspector, hiveValue, writeMethod);
-    if (converted != null) {
-      return converted;
+      if (hiveValue instanceof LazyLong) {
+        return ((LazyLong) hiveValue).getWritableObject().get();
+      }
+      return ((LongWritable) hiveValue).get();
     }
 
     if (objectInspector instanceof FloatObjectInspector) {
-      FloatWritable writable;
-      if (hiveValue instanceof LazyFloat) {
-        writable = ((LazyFloat) hiveValue).getWritableObject();
-      } else {
-        writable = (FloatWritable) hiveValue;
+      if (hiveValue instanceof Float) {
+        return ((Float) hiveValue).doubleValue();
       }
-      return new Double(writable.get());
+      if (hiveValue instanceof LazyFloat) {
+        return (double) ((LazyFloat) hiveValue).getWritableObject().get();
+      }
+      return (double) ((FloatWritable) hiveValue).get();
     }
 
     if (objectInspector instanceof DoubleObjectInspector) {
-      DoubleWritable writable;
-      if (hiveValue instanceof LazyDouble) {
-        writable = ((LazyDouble) hiveValue).getWritableObject();
-      } else {
-        writable = (DoubleWritable) hiveValue;
+      if (hiveValue instanceof Double) {
+        return hiveValue;
       }
-      return new Double(writable.get());
+      if (hiveValue instanceof LazyDouble) {
+        return ((LazyDouble) hiveValue).getWritableObject().get();
+      }
+      return ((DoubleWritable) hiveValue).get();
     }
 
     if (objectInspector instanceof BooleanObjectInspector) {
-      BooleanWritable writable;
-      if (hiveValue instanceof LazyBoolean) {
-        writable = ((LazyBoolean) hiveValue).getWritableObject();
-      } else {
-        writable = (BooleanWritable) hiveValue;
+      if (hiveValue instanceof Boolean) {
+        return hiveValue;
       }
-      return new Boolean(writable.get());
+      if (hiveValue instanceof LazyBoolean) {
+        return ((LazyBoolean) hiveValue).getWritableObject().get();
+      }
+      return ((BooleanWritable) hiveValue).get();
     }
 
     if (objectInspector instanceof HiveCharObjectInspector
@@ -116,38 +111,49 @@ public class BigQueryValueConverter {
     }
 
     if (objectInspector instanceof BinaryObjectInspector) {
-      BytesWritable writable;
-      if (hiveValue instanceof LazyBinary) {
-        writable = ((LazyBinary) hiveValue).getWritableObject();
+      byte[] bytes;
+      if (hiveValue instanceof byte[]) {
+        bytes = (byte[]) hiveValue;
+      } else if (hiveValue instanceof LazyBinary) {
+        BytesWritable writable = ((LazyBinary) hiveValue).getWritableObject();
+        writable.setCapacity(writable.getLength());
+        bytes = writable.getBytes();
       } else {
-        writable = (BytesWritable) hiveValue;
+        BytesWritable writable = ((BytesWritable) hiveValue);
+        writable.setCapacity(writable.getLength());
+        bytes = writable.getBytes();
       }
-      // Resize the bytes array to remove any unnecessary extra capacity it might have
-      writable.setCapacity(writable.getLength());
       if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-        // Wrap into a ByteBuffer
-        ByteBuffer buffer = ByteBuffer.wrap(writable.getBytes());
+        // Wrap into a ByteBuffer for Avro writer
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
         return buffer.rewind();
       } else {
-        return writable.getBytes();
+        return bytes;
       }
     }
 
     if (objectInspector instanceof HiveDecimalObjectInspector) {
-      HiveDecimalWritable writable;
-      if (hiveValue instanceof LazyHiveDecimal) {
-        writable = ((LazyHiveDecimal) hiveValue).getWritableObject();
+      HiveDecimal hiveDecimal;
+      if (hiveValue instanceof HiveDecimal) {
+        hiveDecimal = (HiveDecimal) hiveValue;
+      } else if (hiveValue instanceof LazyHiveDecimal) {
+        hiveDecimal = ((LazyHiveDecimal) hiveValue).getWritableObject().getHiveDecimal();
       } else {
-        writable = (HiveDecimalWritable) hiveValue;
+        hiveDecimal = ((HiveDecimalWritable) hiveValue).getHiveDecimal();
       }
       if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
         int scale = ((HiveDecimalObjectInspector) objectInspector).scale();
-        byte[] bytes = writable.getHiveDecimal().bigIntegerBytesScaled(scale);
+        byte[] bytes = hiveDecimal.bigIntegerBytesScaled(scale);
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
         return buffer.rewind();
-      } else {
-        return writable.getHiveDecimal().bigDecimalValue().toPlainString();
       }
+      return hiveDecimal.bigDecimalValue().toPlainString();
+    }
+
+    Object timeUnitConverted =
+        HiveCompat.getInstance().convertHiveTimeUnitToBq(objectInspector, hiveValue, writeMethod);
+    if (timeUnitConverted != null) {
+      return timeUnitConverted;
     }
 
     String unsupportedCategory;

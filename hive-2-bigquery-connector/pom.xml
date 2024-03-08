@@ -24,6 +24,7 @@
             <groupId>com.google.cloud.bigdataoss</groupId>
             <artifactId>gcs-connector</artifactId>
             <classifier>shaded</classifier>
+            <scope>provided</scope>
         </dependency>
 
         <!-- **************** Test dependencies **************** -->
@@ -37,14 +38,6 @@
         </dependency>
 
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>shaded-acceptance-tests-dependencies</artifactId>
-            <version>${project.version}</version>
-            <classifier>shaded</classifier>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
             <groupId>io.github.hiverunner</groupId>
             <artifactId>hiverunner</artifactId>
             <scope>test</scope>
@@ -53,6 +46,20 @@
     </dependencies>
 
     <profiles>
+        <profile>
+            <!-- Currently the same as "hive2.3.9-hadoop2.10.2" but could be changed later -->
+            <!-- Use this profile if you don't care about specific minor versions of Hive 2.X -->
+            <id>hive2-generic</id>
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>shaded-deps-hive2.3.9-hadoop2.10.2</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>shaded</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
         <profile>
             <id>hive2.3.6-hadoop2.7.0</id>
             <properties>

@@ -51,7 +51,7 @@ public abstract class ImpersonationIntegrationTestsBase extends IntegrationTests
   @Test
   public void testGlobalImpersonation() {
     String sa = "abc@example.iam.gserviceaccount.com";
-    hive.setHiveConfValue("bq.impersonation.service.account", sa);
+    System.getProperties().setProperty("bq.impersonation.service.account", sa);
     initHive();
     Throwable exception =
         assertThrows(
@@ -68,7 +68,7 @@ public abstract class ImpersonationIntegrationTestsBase extends IntegrationTests
   public void testImpersonationForUser() {
     String user = "bob";
     String sa = "bob@example.iam.gserviceaccount.com";
-    hive.setHiveConfValue("bq.impersonation.service.account.for.user." + user, sa);
+    System.getProperties().setProperty("bq.impersonation.service.account.for.user." + user, sa);
     initHive();
     UserGroupInformation ugi = UserGroupInformation.createRemoteUser(user);
     ugi.doAs(
@@ -95,7 +95,8 @@ public abstract class ImpersonationIntegrationTestsBase extends IntegrationTests
     String user = "bob";
     String[] groups = new String[] {"datascience"};
     String sa = "datascience-team@example.iam.gserviceaccount.com";
-    hive.setHiveConfValue("bq.impersonation.service.account.for.group." + "datascience", sa);
+    System.getProperties()
+        .setProperty("bq.impersonation.service.account.for.group." + "datascience", sa);
     initHive();
     UserGroupInformation ugi = UserGroupInformation.createUserForTesting(user, groups);
     ugi.doAs(

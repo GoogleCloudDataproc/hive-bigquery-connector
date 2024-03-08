@@ -10,6 +10,8 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 .vscode/
+derby.log
+metastore_db
 
 # Integration tests artifacts:
 hive-exec*.jar

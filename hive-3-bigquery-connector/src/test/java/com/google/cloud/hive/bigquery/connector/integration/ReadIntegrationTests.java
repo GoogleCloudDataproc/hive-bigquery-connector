@@ -62,7 +62,7 @@ public class ReadIntegrationTests extends ReadIntegrationTestsBase {
   /** Smoke test for UDFs that were added in Hive 3 */
   @Test
   public void testUDFWhereClauseSmokeForHive3() {
-    hive.setHiveConfValue(HiveBigQueryConfig.FAIL_ON_UNSUPPORTED_UDFS, "true");
+    System.getProperties().setProperty(HiveBigQueryConfig.FAIL_ON_UNSUPPORTED_UDFS, "true");
     initHive();
     createExternalTable(
         ALL_TYPES_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL, BIGQUERY_ALL_TYPES_TABLE_DDL);

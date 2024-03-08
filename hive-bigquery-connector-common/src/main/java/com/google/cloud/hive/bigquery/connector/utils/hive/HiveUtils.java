@@ -18,11 +18,10 @@ package com.google.cloud.hive.bigquery.connector.utils.hive;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.TaskAttemptID;
-import org.apache.hadoop.mapreduce.JobID;
 
 /**
  * Helper class that looks up details about a task ID and Tez Vertex ID. This is useful to create
@@ -45,9 +44,20 @@ public class HiveUtils {
     return "TRUE".equalsIgnoreCase(params.get("EXTERNAL"));
   }
 
-  /** Returns the ID of the Hive query as set by Hive in the configuration. */
+  /** Returns the query's unique id. */
   public static String getQueryId(Configuration conf) {
-    return HiveConf.getVar(conf, HiveConf.ConfVars.HIVEQUERYID);
+    String hiveQueryId = conf.get(ConfVars.HIVEQUERYID.varname);
+    if (hiveQueryId != null) {
+      // In this case, the user is running a plain Hive query directly from Hive itself.
+      return "hive-query-id-" + hiveQueryId;
+    }
+    if (conf.get("pig.script.id") != null) {
+      // The user is running a Hive query from Pig. Use the job's timestamp as a pig script might
+      // run multiple jobs.
+      return String.format(
+          "pig-%s-%s", conf.get("pig.script.id"), conf.get("pig.job.submitted.timestamp"));
+    }
+    throw new RuntimeException("No query id found in Hadoop conf");
   }
 
   public static String getDbTableName(Table table) {
@@ -60,9 +70,9 @@ public class HiveUtils {
         && tezCommitter.equals("org.apache.tez.mapreduce.committer.MROutputCommitter"));
   }
 
-  public static TaskAttemptID taskAttemptIDWrapper(JobConf jobConf) {
-    return new TaskAttemptIDWrapper(
-        TaskAttemptID.forName(jobConf.get("mapred.task.id")), jobConf.get("hive.tez.vertex.index"));
+  public static TaskAttemptID getHiveTaskAttemptIDWrapper(Configuration conf) {
+    return new HiveTaskAttemptIDWrapper(
+        TaskAttemptID.forName(conf.get("mapred.task.id")), conf.get("hive.tez.vertex.index"));
   }
 
   private static JobID getJobIDWithVertexAppended(JobID jobID, String vertexId) {
@@ -73,9 +83,13 @@ public class HiveUtils {
     }
   }
 
-  private static class TaskAttemptIDWrapper extends TaskAttemptID {
+  public static String getTaskID(Configuration conf) {
+    return getHiveTaskAttemptIDWrapper(conf).getTaskID().toString();
+  }
 
-    TaskAttemptIDWrapper(TaskAttemptID taskAttemptID, String vertexId) {
+  private static class HiveTaskAttemptIDWrapper extends TaskAttemptID {
+
+    HiveTaskAttemptIDWrapper(TaskAttemptID taskAttemptID, String vertexId) {
       super(
           getJobIDWithVertexAppended(taskAttemptID.getJobID(), vertexId).getJtIdentifier(),
           taskAttemptID.getJobID().getId(),
@@ -89,10 +103,10 @@ public class HiveUtils {
       if (this == obj) {
         return true;
       }
-      if (!(obj instanceof TaskAttemptIDWrapper)) {
+      if (!(obj instanceof HiveTaskAttemptIDWrapper)) {
         return false;
       }
-      TaskAttemptIDWrapper other = (TaskAttemptIDWrapper) obj;
+      HiveTaskAttemptIDWrapper other = (HiveTaskAttemptIDWrapper) obj;
       return (getId() == other.getId()
           && getTaskID().getId() == other.getTaskID().getId()
           && Objects.equals(getJobID(), other.getJobID()));
