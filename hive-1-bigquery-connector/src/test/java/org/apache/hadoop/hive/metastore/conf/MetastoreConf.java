@@ -16,7 +16,7 @@
 package org.apache.hadoop.hive.metastore.conf;
 
 /**
- * Hive 3 has a MetastoreConf class but older versions don't. HiveRunner requires it, so we defined
+ * Hive 3 has a MetastoreConf class but older versions don't. HiveRunner requires it, so we define
  * it here with the values & methods used by HiveRunner.
  */
 public class MetastoreConf {

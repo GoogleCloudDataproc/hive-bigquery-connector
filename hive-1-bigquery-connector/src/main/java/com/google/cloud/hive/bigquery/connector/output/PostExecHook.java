@@ -23,12 +23,8 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 
 /**
- * Post execution hook used to commit the outputs. We only use this with Hive 1 in combination with
- * Tez. Unfortunately, Hive 1.x.x systematically sets the output write entity's type
- * INSERT_OVERWRITE for non-native tables:
- * https://github.com/apache/hive/blob/6002c510113d9a6aa87159c7386f2a8a4747405b/ql/src/java/org/apache/hadoop/hive/ql/parse/SemanticAnalyzer.java#L12147
- * This means we cannot distinguish between an "INSERT" and "INSERT OVERWRITE" query in this hook.
- * So currently all types of inserts are considered the same way, i.e. as regular inserts.
+ * Post execution hook used to commit the outputs. We only use this with Hive 1.x.x
+ * in combination with Tez.
  */
 public class PostExecHook implements ExecuteWithHookContext {
 

@@ -43,8 +43,9 @@ import org.codehaus.jackson.map.ObjectMapper;
 public class AvroUtils {
 
   /**
-   * Hive vendors Avro libraries that have different methods depending on the version used. Here we
-   * dynamically figure out which methods are available so we can use the proper ones at runtime.
+   * Hive vendors Avro libraries that have different methods depending on the Hive version used.
+   * Here we dynamically figure out which Avro methods are available so we can use the proper ones
+   * at runtime.
    */
   private static Method getObjectPropMethod;
 
@@ -110,7 +111,7 @@ public class AvroUtils {
         throw new RuntimeException("Unsupported version of Avro");
       }
     } catch (Exception e) {
-      throw new RuntimeException("Error accessing addProp methods", e);
+      throw new RuntimeException("Error accessing Avro addProp method", e);
     }
   }
 
@@ -127,7 +128,7 @@ public class AvroUtils {
         }
       }
     } catch (Exception e) {
-      throw new RuntimeException("Error accessing property methods", e);
+      throw new RuntimeException("Error accessing Avro integer property method", e);
     }
     throw new RuntimeException("Unsupported version of Avro");
   }
