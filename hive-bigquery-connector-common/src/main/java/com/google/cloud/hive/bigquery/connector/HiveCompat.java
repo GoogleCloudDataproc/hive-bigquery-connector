@@ -52,7 +52,7 @@ public abstract class HiveCompat {
   protected static String hiveUDFPackage = "org.apache.hadoop.hive.ql.udf.";
   protected static int hiveUDFPackageLength = hiveUDFPackage.length();
 
-  private final Cache<Object, Object> cache = CacheBuilder.newBuilder().build();
+  protected final Cache<Object, Object> cache = CacheBuilder.newBuilder().build();
 
   private static final List<String> SIMPLE_TYPES =
       ImmutableList.of(
@@ -202,9 +202,6 @@ public abstract class HiveCompat {
     if (udf instanceof GenericUDFNvl) {
       return new BigQueryUDFIfNull();
     }
-    if (udf instanceof GenericUDFQuarter) {
-      return new BigQueryUDFQuarter();
-    }
     if (udf instanceof GenericUDFDateDiff) {
       return new BigQueryUDFDateDiff();
     }
@@ -216,9 +213,6 @@ public abstract class HiveCompat {
     }
     if (udf instanceof GenericUDFOPMod) {
       return new BigQueryUDFMod();
-    }
-    if (udf instanceof GenericUDFRegExp) {
-      return new BigQueryUDFRegExpContains();
     }
     if (udf instanceof GenericUDFDate) {
       return new BigQueryUDFDate();
@@ -377,17 +371,13 @@ public abstract class HiveCompat {
     if (cachedResult != null) {
       return cachedResult;
     }
-    List<String> result = new ArrayList<>();
+    List<String> udfs = new ArrayList<>();
     for (Class udf :
         new Class[] {
           GenericUDFAbs.class,
           GenericUDFGreatest.class,
           GenericUDFLeast.class,
           GenericUDFIf.class,
-          GenericUDFNullif.class,
-          GenericUDFLength.class,
-          GenericUDFCharacterLength.class,
-          GenericUDFOctetLength.class,
           GenericUDFTrim.class,
           GenericUDFLTrim.class,
           GenericUDFRTrim.class,
@@ -418,10 +408,10 @@ public abstract class HiveCompat {
           GenericUDFCbrt.class,
           GenericUDFCase.class
         }) {
-      result.add(udf.getName());
+      udfs.add(udf.getName());
     }
-    cache.put(cacheKey, result);
-    return result;
+    cache.put(cacheKey, udfs);
+    return udfs;
   }
 
   public List<String> getIdenticalBridgeUDFs() {
@@ -501,4 +491,6 @@ public abstract class HiveCompat {
     }
     throw new RuntimeException("Unsupported predicate type: " + typeInfo.getTypeName());
   }
+
+  public abstract ExprNodeGenericFuncDesc deserializeExpression(String s);
 }

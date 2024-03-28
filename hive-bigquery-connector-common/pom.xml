@@ -136,6 +136,19 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.hive.hcatalog</groupId>
+      <artifactId>hive-hcatalog-pig-adapter</artifactId>
+      <version>${hive.version}</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>hive-exec</artifactId>
+          <groupId>org.apache.hive</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <artifactId>tez-dag</artifactId>
       <groupId>org.apache.tez</groupId>
       <version>${tez.version}</version>

@@ -13,25 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hive.bigquery.connector;
+package com.google.cloud.hive.bigquery.connector.output;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
+import org.apache.hadoop.hive.ql.hooks.HookContext;
 
-public class BigQueryMetaHook extends BigQueryMetaHookBase {
-
-  public BigQueryMetaHook(Configuration conf) {
-    super(conf);
-  }
-
-  @Override
-  protected void setupIngestionTimePartitioning(Table table) throws MetaException {
-    throw new MetaException("Ingestion-time partitioned tables are not supported in Hive v2.");
-  }
+/**
+ * Post execution hook used to commit the outputs. We only use this with Hive 1 in combination with
+ * Tez.
+ */
+public class FailureExecHook implements ExecuteWithHookContext {
 
   @Override
-  protected void setupStats(Table table) {
-    // Do nothing
+  public void run(HookContext hookContext) throws Exception {
+    OutputCommitterUtils.abortJob(hookContext.getConf());
   }
 }

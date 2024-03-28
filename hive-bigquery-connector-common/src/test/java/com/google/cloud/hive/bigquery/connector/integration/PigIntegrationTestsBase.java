@@ -52,11 +52,11 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
   }
 
   /**
-   * Converts timestamps to account for how HCatalog and Pig treat Hive timestamps. See:
+   * Converts timestamps to account for how HCatalog and Pig treat Hive timestamps in old versions
+   * of Hive (1 and 2). See:
    * https://cwiki.apache.org/confluence/display/hive/hcatalog+loadstore#HCatalogLoadStore-DataTypeMappings
-   * Note that HCatalog appears to convert timestamps differently in Hive 2 and Hive 3.
    */
-  public static String convertTimestampForHive2(String timestamp) {
+  public static String convertTimestampForOldVersionsOfHive(String timestamp) {
     DateTimeFormatter pattern;
     if (timestamp.contains("T")) {
       pattern = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS000");
@@ -72,11 +72,6 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_READ_FORMAT)
   public void testReadAllTypes(String engine, String readDataFormat) throws IOException {
-    // Note: HCatalog converts Hive dates and timestamps to local timezone.
-    // See:
-    // https://cwiki.apache.org/confluence/display/hive/hcatalog+loadstore#HCatalogLoadStore-DataTypeMappings
-    // So we use UTC to make the tests reproducible.
-    System.getProperties().setProperty("user.timezone", "UTC");
     initHive(engine, readDataFormat);
     createExternalTable(
         TestUtils.ALL_TYPES_TABLE_NAME,
@@ -115,7 +110,7 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
             ")"));
     // Define the read command in Pig
     Path outputDir = Files.createTempDirectory("pig-tests");
-    PigServer pigServer = new PigServer(ExecType.LOCAL);
+    PigServer pigServer = new PigServer(ExecType.LOCAL, hive.getHiveConf());
     pigServer.registerQuery(
         String.format(
             "result = LOAD '%s' USING org.apache.hive.hcatalog.pig.HCatLoader();",
@@ -135,11 +130,7 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
     assertEquals("var char", contents[6]);
     assertEquals("string", contents[7]);
     assertTrue(contents[8].startsWith("2019-03-18T00:00:00.000"));
-    if (HiveVersionInfo.getVersion().startsWith("2.")) {
-      assertEquals(convertTimestampForHive2("2000-01-01 00:23:45.123"), contents[9]);
-    } else {
-      assertEquals("2000-01-01T00:23:45.123Z", contents[9]);
-    }
+    assertTrue(contents[9].startsWith("2000-01-01T00:23:45.123"));
     assertEquals("bytes", contents[10]);
     assertEquals("2.0", contents[11]);
     assertEquals("4.2", contents[12]);
@@ -148,13 +139,7 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
         contents[13]);
     assertEquals("{(1),(2),(3)}", contents[14]);
     assertEquals("{(111),(222),(333)}", contents[15]);
-    if (HiveVersionInfo.getVersion().startsWith("2.")) {
-      assertEquals(
-          String.format("(4.2,%s)", convertTimestampForHive2("2019-03-18 11:23:45.678")),
-          contents[16]);
-    } else {
-      assertEquals("(4.2,2019-03-18T11:23:45.678Z)", contents[16]);
-    }
+    assertTrue(contents[16].startsWith("(4.2,2019-03-18T11:23:45.678"));
     assertEquals("[a_key#[a_subkey#888],b_key#[b_subkey#999]]", contents[17]);
   }
 
@@ -170,7 +155,7 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
     // Create the input data
     Path inputDir = Files.createTempDirectory("pig-tests");
     Path inputFile = inputDir.resolve("input.txt");
-    PigServer pigServer = new PigServer(ExecType.LOCAL);
+    PigServer pigServer = new PigServer(ExecType.LOCAL, hive.getHiveConf());
     Files.write(
         inputFile,
         Collections.singletonList(
@@ -195,10 +180,8 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
                 "(4.2,2019-03-18T01:23:45.678Z)",
                 // Note: HCatalog appears to not be able to load nested maps. For example, it
                 // would fail with data shaped like "[a_key#[a_subkey#888]]". So we keep it simple
-                // here
-                // and just test a map with a key and no value, as this is an issue with
-                // HCatalog/Pig,
-                // not with the connector.
+                // here and just test a map with a key and no value, as this is an issue with
+                // HCatalog/Pig, not with the connector.
                 "[mykey#]")),
         StandardCharsets.UTF_8);
     String inputType =
@@ -247,9 +230,10 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
     assertEquals("var char", row.get(6).getStringValue());
     assertEquals("string", row.get(7).getStringValue());
     assertEquals("2019-03-18", row.get(8).getStringValue());
-    if (HiveVersionInfo.getVersion().startsWith("2.")) {
+    if (HiveVersionInfo.getVersion().charAt(0) <= '2') {
       assertEquals(
-          "2000-01-01T00:23:45.123Z", convertTimestampForHive2(row.get(9).getStringValue()));
+          "2000-01-01T00:23:45.123Z",
+          convertTimestampForOldVersionsOfHive(row.get(9).getStringValue()));
     } else {
       assertEquals("2000-01-01T00:23:45.123000", row.get(9).getStringValue());
     }
@@ -281,10 +265,10 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
     assertEquals(
         4.199999809265137,
         struct.get("float_field").getDoubleValue()); // TODO: Address discrepancy here
-    if (HiveVersionInfo.getVersion().startsWith("2.")) {
+    if (HiveVersionInfo.getVersion().charAt(0) <= '2') {
       assertEquals(
           "2019-03-18T01:23:45.678Z",
-          convertTimestampForHive2(struct.get("ts_field").getStringValue()));
+          convertTimestampForOldVersionsOfHive(struct.get("ts_field").getStringValue()));
     } else {
       assertEquals("2019-03-18T01:23:45.678000", struct.get("ts_field").getStringValue());
     }
@@ -294,5 +278,7 @@ public abstract class PigIntegrationTestsBase extends IntegrationTestsBase {
     FieldValueList entry = map.get(0).getRecordValue();
     assertEquals("mykey", entry.get(0).getStringValue());
     assertEquals(0, entry.get(1).getRepeatedValue().size());
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
   }
 }

@@ -15,8 +15,48 @@
  */
 package com.google.cloud.hive.bigquery.connector.input.udfs;
 
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.Arrays;
+import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
+import org.apache.hadoop.hive.ql.udf.UDFDayOfWeek;
+import org.apache.hadoop.hive.ql.udf.generic.*;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.junit.jupiter.api.Test;
+
 public class UDFTest extends UDFTestBase {
 
-  // Tests are from the super-class
+  // Other tests are from the super-class
 
+  @Test
+  public void testRegExprContains() {
+    String expression =
+        translateUDF(
+            new GenericUDFRegExp(),
+            Arrays.asList(
+                new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abcd"),
+                new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "xyz")));
+    assertEquals("REGEXP_CONTAINS('abcd', r'xyz')", expression);
+  }
+
+  @Test
+  public void testQuarter() {
+    String expression =
+        translateUDF(
+            new GenericUDFQuarter(),
+            Arrays.asList(
+                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
+    assertEquals("EXTRACT(QUARTER FROM DATETIME'2010-10-10')", expression);
+  }
+
+  @Test
+  public void testDayOfWeek() {
+    String expression =
+        translateUDF(
+            new GenericUDFBridge(
+                UDFDayOfWeek.class.getSimpleName(), false, UDFDayOfWeek.class.getName()),
+            Arrays.asList(
+                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
+    assertEquals("EXTRACT(DAYOFWEEK FROM DATETIME'2010-10-10')", expression);
+  }
 }

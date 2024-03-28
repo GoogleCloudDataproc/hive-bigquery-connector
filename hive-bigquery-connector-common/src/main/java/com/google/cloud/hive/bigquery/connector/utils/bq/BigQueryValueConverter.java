@@ -17,6 +17,9 @@ package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.serde2.io.*;
@@ -30,6 +33,32 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
 import org.apache.hadoop.io.*;
 
 public class BigQueryValueConverter {
+
+  // In Hive 1, HiveDecimal doesn't have a `bigIntegerBytesScaled()` method.
+  // We use this static variable to identify if the method is available.
+  private static boolean hasBigIntegerBytesScaled;
+
+  static {
+    try {
+      Method method = HiveDecimal.class.getMethod("bigIntegerBytesScaled", int.class);
+      hasBigIntegerBytesScaled = (method != null);
+    } catch (NoSuchMethodException e) {
+      hasBigIntegerBytesScaled = false;
+    }
+  }
+
+  public static byte[] getBigIntegerBytesScaled(HiveDecimal hiveDecimal, int scale) {
+    if (hasBigIntegerBytesScaled) {
+      // Use bigIntegerBytesScaled if available
+      return hiveDecimal.bigIntegerBytesScaled(scale);
+    } else {
+      // Alternative approach for older Hive versions
+      BigDecimal decimal = hiveDecimal.bigDecimalValue();
+      BigDecimal scaledDecimal = decimal.setScale(scale, BigDecimal.ROUND_HALF_UP);
+      BigInteger bigInt = scaledDecimal.unscaledValue();
+      return bigInt.toByteArray();
+    }
+  }
 
   /** Converts the given Hive value into a format that can be written to BigQuery. */
   public static Object convertHiveValueToBigQuery(
@@ -143,7 +172,7 @@ public class BigQueryValueConverter {
       }
       if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
         int scale = ((HiveDecimalObjectInspector) objectInspector).scale();
-        byte[] bytes = hiveDecimal.bigIntegerBytesScaled(scale);
+        byte[] bytes = getBigIntegerBytesScaled(hiveDecimal, scale);
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
         return buffer.rewind();
       }

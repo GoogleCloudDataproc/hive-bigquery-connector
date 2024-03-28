@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>hive-2-bigquery-connector</artifactId>
-    <name>Hive-BigQuery Connector For Hive 2</name>
+    <name>Hive-BigQuery Connector For Hive 2.x.x</name>
 
     <dependencies>
         <dependency>
@@ -65,7 +65,7 @@
             <properties>
                 <!--
                 As of the time of writing (August 2023), the latest GCS connector isn't
-                compatible with Hadoop 2.7, so we use an older version
+                compatible with Hadoop <= 2.7, so we use an older version
                 -->
                 <gcs-connector.version>hadoop2-2.2.3</gcs-connector.version>
             </properties>

@@ -19,17 +19,34 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 
 /** Various filesystem utilities. */
 public class FileSystemUtils {
+
+  public static void deleteIfEmpty(Configuration conf, Path dir) throws IOException {
+    FileSystem fs = dir.getFileSystem(conf);
+    FileStatus[] fileStatuses;
+    try {
+      fileStatuses = fs.listStatus(dir);
+    } catch (FileNotFoundException e) {
+      return;
+    }
+    if (fileStatuses.length == 0) {
+      fs.delete(dir, true);
+    }
+  }
 
   /** Retrieves the list of files that are in the given directory. */
   public static List<String> getFiles(
@@ -53,12 +70,31 @@ public class FileSystemUtils {
     return filePaths;
   }
 
+  /**
+   * Searches recursively through the given path and returns the files that have the given file name
+   */
+  public static Set<Path> findFilesRecursively(Configuration conf, Path dir, String fileName)
+      throws IOException {
+    FileSystem fs = dir.getFileSystem(conf);
+    Set<Path> filePaths = new HashSet<>();
+    try {
+      RemoteIterator<LocatedFileStatus> fileStatusIterator = fs.listFiles(dir, true);
+      while (fileStatusIterator.hasNext()) {
+        FileStatus fileStatus = fileStatusIterator.next();
+        if (fileStatus.getLen() > 0 && fileStatus.getPath().getName().equals(fileName)) {
+          filePaths.add(fileStatus.getPath());
+        }
+      }
+    } catch (FileNotFoundException e) {
+      // Ignore errors
+    }
+    return filePaths;
+  }
+
   /** Delete the given directory */
   public static void deleteDir(Configuration conf, Path dir) throws IOException {
     FileSystem fs = dir.getFileSystem(conf);
-    if (fs.exists(dir)) {
-      fs.delete(dir);
-    }
+    fs.delete(dir, true);
   }
 
   /** Utility to read a file from disk. */

@@ -21,4 +21,4 @@ jobs:
           cache: 'maven'
 
       - name: Checkout coding style
-        run: ./mvnw spotless:check -Pdateproc21
+        run: ./mvnw spotless:check -Phive1-generic && ./mvnw spotless:check -Phive2-generic && ./mvnw spotless:check -Pdateproc21

@@ -83,8 +83,8 @@ public class JobUtils {
   }
 
   /**
-   * Returns the location of the "details" file, which contains strategic details about a job that
-   * can be consulted at various stages of the job's execution.
+   * Returns the location of the "job details" file, which contains strategic details about a job
+   * that can be consulted at various stages of the job's execution.
    */
   public static Path getJobDetailsFilePath(Configuration conf, String hmsDbTableName) {
     Path workDir = getQueryWorkDir(conf);
@@ -148,49 +148,12 @@ public class JobUtils {
         .replace(":", "__");
   }
 
-  /**
-   * Deletes the directory that contains the job's temporary output files (i.e. the stream reference
-   * files for direct writes, and the temporary Avro files for indirect writes).
-   */
-  public static void deleteJobTempOutputDir(Configuration conf, JobDetails jobDetails)
+  /** Deletes the job details directory */
+  public static void deleteJobDetailsDir(Configuration conf, JobDetails jobDetails)
       throws IOException {
-    Path tempOutputPath =
-        JobUtils.getQueryTempOutputPath(
-            conf, jobDetails.getTableProperties(), jobDetails.getHmsDbTableName());
-    LOG.info("Deleting job temporary output directory {}", conf);
-    FileSystemUtils.deleteDir(conf, tempOutputPath);
-  }
-
-  /** Deletes the work directory for a query when the query is complete (success or fail). */
-  public static void deleteQueryWorkDirOnExit(Configuration conf) throws IOException {
-    Path workDir = getQueryWorkDir(conf);
-    LOG.info("Deleting query temporary work directory {}", workDir);
-    FileSystem fs = workDir.getFileSystem(conf);
-    if (fs.listStatus(workDir).length == 0) {
-      fs.deleteOnExit(workDir);
-    }
-  }
-
-  public interface CleanUp {
-    String DELETE_BIGQUERY_TEMPORARY_TABLE =
-        "delete bigquery temporary table for INSERT OVERWRITE query";
-    String DELETE_JOB_TEMPORARY_OUTPUT_DIRECTORY = "delete job temporary output directory";
-    String DELETE_QUERY_TEMPORARY_WORK_DIRECTORY = "delete query temporary directory";
-
-    void cleanUp() throws Exception;
-  }
-
-  /**
-   * Attempt to clean up the job without risking the job to fail if the cleaning itself somehow
-   * fails.
-   */
-  public static void safeCleanUp(CleanUp cleaner, String message) {
-    try {
-      LOG.debug("Start cleaning up: {}", message);
-      cleaner.cleanUp();
-      LOG.debug("Finished cleaning up: {}", message);
-    } catch (Exception e) {
-      LOG.warn("Failed cleaning up: {}. Error: {}", message, e);
-    }
+    Path path = jobDetails.getFilePath(conf).getParent();
+    LOG.info("Deleting jobs details directory {}", path);
+    FileSystem fs = path.getFileSystem(conf);
+    fs.delete(path, true);
   }
 }

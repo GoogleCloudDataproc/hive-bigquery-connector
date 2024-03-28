@@ -20,8 +20,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModule;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
@@ -36,12 +38,10 @@ import java.util.*;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
-import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.io.HiveInputFormat.HiveInputSplit;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.plan.*;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.FileSplit;
@@ -184,16 +184,16 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
     // BigQuery column names are case insensitive, hive colum names are lower cased
     columnNames.replaceAll(String::toLowerCase);
 
+    // Figure out which columns to select from the table
     Set<String> selectedFields;
     String engine = HiveConf.getVar(jobConf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE);
-    if (engine.equals("mr")) {
+    if (engine.equals("mr") && HiveUtils.isMRJob(jobConf)) {
       // To-Do: a workaround for HIVE-27115, remove when fix available.
       List<String> neededFields = getMRColumnProjections(jobConf);
       selectedFields =
           neededFields.isEmpty() ? new HashSet<>(columnNames) : new HashSet<>(neededFields);
     } else {
-      selectedFields =
-          new HashSet<>(Arrays.asList(ColumnProjectionUtils.getReadColumnNames(jobConf)));
+      selectedFields = new HashSet<>(Arrays.asList(HiveUtils.getReadColumnNames(jobConf)));
     }
 
     // Fix the BigQuery pseudo columns, if present, as Hive uses lowercase column names
@@ -208,12 +208,20 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
       selectedFields.add(HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN);
     }
 
+    LOG.info(
+        String.format(
+            "Selecting column(s) (%s) from table `%s.%s.%s`",
+            String.join(",", selectedFields),
+            opts.getTableId().getProject(),
+            opts.getTableId().getDataset(),
+            opts.getTableId().getTable()));
+
     // If possible, translate filters to be compatible with BigQuery
     String serializedFilterExpr = jobConf.get(TableScanDesc.FILTER_EXPR_CONF_STR);
     ExprNodeGenericFuncDesc filterExpr;
     Optional<String> filter = Optional.empty();
     if (serializedFilterExpr != null) {
-      filterExpr = SerializationUtilities.deserializeExpression(serializedFilterExpr);
+      filterExpr = HiveCompat.getInstance().deserializeExpression(serializedFilterExpr);
       LOG.info("filter expression: {}", filterExpr);
       ExprNodeGenericFuncDesc translatedFilterExpr =
           (ExprNodeGenericFuncDesc) BigQueryFilters.translateFilters(filterExpr, jobConf);
@@ -296,22 +304,25 @@ public class BigQueryInputSplit extends HiveInputSplit implements Writable {
 
   // This is a workaround for HIVE-27115, used in MR mode.
   private static List<String> getMRColumnProjections(JobConf jobConf) {
-    String dir = jobConf.get("mapreduce.input.fileinputformat.inputdir");
-    Path path = new Path(dir);
-    try {
-      MapWork mapWork = org.apache.hadoop.hive.ql.exec.Utilities.getMapWork(jobConf);
-      if (mapWork == null
-          || mapWork.getPathToAliases() == null
-          || mapWork.getPathToAliases().isEmpty()) {
-        return Collections.emptyList();
-      }
-      String alias = mapWork.getPathToAliases().get(path).get(0);
-      TableScanDesc tableScanDesc = (TableScanDesc) mapWork.getAliasToWork().get(alias).getConf();
-      return tableScanDesc.getNeededColumns();
-    } catch (Exception e) {
-      LOG.warn("Not able to find column project from plan for {}", dir);
+    String inputDir = jobConf.get("mapreduce.input.fileinputformat.inputdir");
+    MapWork mapWork = org.apache.hadoop.hive.ql.exec.Utilities.getMapWork(jobConf);
+    if (mapWork == null
+        || mapWork.getPathToAliases() == null
+        || mapWork.getPathToAliases().isEmpty()) {
       return Collections.emptyList();
     }
+    List<String> aliases = mapWork.getPathToAliases().get(new Path(inputDir));
+    if (aliases == null) {
+      // Another try in case we're using Hive 1.x.x, where `MapWork.getPathToAliases()` is a map of
+      // Strings instead of a map of Paths.
+      aliases = mapWork.getPathToAliases().get(inputDir);
+    }
+    if (aliases == null) {
+      return Collections.emptyList();
+    }
+    String alias = aliases.get(0);
+    TableScanDesc tableScanDesc = (TableScanDesc) mapWork.getAliasToWork().get(alias).getConf();
+    return tableScanDesc.getNeededColumns();
   }
 
   // Use reflection to avoid depending on un-shaded Guava ImmutableSet from

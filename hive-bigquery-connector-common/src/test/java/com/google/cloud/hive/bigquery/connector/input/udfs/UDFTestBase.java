@@ -83,17 +83,6 @@ public abstract class UDFTestBase {
   }
 
   @Test
-  public void testRegExprContains() {
-    String expression =
-        translateUDF(
-            new GenericUDFRegExp(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "abcd"),
-                new ExprNodeConstantDesc(TypeInfoFactory.stringTypeInfo, "xyz")));
-    assertEquals("REGEXP_CONTAINS('abcd', r'xyz')", expression);
-  }
-
-  @Test
   public void testShiftLeft() {
     String expression =
         translateUDF(
@@ -237,16 +226,6 @@ public abstract class UDFTestBase {
   }
 
   @Test
-  public void testQuarter() {
-    String expression =
-        translateUDF(
-            new GenericUDFQuarter(),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(QUARTER FROM DATETIME'2010-10-10')", expression);
-  }
-
-  @Test
   public void testWeekOfYear() {
     String expression =
         translateUDF(
@@ -255,17 +234,6 @@ public abstract class UDFTestBase {
             Arrays.asList(
                 new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
     assertEquals("EXTRACT(WEEK FROM DATETIME'2010-10-10')", expression);
-  }
-
-  @Test
-  public void testDayOfWeek() {
-    String expression =
-        translateUDF(
-            new GenericUDFBridge(
-                UDFDayOfWeek.class.getSimpleName(), false, UDFDayOfWeek.class.getName()),
-            Arrays.asList(
-                new ExprNodeConstantDesc(TypeInfoFactory.timestampTypeInfo, "2010-10-10")));
-    assertEquals("EXTRACT(DAYOFWEEK FROM DATETIME'2010-10-10')", expression);
   }
 
   @Test

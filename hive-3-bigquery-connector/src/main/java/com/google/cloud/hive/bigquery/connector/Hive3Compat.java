@@ -21,10 +21,9 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.input.udfs.*;
 import com.google.cloud.hive.bigquery.connector.utils.DatetimeUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.DescriptorProtos;
 import java.time.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.arrow.vector.DateDayVector;
@@ -36,6 +35,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.common.type.Timestamp;
 import org.apache.hadoop.hive.common.type.TimestampTZ;
+import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.udf.*;
 import org.apache.hadoop.hive.ql.udf.generic.*;
@@ -50,8 +50,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.TimestampLocalTZTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 
 public class Hive3Compat extends HiveCompat {
-
-  private final Cache<Object, Object> cache = CacheBuilder.newBuilder().build();
 
   public Object convertHiveTimeUnitToBq(
       ObjectInspector objectInspector, Object hiveValue, String writeMethod) {
@@ -207,6 +205,12 @@ public class Hive3Compat extends HiveCompat {
   @Override
   public GenericUDF convertUDF(ExprNodeGenericFuncDesc expr, Configuration conf) {
     GenericUDF udf = expr.getGenericUDF();
+    if (udf instanceof GenericUDFQuarter) {
+      return new BigQueryUDFQuarter();
+    }
+    if (udf instanceof GenericUDFRegExp) {
+      return new BigQueryUDFRegExpContains();
+    }
     if (udf instanceof GenericUDFToTimestampLocalTZ) {
       return new BigQueryUDFCastTimestamp();
     }
@@ -237,5 +241,31 @@ public class Hive3Compat extends HiveCompat {
       return "TIMESTAMP'" + value + "'";
     }
     return super.formatPredicateValue(typeInfo, value);
+  }
+
+  @Override
+  protected List<String> getIdenticalUDFs() {
+    String cacheKey = "Hive2Compat.getIdenticalUDFs";
+    List<String> cachedResult = (List<String>) cache.getIfPresent(cacheKey);
+    if (cachedResult != null) {
+      return cachedResult;
+    }
+    List<String> udfs = new ArrayList<>(super.getIdenticalUDFs());
+    for (Class udf :
+        new Class[] {
+          GenericUDFNullif.class,
+          GenericUDFLength.class,
+          GenericUDFCharacterLength.class,
+          GenericUDFOctetLength.class
+        }) {
+      udfs.add(udf.getName());
+    }
+    cache.put(cacheKey, udfs);
+    return udfs;
+  }
+
+  @Override
+  public ExprNodeGenericFuncDesc deserializeExpression(String s) {
+    return SerializationUtilities.deserializeExpression(s);
   }
 }

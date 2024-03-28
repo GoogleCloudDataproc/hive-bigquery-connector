@@ -22,7 +22,7 @@ import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.bigquery.connector.common.BigQueryProxyConfig;
 import com.google.cloud.bigquery.connector.common.BigQueryProxyTransporterBuilder;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
-import com.google.cloud.hive.bigquery.connector.BigQueryMetaHookBase;
+import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.gson.Gson;
@@ -75,7 +75,7 @@ public class BigQueryUtils {
   /**
    * Returns a BigQuery service object. We need this instead of the BigQueryClient class from the
    * bigquery-connector-common library because that class doesn't have a `create(TableInfo)` method.
-   * See more about this in {@link BigQueryMetaHookBase#commitCreateTable(Table)}
+   * See more about this in {@link BigQueryMetaHook#commitCreateTable(Table)}
    */
   public static BigQuery getBigQueryService(
       HiveBigQueryConfig config,

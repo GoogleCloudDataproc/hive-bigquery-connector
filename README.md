@@ -1,3 +1,4 @@
+
 # Hive-BigQuery Connector
 
 The Hive-BigQuery Connector is a Hive storage handler that enables Hive to interact with BigQuery's
@@ -15,10 +16,10 @@ This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.
 For Hadoop clusters other than Dataproc, the connector has been tested with the following
 software versions:
 
-* Hive 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
-* Hadoop 2.10.2, 3.2.3, and 3.3.3.
+* Hive 1.2.1, 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
+* Hadoop 2.6.4, 2.7.0, 2.10.2, 3.2.3, and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
-* Pig 0.17.0.
+* Pig 0.16.0, 0.17.0.
 
 ## Installation
 
@@ -44,6 +45,12 @@ Alternately, you can build a JAR from source:
      ```
 
   2. Compile and package the jar:
+
+     * For Hive 1:
+
+      ``` sh
+      ./mvnw package -DskipTests -P hive1-generic
+      ```
 
      * For Hive 2:
 
@@ -715,10 +722,6 @@ There are multiple options to override the default behavior and to provide custo
   sections on [partitioning](#partitioning) and [clustering](#clustering).
 * CTAS (aka `CREATE TABLE AS SELECT`) and CTLT (`CREATE TABLE LIKE TABLE`) statements are currently
   not supported.
-* If a write job fails when using the Tez execution engine and the `indirect` write method, the
-  temporary avro files might not be automatically cleaned up from the GCS bucket. The MR execution
-  engine does not have this limitation. The temporary files are always cleaned up when the job is
-  successful, regardless of the execution engine in use.
 * If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro
   format for reading or the indirect method for writing. This is because Avro requires keys to be
   strings. If you use the Arrow format for reading (default) and the direct method for writing (also

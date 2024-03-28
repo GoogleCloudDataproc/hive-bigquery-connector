@@ -11,7 +11,7 @@
   </parent>
 
   <artifactId>hive-3-bigquery-connector</artifactId>
-  <name>Hive-BigQuery Connector For Hive 3</name>
+  <name>Hive-BigQuery Connector For Hive 3.x.x</name>
 
   <dependencies>
     <dependency>
