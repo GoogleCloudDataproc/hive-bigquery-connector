@@ -19,12 +19,10 @@ import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
+import com.google.common.collect.Sets;
 import java.io.IOException;
-import java.util.List;
+import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 
 public class OutputCommitterUtils {
 
@@ -41,11 +39,9 @@ public class OutputCommitterUtils {
   }
 
   public static void commitJob(Configuration conf) throws IOException {
-    Path workDir = JobUtils.getQueryWorkDir(conf);
-    List<Path> jobDetailsFiles =
-        FileSystemUtils.findFilesRecursively(conf, workDir, HiveBigQueryConfig.JOB_DETAILS_FILE);
-    for (Path jobDetailsFile : jobDetailsFiles) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, jobDetailsFile);
+    Set<String> outputTables = getOutputTables(conf);
+    for (String hmsDbTableName : outputTables) {
+      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
       if (jobDetails.getTableProperties().get("name").equals(conf.get("name"))) {
         commitJob(conf, jobDetails);
       }
@@ -53,19 +49,25 @@ public class OutputCommitterUtils {
   }
 
   public static void abortJob(Configuration conf) throws IOException {
-    Path workDir = JobUtils.getQueryWorkDir(conf);
-    List<Path> jobDetailsFiles =
-        FileSystemUtils.findFilesRecursively(conf, workDir, HiveBigQueryConfig.JOB_DETAILS_FILE);
-    for (Path jobDetailsFile : jobDetailsFiles) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, jobDetailsFile);
-      try {
-        if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-          DirectOutputCommitter.abortJob(conf, jobDetails);
+    Set<String> outputTables = getOutputTables(conf);
+    for (String hmsDbTableName : outputTables) {
+      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+      if (jobDetails.getTableProperties().get("name").equals(conf.get("name"))) {
+        try {
+          if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+            DirectOutputCommitter.abortJob(conf, jobDetails);
+          }
+          // Note: The IndirectOutputCommitter doesn't have an abortJob() method.
+        } finally {
+          jobDetails.cleanUp(conf);
         }
-        // Note: The IndirectOutputCommitter doesn't have an abortJob() method.
-      } finally {
-        jobDetails.cleanUp(conf);
       }
     }
+  }
+
+  /** Returns the list of output tables for the current job. */
+  public static Set<String> getOutputTables(Configuration conf) {
+    String outputTables = conf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
+    return Sets.newHashSet(HiveBigQueryConfig.OUTPUT_TABLE_NAMES_SPLITTER.split(outputTables));
   }
 }

@@ -26,7 +26,7 @@ import org.apache.hadoop.hive.ql.hooks.WriteEntity;
  * Post execution hook used to commit the outputs. We only use this with Hive 1.x.x in combination
  * with Tez.
  */
-public class PostExecHook implements ExecuteWithHookContext {
+public class PostInsertHook implements ExecuteWithHookContext {
 
   @Override
   public void run(HookContext hookContext) throws Exception {

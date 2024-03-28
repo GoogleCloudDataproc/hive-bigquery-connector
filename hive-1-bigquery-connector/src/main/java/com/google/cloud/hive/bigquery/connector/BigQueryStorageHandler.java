@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.hive.bigquery.connector.output.PostExecHook;
+import com.google.cloud.hive.bigquery.connector.output.PostInsertHook;
 import com.google.cloud.hive.bigquery.connector.output.PreInsertHook;
 import java.util.Map;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -45,7 +45,7 @@ public class BigQueryStorageHandler extends BigQueryStorageHandlerBase {
       // So with Hive 2 and 3, we override and use the metahook's `commitInsertTable()` method.
       // However, with Hive 1, that method isn't available. So we set up a post execution hook to
       // commit the writes.
-      addExecHook(ConfVars.POSTEXECHOOKS.varname, PostExecHook.class);
+      addExecHook(ConfVars.POSTEXECHOOKS.varname, PostInsertHook.class);
     }
   }
 

@@ -123,6 +123,21 @@ public abstract class BigQueryStorageHandlerBase
     return conf;
   }
 
+  /**
+   * Keeps track of the table so we can properly clean things up later in the output committer. This
+   * function might be called multiple times if the job outputs data to multiple tables.
+   */
+  protected void registerOutputTable(TableDesc tableDesc) {
+    // Figure out the output table(s)
+    String hmsDbTableName = tableDesc.getTableName();
+    String tables = conf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
+    tables =
+        tables == null
+            ? hmsDbTableName
+            : tables + HiveBigQueryConfig.OUTPUT_TABLE_NAMES_SEPARATOR + hmsDbTableName;
+    conf.set(HiveBigQueryConfig.OUTPUT_TABLES_KEY, tables);
+  }
+
   /** Note: This function does not get called when using HCatalog. */
   @Override
   public void configureJobConf(TableDesc tableDesc, JobConf jobConf) {
@@ -140,6 +155,8 @@ public abstract class BigQueryStorageHandlerBase
             HiveBigQueryConfig.HADOOP_COMMITTER_CLASS_KEY, BigQueryOutputCommitter.class.getName());
       }
     }
+    // Keep track of the table so we can properly clean things up later in the output committer
+    registerOutputTable(tableDesc);
   }
 
   /**
@@ -198,6 +215,7 @@ public abstract class BigQueryStorageHandlerBase
 
     // Special treatment for HCatalog
     if (conf.get("mapreduce.lib.hcatoutput.id") != null && conf.get("hcat.output.schema") == null) {
+      registerOutputTable(tableDesc);
       // In this case, we're missing too much information to proceed. For example, somehow the
       // `pig.script.id` conf property is missing if you're using Pig.
       // This appears to be the case when HCatalog configures the OutputCommitter.

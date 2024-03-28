@@ -78,6 +78,7 @@ public class HiveBigQueryConfig
   public static final String VIEWS_ENABLED_KEY = "viewsEnabled";
   public static final String FAIL_ON_UNSUPPORTED_UDFS =
       "bq.fail.on.unsupported.udfs"; // Mainly used for testing
+  public static final String OUTPUT_TABLES_KEY = "bq.output.tables";
   public static final String CREATE_TABLES_KEY = "bq.create.tables";
   public static final String HADOOP_COMMITTER_CLASS_KEY = "mapred.output.committer.class";
   public static final String FLOW_CONTROL_WINDOW_BYTES_KEY = "bq.flow.control.window.bytes";

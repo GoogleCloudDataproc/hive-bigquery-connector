@@ -19,7 +19,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -71,10 +73,10 @@ public class FileSystemUtils {
   /**
    * Searches recursively through the given path and returns the files that have the given file name
    */
-  public static List<Path> findFilesRecursively(Configuration conf, Path dir, String fileName)
+  public static Set<Path> findFilesRecursively(Configuration conf, Path dir, String fileName)
       throws IOException {
     FileSystem fs = dir.getFileSystem(conf);
-    List<Path> filePaths = new ArrayList<>();
+    Set<Path> filePaths = new HashSet<>();
     try {
       RemoteIterator<LocatedFileStatus> fileStatusIterator = fs.listFiles(dir, true);
       while (fileStatusIterator.hasNext()) {

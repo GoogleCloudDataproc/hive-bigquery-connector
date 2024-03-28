@@ -23,6 +23,7 @@ import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -75,7 +76,7 @@ public class PreInsertHook implements ExecuteWithHookContext {
     }
     // Search for JobDetails files in the work directory
     Path workDir = JobUtils.getQueryWorkDir(hookContext.getConf());
-    List<Path> jobDetailsFiles =
+    Set<Path> jobDetailsFiles =
         FileSystemUtils.findFilesRecursively(
             hookContext.getConf(), workDir, HiveBigQueryConfig.JOB_DETAILS_FILE);
     // Determine whether those JobDetails should be marked as "overwrite" jobs based
@@ -84,10 +85,7 @@ public class PreInsertHook implements ExecuteWithHookContext {
     for (Path jobDetailsFile : jobDetailsFiles) {
       JobDetails jobDetails = JobDetails.readJobDetailsFile(hookContext.getConf(), jobDetailsFile);
       String tableName = (String) jobDetails.getTableProperties().get("name");
-      boolean overwrite = false;
-      if (!parseInfo.isInsertIntoTable(tableName)) {
-        overwrite = true;
-      }
+      boolean overwrite = !parseInfo.isInsertIntoTable(tableName);
       metahook.preInsertTable(tableName, overwrite);
     }
   }
