@@ -22,7 +22,6 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
