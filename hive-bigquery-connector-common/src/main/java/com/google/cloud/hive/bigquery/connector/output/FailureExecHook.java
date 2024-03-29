@@ -16,6 +16,7 @@
 package com.google.cloud.hive.bigquery.connector.output;
 
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import org.apache.hadoop.hive.ql.hooks.Entity.Type;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
@@ -29,17 +30,17 @@ public class FailureExecHook implements ExecuteWithHookContext {
   @Override
   public void run(HookContext hookContext) throws Exception {
     for (WriteEntity entity : hookContext.getOutputs()) {
-      if (!entity
-          .getTable()
-          .getStorageHandler()
-          .getClass()
-          .getName()
-          .equals("com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler")) {
-        // Not a BigQuery table, so skip it
-        continue;
+      if (entity.getType() == Type.TABLE
+          && entity.getTable().getStorageHandler() != null
+          && entity
+              .getTable()
+              .getStorageHandler()
+              .getClass()
+              .getName()
+              .equals("com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler")) {
+        String hmsDbTableName = HiveUtils.getDbTableName(entity.getTable());
+        OutputCommitterUtils.abortJob(hookContext.getConf(), hmsDbTableName);
       }
-      String hmsDbTableName = HiveUtils.getDbTableName(entity.getTable());
-      OutputCommitterUtils.abortJob(hookContext.getConf(), hmsDbTableName);
     }
   }
 }

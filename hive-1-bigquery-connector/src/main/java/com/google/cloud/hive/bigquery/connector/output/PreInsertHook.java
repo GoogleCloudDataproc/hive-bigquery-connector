@@ -16,7 +16,6 @@
 package com.google.cloud.hive.bigquery.connector.output;
 
 import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
-import com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
@@ -27,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.Context;
+import org.apache.hadoop.hive.ql.hooks.Entity.Type;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
@@ -45,12 +45,14 @@ public class PreInsertHook implements ExecuteWithHookContext {
     // First, check if we're indeed processing a BigQuery table
     boolean processingBqTable = false;
     for (WriteEntity entity : hookContext.getOutputs()) {
-      if (entity
-          .getTable()
-          .getStorageHandler()
-          .getClass()
-          .getName()
-          .equals(BigQueryStorageHandler.class.getName())) {
+      if (entity.getType() == Type.TABLE
+          && entity.getTable().getStorageHandler() != null
+          && entity
+              .getTable()
+              .getStorageHandler()
+              .getClass()
+              .getName()
+              .equals("com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler")) {
         processingBqTable = true;
         break;
       }

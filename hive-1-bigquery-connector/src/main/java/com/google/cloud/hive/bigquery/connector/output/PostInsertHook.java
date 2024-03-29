@@ -16,8 +16,8 @@
 package com.google.cloud.hive.bigquery.connector.output;
 
 import com.google.cloud.hive.bigquery.connector.BigQueryMetaHook;
-import com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import org.apache.hadoop.hive.ql.hooks.Entity.Type;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
@@ -31,18 +31,18 @@ public class PostInsertHook implements ExecuteWithHookContext {
   @Override
   public void run(HookContext hookContext) throws Exception {
     for (WriteEntity entity : hookContext.getOutputs()) {
-      if (!entity
-          .getTable()
-          .getStorageHandler()
-          .getClass()
-          .getName()
-          .equals(BigQueryStorageHandler.class.getName())) {
-        // Not a BigQuery table, so skip it
-        continue;
+      if (entity.getType() == Type.TABLE
+          && entity.getTable().getStorageHandler() != null
+          && entity
+              .getTable()
+              .getStorageHandler()
+              .getClass()
+              .getName()
+              .equals("com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler")) {
+        String tableName = HiveUtils.getDbTableName(entity.getTable());
+        BigQueryMetaHook metahook = new BigQueryMetaHook(hookContext.getConf());
+        metahook.commitInsertTable(tableName);
       }
-      String tableName = HiveUtils.getDbTableName(entity.getTable());
-      BigQueryMetaHook metahook = new BigQueryMetaHook(hookContext.getConf());
-      metahook.commitInsertTable(tableName);
     }
   }
 }
