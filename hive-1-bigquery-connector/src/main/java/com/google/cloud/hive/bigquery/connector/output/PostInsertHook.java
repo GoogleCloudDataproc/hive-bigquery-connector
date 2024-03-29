@@ -31,7 +31,12 @@ public class PostInsertHook implements ExecuteWithHookContext {
   @Override
   public void run(HookContext hookContext) throws Exception {
     for (WriteEntity entity : hookContext.getOutputs()) {
-      if (!entity.getTable().getStorageHandler().getClass().equals(BigQueryStorageHandler.class)) {
+      if (!entity
+          .getTable()
+          .getStorageHandler()
+          .getClass()
+          .getName()
+          .equals(BigQueryStorageHandler.class.getName())) {
         // Not a BigQuery table, so skip it
         continue;
       }

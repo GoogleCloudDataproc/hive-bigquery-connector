@@ -45,7 +45,12 @@ public class PreInsertHook implements ExecuteWithHookContext {
     // First, check if we're indeed processing a BigQuery table
     boolean processingBqTable = false;
     for (WriteEntity entity : hookContext.getOutputs()) {
-      if (entity.getTable().getStorageHandler().getClass().equals(BigQueryStorageHandler.class)) {
+      if (entity
+          .getTable()
+          .getStorageHandler()
+          .getClass()
+          .getName()
+          .equals(BigQueryStorageHandler.class.getName())) {
         processingBqTable = true;
         break;
       }

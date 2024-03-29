@@ -21,6 +21,7 @@ import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommit
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 
@@ -41,26 +42,30 @@ public class OutputCommitterUtils {
   public static void commitJob(Configuration conf) throws IOException {
     Set<String> outputTables = getOutputTables(conf);
     for (String hmsDbTableName : outputTables) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-      if (jobDetails.getTableProperties().get("name").equals(conf.get("name"))) {
+      if (hmsDbTableName.equals(conf.get("name"))) {
+        JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
         commitJob(conf, jobDetails);
       }
+    }
+  }
+
+  public static void abortJob(Configuration conf, String hmsDbTableName) throws IOException {
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+    try {
+      if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+        DirectOutputCommitter.abortJob(conf, jobDetails);
+      }
+      // Note: The IndirectOutputCommitter doesn't have an abortJob() method.
+    } finally {
+      jobDetails.cleanUp(conf);
     }
   }
 
   public static void abortJob(Configuration conf) throws IOException {
     Set<String> outputTables = getOutputTables(conf);
     for (String hmsDbTableName : outputTables) {
-      JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-      if (jobDetails.getTableProperties().get("name").equals(conf.get("name"))) {
-        try {
-          if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-            DirectOutputCommitter.abortJob(conf, jobDetails);
-          }
-          // Note: The IndirectOutputCommitter doesn't have an abortJob() method.
-        } finally {
-          jobDetails.cleanUp(conf);
-        }
+      if (hmsDbTableName.equals(conf.get("name"))) {
+        abortJob(conf, hmsDbTableName);
       }
     }
   }
@@ -68,6 +73,9 @@ public class OutputCommitterUtils {
   /** Returns the list of output tables for the current job. */
   public static Set<String> getOutputTables(Configuration conf) {
     String outputTables = conf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
+    if (outputTables == null) {
+      return Collections.emptySet();
+    }
     return Sets.newHashSet(HiveBigQueryConfig.OUTPUT_TABLE_NAMES_SPLITTER.split(outputTables));
   }
 }

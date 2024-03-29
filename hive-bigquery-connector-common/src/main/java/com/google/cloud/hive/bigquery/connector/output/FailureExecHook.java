@@ -15,8 +15,10 @@
  */
 package com.google.cloud.hive.bigquery.connector.output;
 
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
+import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 
 /**
  * Post execution hook used to commit the outputs. We only use this with Hive 1 in combination with
@@ -26,6 +28,18 @@ public class FailureExecHook implements ExecuteWithHookContext {
 
   @Override
   public void run(HookContext hookContext) throws Exception {
-    OutputCommitterUtils.abortJob(hookContext.getConf());
+    for (WriteEntity entity : hookContext.getOutputs()) {
+      if (!entity
+          .getTable()
+          .getStorageHandler()
+          .getClass()
+          .getName()
+          .equals("com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler")) {
+        // Not a BigQuery table, so skip it
+        continue;
+      }
+      String hmsDbTableName = HiveUtils.getDbTableName(entity.getTable());
+      OutputCommitterUtils.abortJob(hookContext.getConf(), hmsDbTableName);
+    }
   }
 }
