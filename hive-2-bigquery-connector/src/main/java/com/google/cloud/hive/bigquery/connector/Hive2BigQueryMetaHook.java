@@ -15,60 +15,41 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 
-public class NewAPIMetaHook extends DefaultHiveMetaHook implements MetahookExtension {
+/**
+ * Implementation of the Hive MetaHook that inherits from `DefaultHiveMetaHook`, which is available
+ * in Hive 2 & 3. This allows to use methods like `preInsertTable()`.
+ */
+public class Hive2BigQueryMetaHook extends DefaultHiveMetaHook implements MetahookExtension {
 
   BigQueryMetaHook metahook;
 
-  public NewAPIMetaHook(Configuration conf) {
+  public Hive2BigQueryMetaHook(Configuration conf) {
     this.metahook = new BigQueryMetaHook(conf, this);
   }
 
   @Override
   public void setupIngestionTimePartitioning(Table table) throws MetaException {
-    // Add the BigQuery pseudo columns to the Hive MetaStore schema.
-    BigQueryMetaHook.assertDoesNotContainColumn(
-        table, HiveBigQueryConfig.PARTITION_TIME_PSEUDO_COLUMN);
-    table
-        .getSd()
-        .addToCols(
-            new FieldSchema(
-                HiveBigQueryConfig.PARTITION_TIME_PSEUDO_COLUMN,
-                "timestamp with local time zone",
-                "Ingestion time pseudo column"));
-    BigQueryMetaHook.assertDoesNotContainColumn(
-        table, HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN);
-    table
-        .getSd()
-        .addToCols(
-            new FieldSchema(
-                HiveBigQueryConfig.PARTITION_DATE_PSEUDO_COLUMN,
-                "date",
-                "Ingestion time pseudo column"));
+    throw new MetaException(
+        "Ingestion-time partitioned tables are not supported in Hive versions < 3.x.x");
   }
 
   @Override
   public void setupStats(Table table) {
-    StatsSetupConst.setStatsStateForCreateTable(table.getParameters(), null, StatsSetupConst.FALSE);
+    // Do nothing
   }
 
   @Override
-  public List<PrimitiveObjectInspector.PrimitiveCategory> getSupportedTypes() {
-    List<PrimitiveObjectInspector.PrimitiveCategory> supportedTypes =
-        new ArrayList<>(BigQueryMetaHook.basicTypes);
-    supportedTypes.add(PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMPLOCALTZ);
-    return supportedTypes;
+  public List<PrimitiveCategory> getSupportedTypes() {
+    return new ArrayList<>(BigQueryMetaHook.basicTypes);
   }
 
   @Override

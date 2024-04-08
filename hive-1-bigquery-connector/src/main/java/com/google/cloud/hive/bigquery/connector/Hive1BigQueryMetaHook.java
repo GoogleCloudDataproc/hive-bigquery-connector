@@ -15,24 +15,23 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.metastore.DefaultHiveMetaHook;
+import org.apache.hadoop.hive.metastore.HiveMetaHook;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 
 /**
- * Implementation of the Hive MetaHook that inherits from `DefaultHiveMetaHook`, which is available
- * in Hive 2 & 3. This allows to use methods like `preInsertTable()`.
+ * Implementation of the Hive MetaHook that relies only on the `HiveMetaHook` interface since the
+ * `DefaultHiveMetaHook` class isn't available in old versions of hive.`
  */
-public class NewAPIMetaHook extends DefaultHiveMetaHook implements MetahookExtension {
+public class Hive1BigQueryMetaHook implements HiveMetaHook, MetahookExtension {
 
   BigQueryMetaHook metahook;
 
-  public NewAPIMetaHook(Configuration conf) {
+  public Hive1BigQueryMetaHook(Configuration conf) {
     this.metahook = new BigQueryMetaHook(conf, this);
   }
 
@@ -50,21 +49,6 @@ public class NewAPIMetaHook extends DefaultHiveMetaHook implements MetahookExten
   @Override
   public List<PrimitiveCategory> getSupportedTypes() {
     return new ArrayList<>(BigQueryMetaHook.basicTypes);
-  }
-
-  @Override
-  public void commitInsertTable(Table table, boolean overwrite) throws MetaException {
-    metahook.commitInsertTable(HiveUtils.getDbTableName(table));
-  }
-
-  @Override
-  public void preInsertTable(Table table, boolean overwrite) throws MetaException {
-    metahook.preInsertTable(HiveUtils.getDbTableName(table), overwrite);
-  }
-
-  @Override
-  public void rollbackInsertTable(Table table, boolean overwrite) throws MetaException {
-    metahook.rollbackInsertTable(table, overwrite);
   }
 
   @Override

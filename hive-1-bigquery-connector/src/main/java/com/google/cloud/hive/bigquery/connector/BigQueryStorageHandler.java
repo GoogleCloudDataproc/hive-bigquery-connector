@@ -28,7 +28,7 @@ public class BigQueryStorageHandler extends BigQueryStorageHandlerBase {
 
   @Override
   public HiveMetaHook getMetaHook() {
-    return new OldAPIMetaHook(conf);
+    return new Hive1BigQueryMetaHook(conf);
   }
 
   @Override
