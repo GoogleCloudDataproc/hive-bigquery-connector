@@ -17,6 +17,7 @@
         <hive.version>3.1.2</hive.version>
         <hadoop.version>3.2.3</hadoop.version>
         <tez.version>0.9.2</tez.version>
+        <pig.version>0.17.0</pig.version>
     </properties>
 
     <build>

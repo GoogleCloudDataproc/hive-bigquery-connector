@@ -19,14 +19,12 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.hive.bigquery.connector.HiveCompat;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
@@ -45,20 +43,55 @@ import org.codehaus.jackson.map.ObjectMapper;
 public class AvroUtils {
 
   /**
-   * Variable used to figure out if the user has an old or newer version of the Avro library. This
-   * is used to get around some changes in the API of the library. For example, the `getJsonProp()`
-   * method was public in old versions and then made private in newer versions in favor or a new
-   * `getObjectProp()` method.
+   * Hive vendors Avro libraries that have different methods depending on the Hive version used.
+   * Here we dynamically figure out which Avro methods are available so we can use the proper ones
+   * at runtime.
    */
-  public static Boolean usesOldAvroLib;
+  private static Method getObjectPropMethod;
+
+  private static Method getJsonPropMethod;
+  private static Method asIntMethod;
+  private static Method getIntValueMethod;
+  private static Method addPropJsonNodeMethod;
+  private static Method addPropObjectMethod;
 
   static {
+    // Initialize methods for getPropAsInt
     try {
-      Schema emptySchema = SchemaBuilder.builder().nullType();
-      emptySchema.getClass().getMethod("getJsonProp", String.class);
-      usesOldAvroLib = true;
+      getObjectPropMethod = Schema.class.getMethod("getObjectProp", String.class);
     } catch (NoSuchMethodException e) {
-      usesOldAvroLib = false;
+      getObjectPropMethod = null;
+    }
+
+    try {
+      getJsonPropMethod = Schema.class.getMethod("getJsonProp", String.class);
+      // Assuming getJsonProp returns an Object which has asInt or getIntValue methods
+      Class<?> returnType = getJsonPropMethod.getReturnType();
+      try {
+        asIntMethod = returnType.getMethod("asInt");
+      } catch (NoSuchMethodException e) {
+        asIntMethod = null;
+      }
+      try {
+        getIntValueMethod = returnType.getMethod("getIntValue");
+      } catch (NoSuchMethodException e) {
+        getIntValueMethod = null;
+      }
+    } catch (NoSuchMethodException e) {
+      getJsonPropMethod = null;
+    }
+
+    // Initialize methods for addProp
+    try {
+      addPropJsonNodeMethod = Schema.class.getMethod("addProp", String.class, JsonNode.class);
+    } catch (NoSuchMethodException e) {
+      addPropJsonNodeMethod = null;
+    }
+
+    try {
+      addPropObjectMethod = Schema.class.getMethod("addProp", String.class, Object.class);
+    } catch (NoSuchMethodException e) {
+      addPropObjectMethod = null;
     }
   }
 
@@ -67,26 +100,37 @@ public class AvroUtils {
   }
 
   public static void addProp(Schema schema, String propName, Object propValue) {
-    if (usesOldAvroLib) {
-      ObjectMapper objectMapper = new ObjectMapper();
-      schema.addProp(propName, objectMapper.convertValue(propValue, JsonNode.class));
-    } else {
-      schema.addProp(propName, propValue);
+    try {
+      if (addPropJsonNodeMethod != null) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNodeValue = objectMapper.convertValue(propValue, JsonNode.class);
+        addPropJsonNodeMethod.invoke(schema, propName, jsonNodeValue);
+      } else if (addPropObjectMethod != null) {
+        addPropObjectMethod.invoke(schema, propName, propValue);
+      } else {
+        throw new RuntimeException("Unsupported version of Avro");
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Error accessing Avro addProp method", e);
     }
   }
 
   public static int getPropAsInt(Schema schema, String propName) {
     try {
-      if (usesOldAvroLib) {
-        Method method = schema.getClass().getMethod("getJsonProp", String.class);
-        JsonNode value = (JsonNode) method.invoke(schema, propName);
-        return value.asInt();
+      if (getObjectPropMethod != null) {
+        return (int) getObjectPropMethod.invoke(schema, propName);
+      } else if (getJsonPropMethod != null) {
+        Object jsonProp = getJsonPropMethod.invoke(schema, propName);
+        if (asIntMethod != null) {
+          return (int) asIntMethod.invoke(jsonProp);
+        } else if (getIntValueMethod != null) {
+          return (int) getIntValueMethod.invoke(jsonProp);
+        }
       }
-      Method method = schema.getClass().getMethod("getObjectProp", String.class);
-      return (int) method.invoke(schema, propName);
-    } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-      throw new RuntimeException(e);
+    } catch (Exception e) {
+      throw new RuntimeException("Error accessing Avro integer property method", e);
     }
+    throw new RuntimeException("Unsupported version of Avro");
   }
 
   public static Schema getAvroSchema(StructObjectInspector soi, FieldList bigqueryFields) {

@@ -43,6 +43,8 @@
     <hive.version>3.1.2</hive.version>
     <hadoop.version>3.2.3</hadoop.version>
     <tez.version>0.9.2</tez.version>
+    <pig.version>0.17.0</pig.version>
+    <pig.classifier></pig.classifier>
   </properties>
 
   <dependencies>
@@ -84,6 +86,10 @@
           <groupId>org.pentaho</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -91,6 +97,16 @@
       <groupId>org.apache.hive</groupId>
       <version>${hive.version}</version>
       <artifactId>hive-common</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>dropwizard-metrics-hadoop-metrics2-reporter</artifactId>
+          <groupId>com.github.joshelser</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -101,6 +117,22 @@
         <exclusion>
           <groupId>org.pentaho</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>parquet-hadoop-bundle</artifactId>
+          <groupId>org.apache.parquet</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>dropwizard-metrics-hadoop-metrics2-reporter</artifactId>
+          <groupId>com.github.joshelser</groupId>
         </exclusion>
         <exclusion>
           <groupId>com.lmax</groupId>
@@ -117,6 +149,14 @@
         <exclusion>
           <artifactId>hive-exec</artifactId>
           <groupId>org.apache.hive</groupId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pig</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -155,6 +195,13 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pig</groupId>
+      <artifactId>pig</artifactId>
+      <version>${pig.version}</version>
+      <classifier>${pig.classifier}</classifier>
     </dependency>
 
   </dependencies>

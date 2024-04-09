@@ -31,7 +31,7 @@ public class WriteIntegrationTests extends WriteIntegrationTestsBase {
 
   // Note: Other tests are from the parent class
 
-  /** Check that we can write all types of data to BigQuery. */
+  /** Check that we can write timestamps with time zone to BigQuery. */
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
   public void testWriteTimestampTz(String engine, String writeMethod) {

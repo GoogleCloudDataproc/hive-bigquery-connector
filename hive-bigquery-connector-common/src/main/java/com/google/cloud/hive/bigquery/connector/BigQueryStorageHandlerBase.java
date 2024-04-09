@@ -26,6 +26,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.input.BigQueryInputFormat;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
+import com.google.cloud.hive.bigquery.connector.output.FailureExecHook;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hcatalog.HCatalogUtils;
@@ -36,8 +37,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveStoragePredicateHandler;
@@ -107,12 +109,33 @@ public abstract class BigQueryStorageHandlerBase
   @Override
   public void setConf(Configuration configuration) {
     this.conf = configuration;
+    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
+    if (engine.equals("tez")) {
+      // Tez does not use OutputCommitter. So we set up a failure hook to
+      // simulate `OutputCommitter.abortJob()`
+      addExecHook(ConfVars.ONFAILUREHOOKS.varname, FailureExecHook.class);
+    }
     setGCSAccessTokenProvider(this.conf);
   }
 
   @Override
   public Configuration getConf() {
     return conf;
+  }
+
+  /**
+   * Keeps track of the table so we can properly clean things up later in the output committer. This
+   * function might be called multiple times if the job outputs data to multiple tables.
+   */
+  protected void registerOutputTable(TableDesc tableDesc) {
+    // Figure out the output table(s)
+    String hmsDbTableName = tableDesc.getTableName();
+    String tables = conf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
+    tables =
+        tables == null
+            ? hmsDbTableName
+            : tables + HiveBigQueryConfig.OUTPUT_TABLE_NAMES_SEPARATOR + hmsDbTableName;
+    conf.set(HiveBigQueryConfig.OUTPUT_TABLES_KEY, tables);
   }
 
   /** Note: This function does not get called when using HCatalog. */
@@ -134,21 +157,6 @@ public abstract class BigQueryStorageHandlerBase
     }
     // Keep track of the table so we can properly clean things up later in the output committer
     registerOutputTable(tableDesc);
-  }
-
-  /**
-   * Keeps track of the table so we can properly clean things up later in the output committer. This
-   * function might be called multiple times if the job outputs data to multiple tables.
-   */
-  protected void registerOutputTable(TableDesc tableDesc) {
-    // Figure out the output table(s)
-    String hmsDbTableName = tableDesc.getTableName();
-    String tables = conf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
-    tables =
-        tables == null
-            ? hmsDbTableName
-            : tables + HiveBigQueryConfig.OUTPUT_TABLE_NAMES_SEPARATOR + hmsDbTableName;
-    conf.set(HiveBigQueryConfig.OUTPUT_TABLES_KEY, tables);
   }
 
   /**
@@ -192,28 +200,41 @@ public abstract class BigQueryStorageHandlerBase
     jobDetails.setAvroSchema(avroSchema);
   }
 
+  /** Add the given hook to the appropriate configuration's pre/post/failure hooks property. */
+  public void addExecHook(String hookType, Class<? extends ExecuteWithHookContext> hookCLass) {
+    String hooks = conf.get(hookType, "").trim();
+    if (!hooks.contains(hookCLass.getName())) {
+      hooks = hooks.isEmpty() ? hookCLass.getName() : hooks + "," + hookCLass.getName();
+      conf.set(hookType, hooks);
+    }
+  }
+
   @Override
   public void configureOutputJobProperties(TableDesc tableDesc, Map<String, String> jobProperties) {
+    Properties tableProperties = tableDesc.getProperties();
+
     // Special treatment for HCatalog
     if (conf.get("mapreduce.lib.hcatoutput.id") != null && conf.get("hcat.output.schema") == null) {
       registerOutputTable(tableDesc);
       // In this case, we're missing too much information to proceed. For example, somehow the
       // `pig.script.id` conf property is missing if you're using Pig.
       // This appears to be the case when HCatalog configures the OutputCommitter.
+      conf.set("name", (String) tableDesc.getProperties().get("name"));
       return;
     }
 
-    Properties tableProperties = tableDesc.getProperties();
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, tableDesc.getProperties()));
-
-    // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
-    conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
+    String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
+    if (engine.equals("mr")) {
+      // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
+      conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
+    }
 
     // Set config for the GCS Connector
     setGCSAccessTokenProvider(conf);
+
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableProperties));
 
     // Retrieve some info from the BQ table
     TableId tableId =
@@ -245,9 +266,7 @@ public abstract class BigQueryStorageHandlerBase
     }
 
     // Save the job details file to disk
-    Path jobDetailsFilePath =
-        JobUtils.getJobDetailsFilePath(conf, tableProperties.getProperty("name"));
-    JobDetails.writeJobDetailsFile(conf, jobDetailsFilePath, jobDetails);
+    jobDetails.writeFile(conf);
   }
 
   @Override

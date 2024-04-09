@@ -19,61 +19,63 @@ import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.hive.bigquery.connector.output.direct.DirectOutputCommitter;
 import com.google.cloud.hive.bigquery.connector.output.indirect.IndirectOutputCommitter;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
-import com.google.cloud.hive.bigquery.connector.utils.JobUtils.CleanUp;
-import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class OutputCommitterUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(OutputCommitterUtils.class);
 
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
-    String writeMethod =
-        HiveBigQueryConfig.from(conf, jobDetails.getTableProperties()).getWriteMethod();
-    // Pick the appropriate OutputCommitter (direct or indirect) based on the
-    // configured write method
     try {
-      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
-        IndirectOutputCommitter.commitJob(conf, jobDetails);
-      } else {
+      if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
         DirectOutputCommitter.commitJob(conf, jobDetails);
+      } else {
+        IndirectOutputCommitter.commitJob(conf, jobDetails);
       }
     } finally {
-      JobUtils.safeCleanUp(
-          () -> JobUtils.deleteJobTempOutputDir(conf, jobDetails),
-          CleanUp.DELETE_JOB_TEMPORARY_OUTPUT_DIRECTORY);
+      jobDetails.cleanUp(conf);
+    }
+  }
+
+  public static void commitJob(Configuration conf) throws IOException {
+    Set<String> outputTables = getOutputTables(conf);
+    for (String hmsDbTableName : outputTables) {
+      if (hmsDbTableName.equals(conf.get("name"))) {
+        JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+        commitJob(conf, jobDetails);
+      }
+    }
+  }
+
+  public static void abortJob(Configuration conf, String hmsDbTableName) throws IOException {
+    JobDetails jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
+    try {
+      if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+        DirectOutputCommitter.abortJob(conf, jobDetails);
+      }
+      // Note: The IndirectOutputCommitter doesn't have an abortJob() method.
+    } finally {
+      jobDetails.cleanUp(conf);
     }
   }
 
   public static void abortJob(Configuration conf) throws IOException {
     Set<String> outputTables = getOutputTables(conf);
-    LOG.info("aborting job {} with output tables {}", HiveUtils.getQueryId(conf), outputTables);
     for (String hmsDbTableName : outputTables) {
-      JobDetails jobDetails;
-      try {
-        jobDetails = JobDetails.readJobDetailsFile(conf, hmsDbTableName);
-      } catch (Exception e) {
-        LOG.warn("JobDetails not found for table {}, skip it", hmsDbTableName);
-        continue;
+      if (hmsDbTableName.equals(conf.get("name"))) {
+        abortJob(conf, hmsDbTableName);
       }
-      String writeMethod =
-          HiveBigQueryConfig.from(conf, jobDetails.getTableProperties()).getWriteMethod();
-      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-        DirectOutputCommitter.abortJob(conf, jobDetails);
-      }
-      JobUtils.safeCleanUp(
-          () -> JobUtils.deleteJobTempOutputDir(conf, jobDetails),
-          CleanUp.DELETE_JOB_TEMPORARY_OUTPUT_DIRECTORY);
     }
   }
 
+  /** Returns the list of output tables for the current job. */
   public static Set<String> getOutputTables(Configuration conf) {
     String outputTables = conf.get(HiveBigQueryConfig.OUTPUT_TABLES_KEY);
+    if (outputTables == null) {
+      return Collections.emptySet();
+    }
     return Sets.newHashSet(HiveBigQueryConfig.OUTPUT_TABLE_NAMES_SPLITTER.split(outputTables));
   }
 }

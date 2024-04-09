@@ -18,6 +18,7 @@ package com.google.cloud.hive.bigquery.connector.utils.hcatalog;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
@@ -74,21 +75,19 @@ public class HCatalogUtils {
    * otherwise already be set automatically by Hive outside of using HCatalog.
    */
   public static void updateHadoopConfForHCatalog(Configuration conf, HCatTableInfo tableInfo) {
-    conf.set(hive_metastoreConstants.META_TABLE_LOCATION, tableInfo.getTableLocation());
-    conf.set(serdeConstants.COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
-    conf.set(
-        serdeConstants.LIST_COLUMNS,
-        String.join(String.valueOf(SerDeUtils.COMMA), tableInfo.getDataColumns().getFieldNames()));
-    List<String> columnTypes = new ArrayList<>();
-    for (int i = 0; i < tableInfo.getDataColumns().size(); i++) {
-      HCatFieldSchema schema = tableInfo.getDataColumns().get(i);
-      columnTypes.add(schema.getTypeString());
+    Properties properties = createProperties(tableInfo);
+    for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+      conf.set(entry.getKey().toString(), entry.getValue().toString());
     }
-    conf.set(serdeConstants.LIST_COLUMN_TYPES, String.join(":", columnTypes));
   }
 
   public static void updateTablePropertiesForHCatalog(
       Properties properties, HCatTableInfo tableInfo) {
+    properties.putAll(createProperties(tableInfo));
+  }
+
+  private static Properties createProperties(HCatTableInfo tableInfo) {
+    Properties properties = new Properties();
     properties.put(hive_metastoreConstants.META_TABLE_LOCATION, tableInfo.getTableLocation());
     properties.put(serdeConstants.COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
     properties.put(
@@ -100,5 +99,6 @@ public class HCatalogUtils {
       columnTypes.add(schema.getTypeString());
     }
     properties.put(serdeConstants.LIST_COLUMN_TYPES, String.join(":", columnTypes));
+    return properties;
   }
 }

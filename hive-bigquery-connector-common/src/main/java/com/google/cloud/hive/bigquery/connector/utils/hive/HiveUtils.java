@@ -18,8 +18,10 @@ package com.google.cloud.hive.bigquery.connector.utils.hive;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.TaskAttemptID;
 
@@ -44,6 +46,18 @@ public class HiveUtils {
     return "TRUE".equalsIgnoreCase(params.get("EXTERNAL"));
   }
 
+  public static boolean isMRJob(JobConf job) {
+    return job != null
+        && (HiveConf.getVar(job, HiveConf.ConfVars.PLAN) != null)
+        && (!HiveConf.getVar(job, HiveConf.ConfVars.PLAN).isEmpty());
+  }
+
+  /** Borrowed from Hive 2+ as it's not available in Hive 1. */
+  public static String[] getReadColumnNames(Configuration conf) {
+    String colNames = conf.get("hive.io.file.readcolumn.names", "");
+    return colNames != null && !colNames.isEmpty() ? colNames.split(",") : new String[0];
+  }
+
   /** Returns the query's unique id. */
   public static String getQueryId(Configuration conf) {
     String hiveQueryId = conf.get(ConfVars.HIVEQUERYID.varname);
@@ -61,6 +75,10 @@ public class HiveUtils {
   }
 
   public static String getDbTableName(Table table) {
+    return table.getDbName() + "." + table.getTableName();
+  }
+
+  public static String getDbTableName(org.apache.hadoop.hive.ql.metadata.Table table) {
     return table.getDbName() + "." + table.getTableName();
   }
 

@@ -16,8 +16,8 @@
 package org.apache.hadoop.hive.metastore.conf;
 
 /**
- * Hive 3 has a MetastoreConf class but Hive 2 doesn't. HiveRunner requires it, so we defined it
- * here with the values & methods used by HiveRunner.
+ * Hive 3 has a MetastoreConf class but older versions don't. HiveRunner requires it, so we defined
+ * it here with the values & methods used by HiveRunner.
  */
 public class MetastoreConf {
   public enum ConfVars {
@@ -32,7 +32,6 @@ public class MetastoreConf {
       this.varname = varname;
       this.hiveName = hiveName;
       this.defaultVal = defaultVal;
-      //      validator = null;
       caseSensitive = false;
       this.description = description;
     }
