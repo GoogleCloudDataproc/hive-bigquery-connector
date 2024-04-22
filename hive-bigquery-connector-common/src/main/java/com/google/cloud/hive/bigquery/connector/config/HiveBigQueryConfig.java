@@ -23,6 +23,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.JobInfo.CreateDisposition;
 import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
 import com.google.cloud.bigquery.QueryJobConfiguration.Priority;
+import com.google.cloud.bigquery.RangePartitioning.Range;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.connector.common.*;
@@ -47,9 +48,9 @@ public class HiveBigQueryConfig
     implements BigQueryConfig, BigQueryClient.LoadDataOptions, Serializable {
 
   private static final long serialVersionUID = 1L;
+  private static ImmutableMap<String, String> emptyMap = ImmutableMap.of();
 
   // Config keys
-  public static final String TABLE_KEY = "bq.table";
   public static final String WRITE_METHOD_KEY = "bq.write.method";
   public static final String TEMP_GCS_PATH_KEY = "bq.temp.gcs.path";
   public static final String WORK_DIR_PARENT_PATH_KEY = "bq.work.dir.parent.path";
@@ -70,11 +71,6 @@ public class HiveBigQueryConfig
       "bq.impersonation.service.account.for.group.";
   public static final String IMPERSONATE_SERVICE_ACCOUNT = "bq.impersonation.service.account";
   public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
-  public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
-  public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
-  public static final String TIME_PARTITION_EXPIRATION_KEY = "bq.time.partition.expiration.ms";
-  public static final String TIME_PARTITION_REQUIRE_FILTER_KEY = "bq.time.partition.require.filter";
-  public static final String CLUSTERED_FIELDS_KEY = "bq.clustered.fields";
   public static final String VIEWS_ENABLED_KEY = "viewsEnabled";
   public static final String FAIL_ON_UNSUPPORTED_UDFS =
       "bq.fail.on.unsupported.udfs"; // Mainly used for testing
@@ -83,14 +79,28 @@ public class HiveBigQueryConfig
   public static final String HADOOP_COMMITTER_CLASS_KEY = "mapred.output.committer.class";
   public static final String FLOW_CONTROL_WINDOW_BYTES_KEY = "bq.flow.control.window.bytes";
   public static final String QUERY_JOB_PRIORITY_KEY = "bq.query.job.priority";
+  public static final String WRITE_AT_LEAST_ONCE_KEY = "bq.write.at.least.once";
 
+  // Table property keys
+  public static final String TIME_PARTITION_TYPE_KEY = "bq.time.partition.type";
+  public static final String TIME_PARTITION_FIELD_KEY = "bq.time.partition.field";
+  public static final String TIME_PARTITION_EXPIRATION_KEY = "bq.time.partition.expiration.ms";
+  public static final String TIME_PARTITION_REQUIRE_FILTER_KEY = "bq.time.partition.require.filter";
+  public static final String CLUSTERED_FIELDS_KEY = "bq.clustered.fields";
+  public static final String TABLE_KEY = "bq.table";
+
+  // Pseudo columns in BigQuery for ingestion time partitioned tables
+  public static final String PARTITION_TIME_PSEUDO_COLUMN = "_PARTITIONTIME";
+  public static final String PARTITION_DATE_PSEUDO_COLUMN = "_PARTITIONDATE";
+
+  // Other constants
   public static final int DEFAULT_CACHE_EXPIRATION_IN_MINUTES = 15;
   private static final int DEFAULT_BIGQUERY_CLIENT_CONNECT_TIMEOUT = 60 * 1000;
   private static final int DEFAULT_BIGQUERY_CLIENT_READ_TIMEOUT = 60 * 1000;
   private static final int DEFAULT_BIGQUERY_CLIENT_RETRIES = 10;
   static final String GCS_CONFIG_CREDENTIALS_FILE_PROPERTY =
       "google.cloud.auth.service.account.json.keyfile";
-
+  static final long BIGQUERY_JOB_TIMEOUT_IN_MINUTES_DEFAULT = 6 * 60; // 6 hrs
   public static final String OUTPUT_TABLE_NAMES_SEPARATOR = "|";
   public static final Splitter OUTPUT_TABLE_NAMES_SPLITTER =
       Splitter.on(OUTPUT_TABLE_NAMES_SEPARATOR);
@@ -99,10 +109,6 @@ public class HiveBigQueryConfig
   public static final String STREAM_FILE_EXTENSION = "stream";
   public static final String JOB_DETAILS_FILE = "job-details.json";
   public static final String QUERY_ID = "bq.connector.query.id";
-
-  // Pseudo columns in BigQuery for ingestion time partitioned tables
-  public static final String PARTITION_TIME_PSEUDO_COLUMN = "_PARTITIONTIME";
-  public static final String PARTITION_DATE_PSEUDO_COLUMN = "_PARTITIONDATE";
 
   TableId tableId;
   Optional<String> traceId = empty();
@@ -160,6 +166,9 @@ public class HiveBigQueryConfig
   private Optional<Integer> flowControlWindowBytes = empty();
   public static final Priority DEFAULT_JOB_PRIORITY = Priority.INTERACTIVE;
   private Priority queryJobPriority = DEFAULT_JOB_PRIORITY;
+  public static final String GPN_ATTRIBUTION = "GPN";
+  private Optional<String> gpn;
+  boolean writeAtLeastOnce = false;
 
   // Options currently not implemented:
   HiveBigQueryProxyConfig proxyConfig;
@@ -196,21 +205,15 @@ public class HiveBigQueryConfig
     return configMap;
   }
 
-  private static Optional<String> getAnyOption(
-      String key, Configuration conf, Map<String, String> tableParameters) {
-    // TO-DO: here we choose conf value over table value, any issue?
-    String value = conf.get(key);
-    if (value == null && tableParameters != null) {
-      value = tableParameters.get(key);
-    }
-    return Optional.fromNullable(value);
+  private static Optional<String> getOption(String key, Configuration conf) {
+    return getOption(key, emptyMap, conf);
   }
 
-  private static Optional<String> getAnyOption(
-      String key, Configuration conf, Properties properties) {
-    String value = conf.get(key);
-    if (value == null && properties != null) {
-      value = properties.getProperty(key);
+  private static Optional<String> getOption(
+      String key, Map<String, String> tableParameters, Configuration conf) {
+    String value = tableParameters.get(key);
+    if (value == null) {
+      value = conf.get(key);
     }
     return Optional.fromNullable(value);
   }
@@ -252,21 +255,16 @@ public class HiveBigQueryConfig
     opts.traceId = Optional.of(getTraceId(conf));
     opts.proxyConfig = HiveBigQueryProxyConfig.from(conf);
     opts.createDisposition =
-        Optional.fromNullable(conf.get(CREATE_DISPOSITION_KEY))
+        getOption(CREATE_DISPOSITION_KEY, conf)
             .transform(String::toUpperCase)
             .transform(CreateDisposition::valueOf);
-
-    Optional<String> bqTable = getAnyOption(TABLE_KEY, conf, tableParameters);
-    if (bqTable.isPresent()) {
-      opts.tableId = BigQueryUtil.parseTableId(bqTable.get());
-    }
-
-    opts.writeMethod = getWriteMethod(conf, tableParameters);
-    opts.tempGcsPath = getAnyOption(TEMP_GCS_PATH_KEY, conf, tableParameters).orNull();
+    opts.writeMethod = getWriteMethod(conf);
+    opts.writeAtLeastOnce =
+        Boolean.parseBoolean(getOption(WRITE_AT_LEAST_ONCE_KEY, conf).or("false"));
+    opts.tempGcsPath = getOption(TEMP_GCS_PATH_KEY, conf).orNull();
 
     // Views
-    opts.viewsEnabled =
-        Boolean.parseBoolean(getAnyOption(VIEWS_ENABLED_KEY, conf, tableParameters).or("false"));
+    opts.viewsEnabled = Boolean.parseBoolean(getOption(VIEWS_ENABLED_KEY, conf).or("false"));
     MaterializationConfiguration materializationConfiguration =
         MaterializationConfiguration.from(
             ImmutableMap.copyOf(hadoopConfigAsMap(conf)), new HashMap<>());
@@ -286,30 +284,23 @@ public class HiveBigQueryConfig
       throw new RuntimeException("Invalid input read format type: " + readDataFormat);
     }
     opts.createReadSessionTimeoutInSeconds =
-        getAnyOption(READ_CREATE_SESSION_TIMEOUT_KEY, conf, tableParameters)
-            .transform(Long::parseLong);
+        getOption(READ_CREATE_SESSION_TIMEOUT_KEY, conf).transform(Long::parseLong);
     opts.maxParallelism =
-        getAnyOption(READ_MAX_PARALLELISM, conf, tableParameters)
-            .transform(Integer::parseInt)
-            .orNull();
+        getOption(READ_MAX_PARALLELISM, conf).transform(Integer::parseInt).orNull();
     opts.preferredMinParallelism =
-        getAnyOption(READ_PREFERRED_PARALLELISM, conf, tableParameters)
-            .transform(Integer::parseInt)
-            .orNull();
+        getOption(READ_PREFERRED_PARALLELISM, conf).transform(Integer::parseInt).orNull();
 
     // Credentials management
-    opts.credentialsKey = getAnyOption(CREDENTIALS_KEY_KEY, conf, tableParameters);
+    opts.credentialsKey = getOption(CREDENTIALS_KEY_KEY, conf);
     opts.credentialsFile =
         Optional.fromJavaUtil(
             firstPresent(
-                getAnyOption(CREDENTIALS_FILE_KEY, conf, tableParameters).toJavaUtil(),
+                getOption(CREDENTIALS_FILE_KEY, conf).toJavaUtil(),
                 Optional.fromNullable(conf.get(GCS_CONFIG_CREDENTIALS_FILE_PROPERTY))
                     .toJavaUtil()));
-    opts.accessToken = getAnyOption(ACCESS_TOKEN_KEY, conf, tableParameters);
-    opts.accessTokenProviderFQCN =
-        getAnyOption(ACCESS_TOKEN_PROVIDER_FQCN_KEY, conf, tableParameters);
-    opts.accessTokenProviderConfig =
-        getAnyOption(ACCESS_TOKEN_PROVIDER_CONFIG_KEY, conf, tableParameters);
+    opts.accessToken = getOption(ACCESS_TOKEN_KEY, conf);
+    opts.accessTokenProviderFQCN = getOption(ACCESS_TOKEN_PROVIDER_FQCN_KEY, conf);
+    opts.accessTokenProviderConfig = getOption(ACCESS_TOKEN_PROVIDER_CONFIG_KEY, conf);
     try {
       UserGroupInformation ugiCurrentUser = UserGroupInformation.getCurrentUser();
       opts.loggedInUserName = ugiCurrentUser.getShortUserName();
@@ -318,41 +309,47 @@ public class HiveBigQueryConfig
       throw new BigQueryConnectorException(
           "Failed to get the UserGroupInformation current user", e);
     }
-    opts.impersonationServiceAccount =
-        getAnyOption(IMPERSONATE_SERVICE_ACCOUNT, conf, tableParameters);
+    opts.impersonationServiceAccount = getOption(IMPERSONATE_SERVICE_ACCOUNT, conf);
     opts.impersonationServiceAccountsForUsers =
         removePrefixFromMapKeys(
-            getAnyOptionsWithPrefix(confAsMap, tableParameters, IMPERSONATE_FOR_USER_PREFIX),
+            getAnyOptionsWithPrefix(confAsMap, emptyMap, IMPERSONATE_FOR_USER_PREFIX),
             IMPERSONATE_FOR_USER_PREFIX);
     opts.impersonationServiceAccountsForGroups =
         removePrefixFromMapKeys(
-            getAnyOptionsWithPrefix(confAsMap, tableParameters, IMPERSONATE_FOR_GROUP_PREFIX),
+            getAnyOptionsWithPrefix(confAsMap, emptyMap, IMPERSONATE_FOR_GROUP_PREFIX),
             IMPERSONATE_FOR_GROUP_PREFIX);
+
+    // BigQuery Table ID
+    Optional<String> bqTable = getOption(TABLE_KEY, tableParameters, conf);
+    if (bqTable.isPresent()) {
+      opts.tableId = BigQueryUtil.parseTableId(bqTable.get());
+    }
 
     // Partitioning and clustering
     opts.partitionType =
-        getAnyOption(TIME_PARTITION_TYPE_KEY, conf, tableParameters)
+        getOption(TIME_PARTITION_TYPE_KEY, tableParameters, conf)
+            .transform(String::toUpperCase)
             .transform(TimePartitioning.Type::valueOf);
-    opts.partitionField = getAnyOption(TIME_PARTITION_FIELD_KEY, conf, tableParameters);
+    opts.partitionField = getOption(TIME_PARTITION_FIELD_KEY, tableParameters, conf);
     opts.partitionExpirationMs =
-        getAnyOption(TIME_PARTITION_EXPIRATION_KEY, conf, tableParameters)
+        getOption(TIME_PARTITION_EXPIRATION_KEY, tableParameters, conf)
             .transform(Long::valueOf)
             .orNull();
     opts.partitionRequireFilter =
-        getAnyOption(TIME_PARTITION_REQUIRE_FILTER_KEY, conf, tableParameters)
+        getOption(TIME_PARTITION_REQUIRE_FILTER_KEY, tableParameters, conf)
             .transform(Boolean::valueOf);
     opts.clusteredFields =
-        getAnyOption(CLUSTERED_FIELDS_KEY, conf, tableParameters).transform(s -> s.split(","));
+        getOption(CLUSTERED_FIELDS_KEY, tableParameters, conf).transform(s -> s.split(","));
 
     // Misc
     opts.flowControlWindowBytes =
-        getAnyOption(FLOW_CONTROL_WINDOW_BYTES_KEY, conf, tableParameters)
-            .transform(Integer::parseInt);
+        getOption(FLOW_CONTROL_WINDOW_BYTES_KEY, conf).transform(Integer::parseInt);
     opts.queryJobPriority =
-        getAnyOption(QUERY_JOB_PRIORITY_KEY, conf, tableParameters)
+        getOption(QUERY_JOB_PRIORITY_KEY, conf)
             .transform(String::toUpperCase)
             .transform(Priority::valueOf)
             .or(DEFAULT_JOB_PRIORITY);
+    opts.gpn = getOption(GPN_ATTRIBUTION, conf);
 
     return opts;
   }
@@ -368,7 +365,7 @@ public class HiveBigQueryConfig
 
   @Override
   public java.util.Optional<CreateDisposition> getCreateDisposition() {
-    return java.util.Optional.empty();
+    return createDisposition.toJavaUtil();
   }
 
   @Override
@@ -380,6 +377,11 @@ public class HiveBigQueryConfig
   @Override
   public java.util.Optional<TimePartitioning.Type> getPartitionType() {
     return partitionType.toJavaUtil();
+  }
+
+  @Override
+  public java.util.Optional<Range> getPartitionRange() {
+    return java.util.Optional.empty();
   }
 
   @Override
@@ -565,8 +567,17 @@ public class HiveBigQueryConfig
   }
 
   @Override
+  public long getBigQueryJobTimeoutInMinutes() {
+    return BIGQUERY_JOB_TIMEOUT_IN_MINUTES_DEFAULT; // TODO: Make configurable
+  }
+
+  public boolean isWriteAtLeastOnce() {
+    return writeAtLeastOnce;
+  }
+
+  @Override
   public int getChannelPoolSize() {
-    return 1;
+    return 1; // TODO: Make configurable
   }
 
   public OptionalInt getMaxParallelism() {
@@ -579,8 +590,8 @@ public class HiveBigQueryConfig
         : OptionalInt.of(preferredMinParallelism);
   }
 
-  public Optional<String> getTraceId() {
-    return traceId;
+  public java.util.Optional<String> getTraceId() {
+    return traceId.toJavaUtil();
   }
 
   public String getWriteMethod() {
@@ -615,27 +626,12 @@ public class HiveBigQueryConfig
         .build();
   }
 
-  public static String getWriteMethod(Configuration conf, Properties properties) {
+  public static String getWriteMethod(Configuration conf) {
     String writeMethod =
-        getAnyOption(HiveBigQueryConfig.WRITE_METHOD_KEY, conf, properties)
-            .or(WRITE_METHOD_DIRECT)
-            .toLowerCase();
+        getOption(HiveBigQueryConfig.WRITE_METHOD_KEY, conf).or(WRITE_METHOD_DIRECT).toLowerCase();
     if (!writeMethod.equals(WRITE_METHOD_DIRECT) && !writeMethod.equals(WRITE_METHOD_INDIRECT)) {
       throw new IllegalArgumentException("Invalid write method: " + writeMethod);
     }
-    ;
-    return writeMethod;
-  }
-
-  public static String getWriteMethod(Configuration conf, Map<String, String> parameters) {
-    String writeMethod =
-        getAnyOption(HiveBigQueryConfig.WRITE_METHOD_KEY, conf, parameters)
-            .or(WRITE_METHOD_DIRECT)
-            .toLowerCase();
-    if (!writeMethod.equals(WRITE_METHOD_DIRECT) && !writeMethod.equals(WRITE_METHOD_INDIRECT)) {
-      throw new IllegalArgumentException("Invalid write method: " + writeMethod);
-    }
-    ;
     return writeMethod;
   }
 
@@ -654,5 +650,9 @@ public class HiveBigQueryConfig
 
   public static String getTraceId(Configuration conf) {
     return "Hive:" + HiveUtils.getQueryId(conf);
+  }
+
+  public java.util.Optional<String> getGpn() {
+    return gpn.toJavaUtil();
   }
 }

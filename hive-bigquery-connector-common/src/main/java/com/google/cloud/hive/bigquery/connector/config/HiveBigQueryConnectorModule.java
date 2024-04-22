@@ -16,14 +16,17 @@
 package com.google.cloud.hive.bigquery.connector.config;
 
 import com.google.cloud.bigquery.connector.common.BigQueryConfig;
+import com.google.cloud.bigquery.connector.common.BigQueryJobCompletionListener;
+import com.google.cloud.bigquery.connector.common.EnvironmentContext;
 import com.google.cloud.bigquery.connector.common.UserAgentProvider;
-import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 
@@ -66,6 +69,20 @@ public class HiveBigQueryConnectorModule implements Module {
   @Singleton
   @Provides
   public UserAgentProvider provideUserAgentProvider() {
-    return new HiveBigQueryConnectorUserAgentProvider(HiveUtils.getQueryId(conf));
+    return new HiveBigQueryConnectorUserAgentProvider(provideHiveBigQueryConfig().getGpn());
+  }
+
+  @Singleton
+  @Provides
+  public EnvironmentContext provideEnvironmentContext() {
+    // TODO?
+    return new EnvironmentContext(ImmutableMap.of());
+  }
+
+  @Singleton
+  @Provides
+  public BigQueryJobCompletionListener provideBigQueryJobCompletionListener() {
+    // TODO?
+    return completedJob -> Optional.empty();
   }
 }

@@ -70,7 +70,12 @@ public class IndirectOutputCommitter {
       LOG.info("Loading avroFiles [ " + Joiner.on(",").join(avroFiles) + "]");
       // Load the Avro files into BigQuery
       bqClient.loadDataIntoTable(
-          opts, avroFiles, formatOptions, writeDisposition, Optional.empty());
+          opts,
+          avroFiles,
+          formatOptions,
+          writeDisposition,
+          Optional.empty(),
+          jobDetails.getTableId());
     }
   }
 }
