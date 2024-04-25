@@ -15,17 +15,12 @@
  */
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
-import com.google.common.base.Preconditions;
 import org.apache.parquet.Strings;
 
 public class AcceptanceTestConstants {
 
   public static final String REGION = "us-west1";
   public static final String DATAPROC_ENDPOINT = REGION + "-dataproc.googleapis.com:443";
-  public static final String PROJECT_ID =
-      Preconditions.checkNotNull(
-          System.getenv("GOOGLE_CLOUD_PROJECT"),
-          "Please set the 'GOOGLE_CLOUD_PROJECT' environment variable");
 
   public static final boolean CLEAN_UP_CLUSTER =
       Strings.isNullOrEmpty(System.getenv("CLEAN_UP_CLUSTER"))
@@ -41,7 +36,7 @@ public class AcceptanceTestConstants {
           : Boolean.parseBoolean(System.getenv("CLEAN_UP_GCS"));
 
   public static final String CONNECTOR_JAR_DIRECTORY = "target";
-  public static final String CONNECTOR_JAR_PREFIX = "hive-bigquery-connector";
+  public static final String CONNECTOR_JAR_PREFIX = "hive-3-bigquery-connector";
   public static final String CONNECTOR_INIT_ACTION_PATH = "/acceptance/connectors.sh";
 
   public static final String MIN_BIG_NUMERIC =

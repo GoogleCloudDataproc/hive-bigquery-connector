@@ -859,13 +859,13 @@ modules, you can break it down into several steps, and only rerun the necessary 
 
 ```sh
 # Install hive-bigquery-parent/pom.xml to Maven local repo
-mvn install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
+./mvnw install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
 
 # Build and install shaded-dependencies and shaded-test-dependencies jars to Maven local repo
-mvn clean install -pl shaded-dependencies,shaded-test-dependencies -Pdataproc21 -DskipTests
+./mvnw clean install -pl shaded-deps-dataproc21,shaded-acceptance-tests-dependencies -Pdataproc21 -DskipTests
 
-# Build and test connector
-mvn clean verify -pl connector -Pdataproc21,acceptance
+# Build and test the connector
+./mvnw clean verify -pl hive-bigquery-connector-common,hive-3-bigquery-connector -Pdataproc21,acceptance
 ```
 
 ##### Running the tests for different Hadoop versions

@@ -23,7 +23,6 @@ import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTest
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_DIRECTORY;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.CONNECTOR_JAR_PREFIX;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.DATAPROC_ENDPOINT;
-import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.PROJECT_ID;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestConstants.REGION;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.createBqDataset;
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.deleteBqDatasetAndTables;
@@ -34,16 +33,11 @@ import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTest
 import static com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.uploadConnectorJar;
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.hive.bigquery.connector.acceptance.AcceptanceTestUtils.ClusterProperty;
-import com.google.common.collect.ImmutableList;
+import com.google.cloud.hive.bigquery.connector.TestUtils;
 import com.google.common.collect.ImmutableMap;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.junit.Test;
 import test.hivebqcon.com.google.cloud.dataproc.v1.Cluster;
 import test.hivebqcon.com.google.cloud.dataproc.v1.ClusterConfig;
@@ -61,12 +55,7 @@ import test.hivebqcon.com.google.cloud.dataproc.v1.JobStatus;
 import test.hivebqcon.com.google.cloud.dataproc.v1.NodeInitializationAction;
 import test.hivebqcon.com.google.cloud.dataproc.v1.SoftwareConfig;
 
-public class DataprocAcceptanceTestBase {
-
-  protected static final ClusterProperty DISABLE_CONSCRYPT =
-      ClusterProperty.of("dataproc:dataproc.conscrypt.provider.enable", "false", "nc");
-  protected static final ImmutableList<ClusterProperty> DISABLE_CONSCRYPT_LIST =
-      ImmutableList.<ClusterProperty>builder().add(DISABLE_CONSCRYPT).build();
+public abstract class DataprocAcceptanceTestBase {
 
   private AcceptanceTestContext context;
 
@@ -75,20 +64,12 @@ public class DataprocAcceptanceTestBase {
   }
 
   protected static AcceptanceTestContext setup(String dataprocImageVersion) throws Exception {
-    return setup(dataprocImageVersion, Collections.emptyList());
-  }
-
-  protected static AcceptanceTestContext setup(
-      String dataprocImageVersion, List<ClusterProperty> clusterProperties) throws Exception {
-    String testId = generateTestId(dataprocImageVersion, clusterProperties);
+    String testId = generateTestId(dataprocImageVersion);
     String clusterName = generateClusterName(testId);
     String testBaseGcsDir = AcceptanceTestUtils.createTestBaseGcsDir(testId);
     String connectorJarUri = testBaseGcsDir + "/connector.jar";
     String connectorInitActionUri = testBaseGcsDir + "/connectors.sh";
-    Map<String, String> properties =
-        clusterProperties.stream()
-            .collect(Collectors.toMap(ClusterProperty::getKey, ClusterProperty::getValue));
-    String bqProject = PROJECT_ID;
+    String bqProject = TestUtils.getProject();
     String bqDataset = "hivebq_test_dataset_" + testId.replace("-", "_");
     String bqTable = "hivebq_test_table_" + testId.replace("-", "_");
 
@@ -99,12 +80,7 @@ public class DataprocAcceptanceTestBase {
     createBqDataset(bqProject, bqDataset);
 
     createClusterIfNeeded(
-        clusterName,
-        dataprocImageVersion,
-        testId,
-        properties,
-        connectorJarUri,
-        connectorInitActionUri);
+        clusterName, dataprocImageVersion, connectorJarUri, connectorInitActionUri);
 
     AcceptanceTestContext testContext =
         new AcceptanceTestContext(
@@ -155,22 +131,20 @@ public class DataprocAcceptanceTestBase {
   protected static void createClusterIfNeeded(
       String clusterName,
       String dataprocImageVersion,
-      String testId,
-      Map<String, String> properties,
       String connectorJarUri,
       String connectorInitActionUri)
       throws Exception {
     Cluster clusterSpec =
         createClusterSpec(
-            clusterName, dataprocImageVersion, properties, connectorJarUri, connectorInitActionUri);
+            clusterName, dataprocImageVersion, connectorJarUri, connectorInitActionUri);
     System.out.println("Cluster spec:\n" + clusterSpec);
     System.out.println("Creating cluster " + clusterName + " ...");
-    cluster(client -> client.createClusterAsync(PROJECT_ID, REGION, clusterSpec).get());
+    cluster(client -> client.createClusterAsync(TestUtils.getProject(), REGION, clusterSpec).get());
   }
 
   protected static void deleteCluster(String clusterName) throws Exception {
     System.out.println("Deleting cluster " + clusterName + " ...");
-    cluster(client -> client.deleteClusterAsync(PROJECT_ID, REGION, clusterName).get());
+    cluster(client -> client.deleteClusterAsync(TestUtils.getProject(), REGION, clusterName).get());
   }
 
   private static void cluster(ThrowingConsumer<ClusterControllerClient> command) throws Exception {
@@ -184,12 +158,11 @@ public class DataprocAcceptanceTestBase {
   private static Cluster createClusterSpec(
       String clusterName,
       String dataprocImageVersion,
-      Map<String, String> properties,
       String connectorJarUri,
       String connectorInitActionUri) {
     return Cluster.newBuilder()
         .setClusterName(clusterName)
-        .setProjectId(PROJECT_ID)
+        .setProjectId(TestUtils.getProject())
         .setConfig(
             ClusterConfig.newBuilder()
                 .addInitializationActions(
@@ -219,9 +192,7 @@ public class DataprocAcceptanceTestBase {
                                 .setBootDiskSizeGb(300)
                                 .setNumLocalSsds(0)))
                 .setSoftwareConfig(
-                    SoftwareConfig.newBuilder()
-                        .setImageVersion(dataprocImageVersion)
-                        .putAllProperties(properties)))
+                    SoftwareConfig.newBuilder().setImageVersion(dataprocImageVersion)))
         .build();
   }
 
@@ -257,12 +228,13 @@ public class DataprocAcceptanceTestBase {
     try (JobControllerClient jobControllerClient =
         JobControllerClient.create(
             JobControllerSettings.newBuilder().setEndpoint(DATAPROC_ENDPOINT).build())) {
-      Job request = jobControllerClient.submitJob(PROJECT_ID, REGION, job);
+      Job request = jobControllerClient.submitJob(TestUtils.getProject(), REGION, job);
       String jobId = request.getReference().getJobId();
       System.err.println(String.format("%s job ID: %s", testName, jobId));
       CompletableFuture<Job> finishedJobFuture =
           CompletableFuture.supplyAsync(
-              () -> waitForJobCompletion(jobControllerClient, PROJECT_ID, REGION, jobId));
+              () ->
+                  waitForJobCompletion(jobControllerClient, TestUtils.getProject(), REGION, jobId));
       Job jobInfo = finishedJobFuture.get(timeout.getSeconds(), TimeUnit.SECONDS);
       return jobInfo;
     }
@@ -289,12 +261,14 @@ public class DataprocAcceptanceTestBase {
     }
   }
 
-  void verifyJobSuceeded(Job job) throws Exception {
+  void verifyJobSucceeded(Job job) throws Exception {
     String driverOutput =
         AcceptanceTestUtils.readGcsFile(job.getDriverControlFilesUri() + "driveroutput.000000000");
     System.out.println("Driver output: " + driverOutput);
     System.out.println("Job status: " + job.getStatus().getState());
-    assertThat(job.getStatus().getState()).isEqualTo(JobStatus.State.DONE);
+    if (job.getStatus().getState() != JobStatus.State.DONE) {
+      throw new AssertionError(job.getStatus().getDetails());
+    }
   }
 
   void verifyJobOutput(String outputDirUri, String expectedOutput) throws Exception {
@@ -314,7 +288,7 @@ public class DataprocAcceptanceTestBase {
             outputDirUri,
             Duration.ofSeconds(ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS));
 
-    verifyJobSuceeded(result);
+    verifyJobSucceeded(result);
     verifyJobOutput(outputDirUri, "345,world");
   }
 
@@ -330,7 +304,7 @@ public class DataprocAcceptanceTestBase {
             outputDirUri,
             Duration.ofSeconds(ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS));
 
-    verifyJobSuceeded(result);
+    verifyJobSucceeded(result);
     verifyJobOutput(outputDirUri, "king,1191");
   }
 }

@@ -22,6 +22,7 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.hive.bigquery.connector.TestUtils;
 import com.google.cloud.storage.*;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
@@ -39,9 +40,7 @@ import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.List;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public class AcceptanceTestUtils {
@@ -75,7 +74,7 @@ public class AcceptanceTestUtils {
   }
 
   // must be set in order to run the acceptance test
-  static final String BUCKET = System.getenv("ACCEPTANCE_TEST_BUCKET");
+  static final String ACCEPTANCE_TEST_BUCKET_VAR = "ACCEPTANCE_TEST_BUCKET";
   private static final BigQuery bq = BigQueryOptions.getDefaultInstance().getService();
 
   static Storage storage =
@@ -163,8 +162,13 @@ public class AcceptanceTestUtils {
     return blobId;
   }
 
+  public static String getAcceptanceTestBucket() {
+    return System.getenv()
+        .getOrDefault(ACCEPTANCE_TEST_BUCKET_VAR, TestUtils.getProject() + "-acceptance-tests");
+  }
+
   public static String createTestBaseGcsDir(String testId) {
-    return String.format("gs://%s/hivebq-tests/%s", BUCKET, testId);
+    return String.format("gs://%s/hivebq-tests/%s", getAcceptanceTestBucket(), testId);
   }
 
   public static Blob getBlob(String gcsDirUri, String fileSuffix) throws URISyntaxException {
@@ -242,23 +246,10 @@ public class AcceptanceTestUtils {
         DataprocAcceptanceTestBase.class.getResourceAsStream(resourcePath), gcsUri, "text/x-bash");
   }
 
-  public static String generateTestId(
-      String dataprocImageVersion, List<ClusterProperty> clusterProperties) {
-    String clusterPropertiesMarkers =
-        clusterProperties.isEmpty()
-            ? ""
-            : clusterProperties.stream()
-                .map(ClusterProperty::getMarker)
-                .collect(Collectors.joining("-", "-", ""));
+  public static String generateTestId(String dataprocImageVersion) {
     String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-    String testId =
-        String.format(
-            "%s-%s%s%s",
-            timestamp,
-            dataprocImageVersion.charAt(0),
-            dataprocImageVersion.charAt(2),
-            clusterPropertiesMarkers);
-    return testId;
+    return String.format(
+        "%s-%s%s", timestamp, dataprocImageVersion.charAt(0), dataprocImageVersion.charAt(2));
   }
 
   public static String generateClusterName(String testId) {
