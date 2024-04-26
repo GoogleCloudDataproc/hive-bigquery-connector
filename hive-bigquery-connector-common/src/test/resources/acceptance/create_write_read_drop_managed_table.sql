@@ -5,7 +5,7 @@ CREATE TABLE ${HIVE_TEST_TABLE} (
   name STRING)
 STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
-  'bq.table'='${BQ_PROJECT}.${BQ_DATASET}.${BQ_TABLE}'
+  'bq.table'='${BQ_PROJECT}.${BQ_DATASET}.${HIVE_TEST_TABLE}'
 );
 
 -- Write data to Hive BQ table.

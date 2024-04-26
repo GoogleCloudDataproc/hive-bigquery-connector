@@ -28,15 +28,12 @@ import org.apache.hadoop.conf.Configuration;
 public class OutputCommitterUtils {
 
   public static void commitJob(Configuration conf, JobDetails jobDetails) throws IOException {
-    try {
-      if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-        DirectOutputCommitter.commitJob(conf, jobDetails);
-      } else {
-        IndirectOutputCommitter.commitJob(conf, jobDetails);
-      }
-    } finally {
-      jobDetails.cleanUp(conf);
+    if (jobDetails.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
+      DirectOutputCommitter.commitJob(conf, jobDetails);
+    } else {
+      IndirectOutputCommitter.commitJob(conf, jobDetails);
     }
+    jobDetails.cleanUp(conf);
   }
 
   public static void commitJob(Configuration conf) throws IOException {

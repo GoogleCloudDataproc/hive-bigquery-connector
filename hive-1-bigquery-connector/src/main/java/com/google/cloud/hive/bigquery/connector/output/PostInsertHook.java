@@ -41,7 +41,14 @@ public class PostInsertHook implements ExecuteWithHookContext {
               .equals("com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler")) {
         String tableName = HiveUtils.getDbTableName(entity.getTable());
         BigQueryMetaHook metahook = new BigQueryMetaHook(hookContext.getConf());
-        metahook.commitInsertTable(tableName);
+        try {
+          metahook.commitInsertTable(tableName);
+        } catch (Exception e) {
+          // Clean things up
+          OutputCommitterUtils.abortJob(hookContext.getConf(), tableName);
+          // Re-throw the original exception
+          throw new RuntimeException(e);
+        }
       }
     }
   }

@@ -65,11 +65,9 @@ public class HiveUtils {
       // In this case, the user is running a plain Hive query directly from Hive itself.
       return "hive-query-id-" + hiveQueryId;
     }
-    if (conf.get("pig.script.id") != null) {
-      // The user is running a Hive query from Pig. Use the job's timestamp as a pig script might
-      // run multiple jobs.
-      return String.format(
-          "pig-%s-%s", conf.get("pig.script.id"), conf.get("pig.job.submitted.timestamp"));
+    if (conf.get("mapreduce.workflow.id") != null) {
+      // Map reduce job, possibly from Pig
+      return String.format("mapreduce-%s", conf.get("mapreduce.workflow.id"));
     }
     throw new RuntimeException("No query id found in Hadoop conf");
   }

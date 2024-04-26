@@ -24,7 +24,6 @@ public class AcceptanceTestContext {
   final String connectorInitActionUri;
   final String bqProject;
   final String bqDataset;
-  final String bqTable;
 
   public AcceptanceTestContext(
       String testId,
@@ -34,8 +33,7 @@ public class AcceptanceTestContext {
       String connectorJarUri,
       String connectorInitActionUri,
       String bqProject,
-      String bqDataset,
-      String bqTable) {
+      String bqDataset) {
     this.testId = testId;
     this.dataprocImageVersion = dataprocImageVersion;
     this.clusterId = clusterId;
@@ -44,7 +42,6 @@ public class AcceptanceTestContext {
     this.connectorInitActionUri = connectorInitActionUri;
     this.bqProject = bqProject;
     this.bqDataset = bqDataset;
-    this.bqTable = bqTable;
   }
 
   public String getFileUri(String testName, String filename) {
@@ -57,16 +54,15 @@ public class AcceptanceTestContext {
 
   @Override
   public String toString() {
-    return new StringBuilder()
-        .append("testId: " + testId + "\n")
-        .append("dataprocImageVersion: " + dataprocImageVersion + "\n")
-        .append("clusterId: " + clusterId + "\n")
-        .append("testBaseGcsDir: " + testBaseGcsDir + "\n")
-        .append("connectorJarUri: " + connectorJarUri + "\n")
-        .append("connectorInitActionUri: " + connectorInitActionUri + "\n")
-        .append("projectId: " + bqProject + "\n")
-        .append("bqDataset: " + bqDataset + "\n")
-        .append("bqTable: " + bqTable + "\n")
-        .toString();
+    return String.join(
+        "\n",
+        "testId: " + testId,
+        "dataprocImageVersion: " + dataprocImageVersion,
+        "clusterId: " + clusterId,
+        "testBaseGcsDir: " + testBaseGcsDir,
+        "connectorJarUri: " + connectorJarUri,
+        "connectorInitActionUri: " + connectorInitActionUri,
+        "projectId: " + bqProject,
+        "bqDataset: " + bqDataset);
   }
 }

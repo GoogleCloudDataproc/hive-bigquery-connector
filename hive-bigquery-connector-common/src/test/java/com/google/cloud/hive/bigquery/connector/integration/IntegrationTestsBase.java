@@ -316,7 +316,6 @@ public abstract class IntegrationTestsBase {
     System.getProperties()
         .setProperty(
             "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
-    System.getProperties().setProperty("datanucleus.autoStartMechanismMode", "ignored");
 
     // This is needed to avoid an odd exception when running the tests with Tez and Hadoop 3.
     // Similar issue to what's described in https://issues.apache.org/jira/browse/HIVE-24734

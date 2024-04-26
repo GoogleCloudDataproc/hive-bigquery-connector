@@ -34,8 +34,7 @@ public class HiveUtilsTest {
   @Test
   public void testPigQueryId() {
     Configuration conf = new Configuration();
-    conf.set("pig.script.id", "abcd");
-    conf.set("pig.job.submitted.timestamp", "123456789");
-    assertEquals("pig-abcd-123456789", HiveUtils.getQueryId(conf));
+    conf.set("mapreduce.workflow.id", "abcd");
+    assertEquals("mapreduce-abcd", HiveUtils.getQueryId(conf));
   }
 }
