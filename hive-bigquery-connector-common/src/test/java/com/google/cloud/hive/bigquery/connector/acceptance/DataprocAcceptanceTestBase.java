@@ -201,27 +201,25 @@ public abstract class DataprocAcceptanceTestBase {
         .build();
   }
 
-  private Job createAndRunHiveJob(String testName, String queryFile, String outputDirUri)
-      throws Exception {
-    Job job = createHiveJob(testName, queryFile, outputDirUri);
+  private Job createAndRunHiveJob(String testName, String queryFile) throws Exception {
+    Job job = createHiveJob(testName, queryFile);
     System.out.print("Running hive job:\n" + job);
     return runAndWait(testName, job);
   }
 
-  private Job createAndRunPigJob(String testName, String queryFile, String outputDirUri)
-      throws Exception {
-    Job job = createPigJob(testName, queryFile, outputDirUri);
+  private Job createAndRunPigJob(String testName, String queryFile) throws Exception {
+    Job job = createPigJob(testName, queryFile);
     System.out.print("Running pig job:\n" + job);
     return runAndWait(testName, job);
   }
 
-  private Map<String, String> getTestScriptVariables(String testName, String outputTableDirUri) {
+  private Map<String, String> getTestScriptVariables(String testName) {
     return ImmutableMap.<String, String>builder()
         .put("BQ_PROJECT", context.bqProject)
         .put("BQ_DATASET", context.bqDataset)
         .put("HIVE_TEST_TABLE", testName.replaceAll("-", "_") + "_table")
         .put("HIVE_OUTPUT_TABLE", testName.replaceAll("-", "_") + "_output")
-        .put("HIVE_OUTPUT_DIR_URI", outputTableDirUri)
+        .put("HIVE_OUTPUT_DIR_URI", context.getOutputDirUri(testName))
         .build();
   }
 
@@ -231,26 +229,25 @@ public abstract class DataprocAcceptanceTestBase {
     return queryFileUri;
   }
 
-  private Job createHiveJob(String testName, String queryFile, String outputTableDirUri)
-      throws Exception {
+  private Job createHiveJob(String testName, String queryFile) throws Exception {
     String queryFileUri = uploadQueryFile(testName, queryFile);
     HiveJob.Builder hiveJobBuilder =
         HiveJob.newBuilder()
             .setQueryFileUri(queryFileUri)
-            .putAllScriptVariables(getTestScriptVariables(testName, outputTableDirUri));
+            .putAllScriptVariables(getTestScriptVariables(testName));
     return Job.newBuilder()
         .setPlacement(JobPlacement.newBuilder().setClusterName(context.clusterId))
         .setHiveJob(hiveJobBuilder)
         .build();
   }
 
-  private Job createPigJob(String testName, String queryFile, String outputTableDirUri)
-      throws Exception {
+  private Job createPigJob(String testName, String queryFile) throws Exception {
     String queryFileUri = uploadQueryFile(testName, queryFile);
     PigJob.Builder pigJobBuilder =
         PigJob.newBuilder()
+            .addJarFileUris("file:///usr/lib/hive/lib/datanucleus-core-5.2.2.jar")
             .setQueryFileUri(queryFileUri)
-            .putAllScriptVariables(getTestScriptVariables(testName, outputTableDirUri));
+            .putAllScriptVariables(getTestScriptVariables(testName));
     return Job.newBuilder()
         .setPlacement(JobPlacement.newBuilder().setClusterName(context.clusterId))
         .setPigJob(pigJobBuilder)
@@ -309,28 +306,36 @@ public abstract class DataprocAcceptanceTestBase {
   }
 
   @Test
-  public void testManagedTableCreateWriteReadDrop() throws Exception {
+  public void testWriteManagedTable() throws Exception {
     String testName = "test-hivebq-managed";
-    String outputDirUri = context.getOutputDirUri(testName);
-    Job job =
-        createAndRunHiveJob(testName, "create_write_read_drop_managed_table.sql", outputDirUri);
+    String table = testName.replaceAll("-", "_") + "_table";
+    Job job = createAndRunHiveJob(testName, "create_write_managed_table.sql");
     verifyJobSucceeded(job);
-    verifyGCSJobOutput(outputDirUri, "345,world");
+    // Wait a bit to give a chance for the committed writes to become readable
+    Thread.sleep(60000); // 1 minute
+    // Read the data using the BQ SDK
+    TableResult result =
+        TestUtils.getBigqueryClient()
+            .query(
+                String.format("SELECT * FROM `%s.%s` ORDER BY number", context.bqDataset, table));
+    // Verify we get the expected values
+    assertEquals(1, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    assertEquals(123L, rows.get(0).get(0).getLongValue());
+    assertEquals("hello", rows.get(0).get(1).getStringValue());
   }
 
   @Test
-  public void testExternalTable_CreateReadDrop() throws Exception {
+  public void testCreateReadDropExternalTable() throws Exception {
     String testName = "test-hivebq-external";
-    String outputDirUri = context.getOutputDirUri(testName);
-    Job job = createAndRunHiveJob(testName, "create_read_drop_external_table.sql", outputDirUri);
+    Job job = createAndRunHiveJob(testName, "create_read_drop_external_table.sql");
     verifyJobSucceeded(job);
-    verifyGCSJobOutput(outputDirUri, "king,1191");
+    verifyGCSJobOutput(context.getOutputDirUri(testName), "king,1191");
   }
 
   @Test
-  public void testPig() throws Exception {
+  public void testPigMRMode() throws Exception {
     String testName = "test-pig";
-    String outputDirUri = context.getOutputDirUri(testName);
     String sourceTable = testName.replaceAll("-", "_") + "_table";
     String destTable = testName.replaceAll("-", "_") + "_output";
     // Create the BQ tables
@@ -350,10 +355,10 @@ public abstract class DataprocAcceptanceTestBase {
                 "INSERT `%s.%s` VALUES (123, 'hello'), (789, 'abcd')",
                 context.bqDataset, sourceTable));
     // Create the external test Hive tables
-    Job hiveJob = createAndRunHiveJob(testName, "create_two_external_tables.sql", outputDirUri);
+    Job hiveJob = createAndRunHiveJob(testName, "create_two_external_tables.sql");
     verifyJobSucceeded(hiveJob);
     // Run a pig Job
-    Job pigJob = createAndRunPigJob(testName, "read_write.pig", outputDirUri);
+    Job pigJob = createAndRunPigJob(testName, "read_write.pig");
     verifyJobSucceeded(pigJob);
     // Wait a bit to give a chance for the committed writes to become readable
     Thread.sleep(60000); // 1 minute
@@ -371,4 +376,7 @@ public abstract class DataprocAcceptanceTestBase {
     assertEquals(789L, rows.get(1).get(0).getLongValue());
     assertEquals("abcd", rows.get(1).get(1).getStringValue());
   }
+
+  // TODO: Test Pig in Tez mode. Need a way to specify Tez as the Pig execution engine when
+  //  submitting the Dataproc Pig job.
 }

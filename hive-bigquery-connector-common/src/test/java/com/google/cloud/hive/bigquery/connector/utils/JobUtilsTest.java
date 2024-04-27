@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
-import com.google.cloud.hive.bigquery.connector.TestUtils;
 import com.google.cloud.hive.bigquery.connector.output.WriterRegistry;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
@@ -47,7 +46,7 @@ public class JobUtilsTest {
 
   @Test
   public void testGetWorkDir() {
-    Configuration conf = TestUtils.getMockHadoopConf();
+    Configuration conf = new Configuration();
     conf.set("hadoop.tmp.dir", "/tmp");
     Path path = JobUtils.getQueryWorkDir(conf);
     assertEquals("/tmp/hive-bq-hive-query-id-query123", path.toString());
@@ -58,7 +57,7 @@ public class JobUtilsTest {
 
   @Test
   public void testGetJobDetailsFilePath() {
-    Configuration conf = TestUtils.getMockHadoopConf();
+    Configuration conf = new Configuration();
     conf.set("hadoop.tmp.dir", "/tmp");
     String hmsDbTable = "default.mytable";
     Path jobDetailsFilePath = JobUtils.getJobDetailsFilePath(conf, hmsDbTable);
@@ -69,7 +68,7 @@ public class JobUtilsTest {
 
   @Test
   public void testGetTaskWriterOutputFile() {
-    Configuration conf = TestUtils.getMockHadoopConf();
+    Configuration conf = new Configuration();
     conf.set("hadoop.tmp.dir", "/hadoop-tmp/");
     JobDetails jobDetails = new JobDetails();
     jobDetails.setTableProperties(new Properties());
