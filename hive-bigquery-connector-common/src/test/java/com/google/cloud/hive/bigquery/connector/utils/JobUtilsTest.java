@@ -15,13 +15,13 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.text.MatchesPattern.matchesPattern;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hive.bigquery.connector.JobDetails;
 import com.google.cloud.hive.bigquery.connector.output.WriterRegistry;
+import com.google.common.truth.Truth;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -49,10 +49,10 @@ public class JobUtilsTest {
     Configuration conf = new Configuration();
     conf.set("hadoop.tmp.dir", "/tmp");
     Path path = JobUtils.getQueryWorkDir(conf);
-    assertEquals("/tmp/hive-bq-hive-query-id-query123", path.toString());
+    assertThat(path.toString()).matches("/tmp/hive-bq-custom-query-id-.*");
     conf.set("bq.work.dir.parent.path", "/my/workdir");
     path = JobUtils.getQueryWorkDir(conf);
-    assertEquals("/my/workdir/hive-bq-hive-query-id-query123", path.toString());
+    assertThat(path.toString()).matches("/my/workdir/hive-bq-custom-query-id-.*");
   }
 
   @Test
@@ -61,9 +61,8 @@ public class JobUtilsTest {
     conf.set("hadoop.tmp.dir", "/tmp");
     String hmsDbTable = "default.mytable";
     Path jobDetailsFilePath = JobUtils.getJobDetailsFilePath(conf, hmsDbTable);
-    assertEquals(
-        "/tmp/hive-bq-hive-query-id-query123/default.mytable/job-details.json",
-        jobDetailsFilePath.toString());
+    Truth.assertThat(jobDetailsFilePath.toString())
+        .matches("/tmp/hive-bq-custom-query-id-.*/default\\.mytable/job-details\\.json");
   }
 
   @Test
@@ -79,7 +78,7 @@ public class JobUtilsTest {
     String writerId = WriterRegistry.getWriterId();
     Path path = JobUtils.getTaskWriterOutputFile(conf, jobDetails, taskAttemptID, writerId, "jpeg");
     String pattern =
-        "^/hadoop-tmp/hive-bq-hive-query-id-query123/default.mytable/myproject_mydataset_mytable_abcd1234_w\\d+\\.jpeg";
-    assertThat(path.toString(), matchesPattern(pattern));
+        "^/hadoop-tmp/hive-bq-custom-query-id-.*/default.mytable/myproject_mydataset_mytable_abcd1234_w\\d+\\.jpeg";
+    assertThat(path.toString()).matches(pattern);
   }
 }
