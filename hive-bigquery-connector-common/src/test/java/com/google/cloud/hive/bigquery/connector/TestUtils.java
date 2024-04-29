@@ -253,8 +253,10 @@ public class TestUtils {
   }
 
   public static void dropBqTableIfExists(String dataset, String table) {
-    TableId tableId = TableId.of(dataset, table);
-    getBigqueryClient().deleteTable(tableId);
+    TableId tableId = TableId.of(getProject(), dataset, table);
+    if (getBigqueryClient().tableExists(tableId)) {
+      getBigqueryClient().deleteTable(tableId);
+    }
   }
 
   public static boolean bQTableExists(String dataset, String tableName) {
