@@ -108,7 +108,7 @@ public abstract class BigQueryStorageHandlerBase
 
   @Override
   public void setConf(Configuration configuration) {
-    this.conf = configuration;
+    conf = configuration;
     String engine = HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_EXECUTION_ENGINE).toLowerCase();
     if (engine.equals("tez")) {
       // Tez does not use OutputCommitter. So we set up a failure hook to
@@ -214,7 +214,8 @@ public abstract class BigQueryStorageHandlerBase
     Properties tableProperties = tableDesc.getProperties();
 
     // Special treatment for HCatalog
-    if (conf.get("mapreduce.lib.hcatoutput.id") != null && conf.get("hcat.output.schema") == null) {
+    if (conf.get(HCatalogUtils.HCAT_OUTPUT_ID_HASH) != null
+        && conf.get(HCatalogUtils.HCAT_OUTPUT_SCHEMA) == null) {
       registerOutputTable(tableDesc);
       // In this case, we're missing too much information to proceed. For example, somehow the
       // `pig.script.id` conf property is missing if you're using Pig.

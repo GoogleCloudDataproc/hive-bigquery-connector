@@ -15,8 +15,11 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.hive;
 
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
+import com.google.cloud.hive.bigquery.connector.utils.hcatalog.HCatalogUtils;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
@@ -60,18 +63,29 @@ public class HiveUtils {
 
   /** Returns the query's unique id. */
   public static String getQueryId(Configuration conf) {
-    String hiveQueryId = conf.get(ConfVars.HIVEQUERYID.varname);
-    if (hiveQueryId != null) {
-      // In this case, the user is running a plain Hive query directly from Hive itself.
-      return "hive-query-id-" + hiveQueryId;
+    if (!conf.get(HiveBigQueryConfig.QUERY_ID, "").isEmpty()) {
+      return conf.get(HiveBigQueryConfig.QUERY_ID);
     }
-    if (conf.get("pig.script.id") != null) {
+    if (!conf.get(ConfVars.HIVEQUERYID.varname, "").isEmpty()) {
+      // In this case, the user is running a plain Hive query directly from Hive itself.
+      return "hive-query-id-" + conf.get(ConfVars.HIVEQUERYID.varname);
+    } else if (!conf.get("pig.script.id", "").isEmpty()
+        && !conf.get("pig.job.submitted.timestamp", "").isEmpty()) {
       // The user is running a Hive query from Pig. Use the job's timestamp as a pig script might
       // run multiple jobs.
       return String.format(
           "pig-%s-%s", conf.get("pig.script.id"), conf.get("pig.job.submitted.timestamp"));
+    } else if (!conf.get(HCatalogUtils.HCAT_OUTPUT_ID_HASH, "").isEmpty()) {
+      // Possibly from Pig in Tez mode in some environments (e.g. Dataproc)
+      return String.format("hcat-output-%s", conf.get(HCatalogUtils.HCAT_OUTPUT_ID_HASH));
+    } else if (!conf.get("mapreduce.workflow.id", "").isEmpty()) {
+      // Map reduce job, possibly from Pig in MR mode in some environments (e.g. Dataproc)
+      return String.format("mapreduce-%s", conf.get("mapreduce.workflow.id"));
     }
-    throw new RuntimeException("No query id found in Hadoop conf");
+    // Fall back: generate our own ID
+    String queryId = String.format("custom-query-id-%s", UUID.randomUUID());
+    conf.set(HiveBigQueryConfig.QUERY_ID, queryId);
+    return queryId;
   }
 
   public static String getDbTableName(Table table) {

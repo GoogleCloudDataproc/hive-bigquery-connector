@@ -32,6 +32,8 @@ import org.apache.hive.hcatalog.mapreduce.InputJobInfo;
 import org.apache.hive.hcatalog.mapreduce.OutputJobInfo;
 
 public class HCatalogUtils {
+  public static final String HCAT_OUTPUT_ID_HASH = "mapreduce.lib.hcatoutput.id";
+  public static final String HCAT_OUTPUT_SCHEMA = "hcat.output.schema";
 
   public static boolean isHCatalogInputJob(Configuration conf) {
     return conf.get(HCatConstants.HCAT_KEY_JOB_INFO, "").trim().length() > 0;

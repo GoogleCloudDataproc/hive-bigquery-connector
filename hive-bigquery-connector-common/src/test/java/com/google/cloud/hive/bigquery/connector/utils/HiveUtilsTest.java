@@ -25,8 +25,6 @@ public class HiveUtilsTest {
   @Test
   public void testHiveQueryId() {
     Configuration conf = new Configuration();
-    Throwable exception = assertThrows(RuntimeException.class, () -> HiveUtils.getQueryId(conf));
-    assertEquals("No query id found in Hadoop conf", exception.getMessage());
     conf.set("hive.query.id", "abcd");
     assertEquals("hive-query-id-abcd", HiveUtils.getQueryId(conf));
   }
@@ -35,7 +33,21 @@ public class HiveUtilsTest {
   public void testPigQueryId() {
     Configuration conf = new Configuration();
     conf.set("pig.script.id", "abcd");
-    conf.set("pig.job.submitted.timestamp", "123456789");
-    assertEquals("pig-abcd-123456789", HiveUtils.getQueryId(conf));
+    conf.set("pig.job.submitted.timestamp", "999");
+    assertEquals("pig-abcd-999", HiveUtils.getQueryId(conf));
+  }
+
+  @Test
+  public void testMapreduceQueryId() {
+    Configuration conf = new Configuration();
+    conf.set("mapreduce.workflow.id", "abcd");
+    assertEquals("mapreduce-abcd", HiveUtils.getQueryId(conf));
+  }
+
+  @Test
+  public void testHCatQueryId() {
+    Configuration conf = new Configuration();
+    conf.set("mapreduce.lib.hcatoutput.id", "abcd");
+    assertEquals("hcat-output-abcd", HiveUtils.getQueryId(conf));
   }
 }

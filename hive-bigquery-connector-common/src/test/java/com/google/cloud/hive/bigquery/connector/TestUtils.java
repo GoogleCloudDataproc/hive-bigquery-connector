@@ -158,12 +158,6 @@ public class TestUtils {
 
   public static String HIVE_INGESTION_TIME_PARTITIONED_PROPS = "'bq.time.partition.type'='DAY'";
 
-  public static Configuration getMockHadoopConf() {
-    Configuration conf = new Configuration();
-    conf.set("hive.query.id", "query123");
-    return conf;
-  }
-
   /** Return Hive config values passed from system properties */
   public static Map<String, String> getHiveConfSystemOverrides() {
     Map<String, String> overrides = new HashMap<>();
@@ -178,7 +172,7 @@ public class TestUtils {
   }
 
   private static com.google.auth.Credentials getCredentials() {
-    Configuration conf = getMockHadoopConf();
+    Configuration conf = new Configuration();
     Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
     for (String key : hiveConfSystemOverrides.keySet()) {
       conf.set(key, hiveConfSystemOverrides.get(key));
@@ -191,7 +185,7 @@ public class TestUtils {
   }
 
   public static BigQueryClient getBigqueryClient() {
-    Configuration conf = getMockHadoopConf();
+    Configuration conf = new Configuration();
     Map<String, String> hiveConfSystemOverrides = getHiveConfSystemOverrides();
     for (String key : hiveConfSystemOverrides.keySet()) {
       conf.set(key, hiveConfSystemOverrides.get(key));
@@ -259,8 +253,10 @@ public class TestUtils {
   }
 
   public static void dropBqTableIfExists(String dataset, String table) {
-    TableId tableId = TableId.of(dataset, table);
-    getBigqueryClient().deleteTable(tableId);
+    TableId tableId = TableId.of(getProject(), dataset, table);
+    if (getBigqueryClient().tableExists(tableId)) {
+      getBigqueryClient().deleteTable(tableId);
+    }
   }
 
   public static boolean bQTableExists(String dataset, String tableName) {
