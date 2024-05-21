@@ -261,7 +261,7 @@ TBLPROPERTIES (
 Check out the official BigQuery documentation about [Clustering](https://cloud.google.com/bigquery/docs/clustered-tables)
 to learn more.
 
-## Tables properties
+## Table properties
 
 You can use the following properties in the `TBLPROPERTIES` clause when you create a new table:
 

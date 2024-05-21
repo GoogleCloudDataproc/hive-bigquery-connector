@@ -26,6 +26,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -38,9 +39,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JobUtils {
-
   static Pattern gcsUriPattern = Pattern.compile("gs://([^/]*)(.*)?");
   private static final Logger LOG = LoggerFactory.getLogger(JobUtils.class);
+  public static final Properties BUILD_PROPERTIES = loadBuildProperties();
+  public static final String CONNECTOR_VERSION = BUILD_PROPERTIES.getProperty("connector.version");
+
+  private static Properties loadBuildProperties() {
+    try {
+      Properties buildProperties = new Properties();
+      buildProperties.load(
+          JobUtils.class.getResourceAsStream("/hive-bigquery-connector.properties"));
+      return buildProperties;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
 
   /** Retrieves the bucket name from a fully-qualified GCS URI. */
   public static String extractBucketNameFromGcsUri(String gcsURI) {

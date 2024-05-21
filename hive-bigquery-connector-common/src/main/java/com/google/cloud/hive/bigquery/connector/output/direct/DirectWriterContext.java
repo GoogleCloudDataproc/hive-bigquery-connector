@@ -132,7 +132,7 @@ public class DirectWriterContext {
           destinationTableId);
       Job overwriteJob =
           bigQueryClient.overwriteDestinationWithTemporary(tableIdToWrite, destinationTableId);
-      BigQueryClient.waitForJob(overwriteJob);
+      bigQueryClient.waitForJob(overwriteJob);
     }
   }
 

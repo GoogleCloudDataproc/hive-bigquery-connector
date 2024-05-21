@@ -59,6 +59,10 @@ public class DirectUtils {
    */
   public static BigQueryDirectDataWriterHelper createStreamWriter(
       JobConf jobConf, TableId tableId, Properties tableProperties, ProtoSchema schema) {
+    Injector injector =
+        Guice.createInjector(
+            new BigQueryClientModule(), new HiveBigQueryConnectorModule(jobConf, tableProperties));
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
     BigQueryClientFactory writeClientFactory =
         getOrCreateWriteClientFactory(jobConf, tableProperties);
     String tablePath =
@@ -70,6 +74,8 @@ public class DirectUtils {
         tablePath,
         schema,
         HiveBigQueryConfig.getDefaultBigQueryClientRetrySettings(),
-        Optional.of(HiveBigQueryConfig.getTraceId(jobConf)));
+        Optional.of(HiveBigQueryConfig.getTraceId(jobConf)),
+        0,
+        opts.isWriteAtLeastOnce());
   }
 }
