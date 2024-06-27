@@ -279,8 +279,7 @@ public abstract class BigQueryStorageHandlerBase
   /**
    * This function determines whether the destination table exists: if it doesn't, then create it.
    */
-  public void createBigQueryTableIfDoesNotExist(JobDetails jobDetails)
-      throws IllegalArgumentException {
+  public void createBigQueryTableIfNotExist(JobDetails jobDetails) throws IllegalArgumentException {
     Injector injector =
         Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
