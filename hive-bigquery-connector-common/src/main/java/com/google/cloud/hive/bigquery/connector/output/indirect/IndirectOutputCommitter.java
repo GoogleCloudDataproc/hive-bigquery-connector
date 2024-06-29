@@ -16,6 +16,8 @@
 package com.google.cloud.hive.bigquery.connector.output.indirect;
 
 import com.google.cloud.bigquery.FormatOptions;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobInfo.SchemaUpdateOption;
 import com.google.cloud.bigquery.JobInfo.WriteDisposition;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
@@ -25,6 +27,7 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.cloud.hive.bigquery.connector.utils.FileSystemUtils;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
@@ -63,10 +66,22 @@ public class IndirectOutputCommitter {
       BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
       HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
       FormatOptions formatOptions = FormatOptions.avro();
-      WriteDisposition writeDisposition =
-          jobDetails.isOverwrite()
-              ? WriteDisposition.WRITE_TRUNCATE
-              : WriteDisposition.WRITE_APPEND;
+      WriteDisposition writeDisposition;
+      if (jobDetails.isOverwrite()) {
+        // Truncate the table before inserting the new rows
+        writeDisposition = WriteDisposition.WRITE_TRUNCATE;
+      } else {
+        // Append the new rows
+        writeDisposition = WriteDisposition.WRITE_APPEND;
+        // Since Hive doesn't have a way of specifying required (NOT NULL) fields, we have to assume
+        // that all fields might be nullable, i.e. are of the Avro type UNION(NULL, ORIGINAL_TYPE).
+        // This is not needed in the overwrite case as WRITE_TRUNCATE would already take care of the
+        // schema change.
+        ImmutableList.Builder<JobInfo.SchemaUpdateOption> loadSchemaUpdateOptionsBuilder =
+            ImmutableList.builder();
+        loadSchemaUpdateOptionsBuilder.add(SchemaUpdateOption.ALLOW_FIELD_RELAXATION);
+        opts.setLoadSchemaUpdateOptions(loadSchemaUpdateOptionsBuilder.build());
+      }
       LOG.info("Loading avroFiles [ " + Joiner.on(",").join(avroFiles) + "]");
       // Load the Avro files into BigQuery
       bqClient.loadDataIntoTable(

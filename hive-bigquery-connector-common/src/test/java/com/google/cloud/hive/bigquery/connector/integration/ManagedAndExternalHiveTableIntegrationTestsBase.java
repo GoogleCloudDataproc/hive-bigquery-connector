@@ -20,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.hive.bigquery.connector.TestUtils;
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import org.junit.jupiter.api.Test;
 
 public abstract class ManagedAndExternalHiveTableIntegrationTestsBase extends IntegrationTestsBase {
@@ -40,10 +42,10 @@ public abstract class ManagedAndExternalHiveTableIntegrationTestsBase extends In
     // and that the two schemas are the same
     TableInfo managedTableInfo = getTableInfo(dataset, MANAGED_TEST_TABLE_NAME);
     TableInfo allTypesTableInfo = getTableInfo(dataset, ALL_TYPES_TABLE_NAME);
-    assertEquals(managedTableInfo.getDescription(), allTypesTableInfo.getDescription());
+    assertEquals(allTypesTableInfo.getDescription(), managedTableInfo.getDescription());
     assertEquals(
-        managedTableInfo.getDefinition().getSchema(),
-        allTypesTableInfo.getDefinition().getSchema());
+        allTypesTableInfo.getDefinition().getSchema(),
+        managedTableInfo.getDefinition().getSchema());
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -111,6 +113,27 @@ public abstract class ManagedAndExternalHiveTableIntegrationTestsBase extends In
   // ---------------------------------------------------------------------------------------------------
 
   @Test
+  public void testDropManagedTableFailure() {
+    System.getProperties().setProperty(HiveBigQueryConfig.FORCE_DROP_FAILURE, "true");
+    initHive();
+    // Make sure the managed table doesn't exist yet in BigQuery
+    dropBqTableIfExists(dataset, MANAGED_TEST_TABLE_NAME);
+    assertFalse(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
+    // Create the managed table using Hive
+    createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL);
+    // Check that the table was created in BigQuery
+    assertTrue(bQTableExists(dataset, MANAGED_TEST_TABLE_NAME));
+    // Attempt to drop the managed table using hive
+    Throwable exception =
+        assertThrows(
+            RuntimeException.class, () -> runHiveQuery("DROP TABLE " + MANAGED_TEST_TABLE_NAME));
+    assertTrue(
+        exception.getMessage().contains(HiveBigQueryConfig.FORCED_DROP_FAILURE_ERROR_MESSAGE));
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  @Test
   public void testDropExternalTable() {
     initHive();
     createExternalTable(TEST_TABLE_NAME, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
@@ -118,5 +141,16 @@ public abstract class ManagedAndExternalHiveTableIntegrationTestsBase extends In
     runHiveQuery("DROP TABLE " + TEST_TABLE_NAME);
     // Check that the table still exists in BigQuery
     assertTrue(bQTableExists(dataset, TEST_TABLE_NAME));
+  }
+
+  @Test
+  void createCmekTable() {
+    System.getProperties()
+        .setProperty(HiveBigQueryConfig.DESTINATION_TABLE_KMS_KEY_NAME, TestUtils.getKmsKeyName());
+    initHive();
+    dropBqTableIfExists(dataset, MANAGED_TEST_TABLE_NAME);
+    createManagedTable(MANAGED_TEST_TABLE_NAME, HIVE_ALL_TYPES_TABLE_DDL);
+    TableInfo tableInfo = getTableInfo(dataset, MANAGED_TEST_TABLE_NAME);
+    assertEquals(TestUtils.getKmsKeyName(), tableInfo.getEncryptionConfiguration().getKmsKeyName());
   }
 }

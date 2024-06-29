@@ -20,7 +20,9 @@ import static com.google.cloud.hive.bigquery.connector.TestUtils.TEST_TABLE_NAME
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.hive.bigquery.connector.TestUtils;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import com.google.cloud.storage.Blob;
 import com.google.common.collect.Streams;
@@ -533,42 +535,59 @@ public abstract class WriteIntegrationTestsBase extends IntegrationTestsBase {
 
   // ---------------------------------------------------------------------------------------------------
 
-  /** Check that we correctly clean things up in case of a query failure */
+  /** Check that we correctly clean things up in case of a query failure. */
   @ParameterizedTest
   @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
-  public void testWriteFailure(String engine, String writeMethod) {
+  public void testFailure(String engine, String writeMethod) {
+    // Set up the job for failure
+    System.getProperties().setProperty(HiveBigQueryConfig.FORCE_COMMIT_FAILURE, "true");
     System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
     initHive(engine);
-
-    // Create the two mismatched tables
-    createExternalTable(SCHEMA_MISMATCH_TABLE_NAME, HIVE_SCHEMA_MISMATCH_TABLE_DDL);
-    createBqTable(SCHEMA_MISMATCH_TABLE_NAME, BIGQUERY_SCHEMA_MISMATCH_TABLE_DDL);
-
-    // Make sure the query fails
+    String tableName = String.format("failure_%s", writeMethod);
+    createExternalTable(tableName, HIVE_TEST_TABLE_DDL, BIGQUERY_TEST_TABLE_DDL);
+    // Make sure the insert query fails
     Throwable exception =
         assertThrows(
             RuntimeException.class,
-            () ->
-                runHiveQuery(
-                    String.format("INSERT INTO %s VALUES (123)", SCHEMA_MISMATCH_TABLE_NAME)));
-
+            () -> runHiveQuery("INSERT INTO " + tableName + " VALUES (123, 'hello')"));
     // Check for error messages, which are only available when using Tez
     if (hive.getHiveConf().getVar(ConfVars.HIVE_EXECUTION_ENGINE).equals("tez")) {
-      if (writeMethod.equals(HiveBigQueryConfig.WRITE_METHOD_DIRECT)) {
-        // Error message from the Storage Write API
-        assertTrue(exception.getMessage().contains("The proto field mismatched with BigQuery"));
-      } else {
-        // Error message from the Load Job API
-        assertTrue(
-            exception.getMessage().contains("Field number has changed type from BYTES to INTEGER"));
-      }
+      assertTrue(
+          exception.getMessage().contains(HiveBigQueryConfig.FORCED_COMMIT_FAILURE_ERROR_MESSAGE));
     }
-
     // Make sure no rows were inserted
-    TableResult result =
-        runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", SCHEMA_MISMATCH_TABLE_NAME));
+    TableResult result = runBqQuery(String.format("SELECT * FROM `${dataset}.%s`", tableName));
     assertEquals(0, result.getTotalRows());
 
+    // Make sure things are correctly cleaned up
+    checkThatWorkDirsHaveBeenCleaned();
+  }
+
+  // ---------------------------------------------------------------------------------------------------
+
+  /** Check that we can write to an encrypted table. */
+  @ParameterizedTest
+  @MethodSource(EXECUTION_ENGINE_WRITE_METHOD)
+  public void testWriteToCmekTable(String engine, String writeMethod) {
+    System.getProperties()
+        .setProperty(HiveBigQueryConfig.DESTINATION_TABLE_KMS_KEY_NAME, TestUtils.getKmsKeyName());
+    System.getProperties().setProperty(HiveBigQueryConfig.WRITE_METHOD_KEY, writeMethod);
+    initHive(engine);
+    String tableName = String.format("cmek_%s", writeMethod);
+    createExternalTable(tableName, HIVE_TEST_TABLE_DDL);
+    // Run an insert query using Hive
+    runHiveQuery("INSERT INTO " + tableName + " VALUES (123, 'hello')");
+    // Check that the table was created in BQ with the correct key name
+    TableInfo tableInfo = getTableInfo(dataset, tableName);
+    assertEquals(TestUtils.getKmsKeyName(), tableInfo.getEncryptionConfiguration().getKmsKeyName());
+    // Read the data using the BQ SDK
+    TableResult result =
+        runBqQuery(String.format("SELECT * FROM `${dataset}.%s` ORDER BY number", tableName));
+    // Verify we get the expected values
+    assertEquals(1, result.getTotalRows());
+    List<FieldValueList> rows = Streams.stream(result.iterateAll()).collect(Collectors.toList());
+    assertEquals(123L, rows.get(0).get(0).getLongValue());
+    assertEquals("hello", rows.get(0).get(1).getStringValue());
     // Make sure things are correctly cleaned up
     checkThatWorkDirsHaveBeenCleaned();
   }

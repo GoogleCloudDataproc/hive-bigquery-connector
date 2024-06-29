@@ -15,7 +15,6 @@
  */
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
-import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
@@ -79,11 +78,6 @@ public class DirectOutputCommitter {
             new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
-    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
-
-    // Retrieve the BigQuery schema
-    Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
-
     // Finally, make the new data available in the destination table by committing the streams
     DirectWriterContext writerContext =
         new DirectWriterContext(
@@ -91,12 +85,11 @@ public class DirectOutputCommitter {
             bqClientFactory,
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
-            bigQuerySchema,
-            opts.getEnableModeCheckForSchemaFields());
+            jobDetails.isDeleteTableOnAbort());
     try {
       writerContext.commit(streamNames);
     } finally {
-      writerContext.clean();
+      writerContext.clean(false);
     }
   }
 
@@ -107,18 +100,13 @@ public class DirectOutputCommitter {
             new HiveBigQueryConnectorModule(conf, jobDetails.getTableProperties()));
     BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
     BigQueryClientFactory bqClientFactory = injector.getInstance(BigQueryClientFactory.class);
-    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
-
-    // Retrieve the BigQuery schema
-    Schema bigQuerySchema = bqClient.getTable(jobDetails.getTableId()).getDefinition().getSchema();
     DirectWriterContext writerContext =
         new DirectWriterContext(
             bqClient,
             bqClientFactory,
             jobDetails.getTableId(),
             jobDetails.getFinalTableId(),
-            bigQuerySchema,
-            config.getEnableModeCheckForSchemaFields());
-    writerContext.clean();
+            jobDetails.isDeleteTableOnAbort());
+    writerContext.clean(true);
   }
 }

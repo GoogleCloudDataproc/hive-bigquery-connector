@@ -48,6 +48,7 @@ public class JobDetails {
   private transient org.apache.avro.Schema avroSchema; // Only used by the 'indirect' write method
   private String avroSchemaJSON; // Only used by the 'indirect' write method
   private String writeMethod;
+  private boolean deleteTableOnAbort;
 
   public JobDetails() {}
 
@@ -180,5 +181,13 @@ public class JobDetails {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public boolean isDeleteTableOnAbort() {
+    return deleteTableOnAbort;
+  }
+
+  public void setDeleteTableOnAbort(boolean deleteTableOnAbort) {
+    this.deleteTableOnAbort = deleteTableOnAbort;
   }
 }
