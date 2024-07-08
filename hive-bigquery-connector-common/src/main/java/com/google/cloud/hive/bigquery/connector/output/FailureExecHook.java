@@ -20,10 +20,12 @@ import org.apache.hadoop.hive.ql.hooks.Entity.Type;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
+import org.apache.hadoop.hive.ql.hooks.WriteEntity.WriteType;
 
 /**
- * Post execution hook used to commit the outputs. We only use this with Hive 1 in combination with
- * Tez.
+ * This hook is only used with Tez because Tez does not call `OutputCommitter.abortJob()` when a job
+ * fails. So we use this hook to replicate the same behavior that `OutputCommitter.abortJob()` would
+ * do with the MapReduce engine.
  */
 public class FailureExecHook implements ExecuteWithHookContext {
 
@@ -32,6 +34,8 @@ public class FailureExecHook implements ExecuteWithHookContext {
     for (WriteEntity entity : hookContext.getOutputs()) {
       if (entity.getType() == Type.TABLE
           && entity.getTable().getStorageHandler() != null
+          && (entity.getWriteType() == WriteType.INSERT
+              || entity.getWriteType() == WriteType.INSERT_OVERWRITE)
           && entity
               .getTable()
               .getStorageHandler()

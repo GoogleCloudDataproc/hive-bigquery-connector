@@ -134,21 +134,32 @@ public class BigQueryMetaHook {
     }
   }
 
-  protected void createBigQueryTable(Table hmsTable, TableInfo bigQueryTableInfo) {
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(),
-            new HiveBigQueryConnectorModule(conf, hmsTable.getParameters()));
-    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+  protected void createBigQueryTable(
+      Injector injector,
+      TableId tableId,
+      StandardTableDefinition tableDefinition,
+      HiveBigQueryConfig opts,
+      Table hmsTable) {
+    // TODO: We currently can't use the `BigQueryClient.createTable()` because it doesn't have a way
+    // to
+    //  pass a TableInfo. This forces us to duplicate some code below from the existing
+    //  `BigQueryClient.createTable()`. One better long-term solution would be to add a
+    //  `createTable(TableInfo)` method to BigQueryClient. See:
+    // https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/1213
+    TableInfo.Builder bigQueryTableInfo =
+        TableInfo.newBuilder(tableId, tableDefinition)
+            .setDescription(hmsTable.getParameters().get("comment"));
+    opts.getKmsKeyName()
+        .ifPresent(
+            keyName ->
+                bigQueryTableInfo.setEncryptionConfiguration(
+                    EncryptionConfiguration.newBuilder().setKmsKeyName(keyName).build()));
     BigQueryCredentialsSupplier credentialsSupplier =
         injector.getInstance(BigQueryCredentialsSupplier.class);
     HeaderProvider headerProvider = injector.getInstance(HeaderProvider.class);
-
-    // TODO: We cannot use the BigQueryClient class here because it doesn't have a
-    //  `create(TableInfo)` method. We could add it to that class eventually.
     BigQuery bigQueryService =
         BigQueryUtils.getBigQueryService(opts, headerProvider, credentialsSupplier);
-    bigQueryService.create(bigQueryTableInfo);
+    bigQueryService.create(bigQueryTableInfo.build());
   }
 
   /**
@@ -247,12 +258,7 @@ public class BigQueryMetaHook {
       tableDefBuilder.setTimePartitioning(tpBuilder.build());
     }
 
-    StandardTableDefinition tableDefinition = tableDefBuilder.build();
-    TableInfo bigQueryTableInfo =
-        TableInfo.newBuilder(tableId, tableDefinition)
-            .setDescription(table.getParameters().get("comment"))
-            .build();
-    createBigQueryTable(table, bigQueryTableInfo);
+    createBigQueryTable(injector, tableId, tableDefBuilder.build(), opts, table);
 
     String hmsDbTableName = HiveUtils.getDbTableName(table);
     LOG.info("Created BigQuery table {} for {}", tableId, hmsDbTableName);
@@ -366,6 +372,11 @@ public class BigQueryMetaHook {
   }
 
   public void commitDropTable(Table table, boolean deleteData) throws MetaException {
+    if (conf.getBoolean(HiveBigQueryConfig.CONNECTOR_IN_TEST, false)
+        && conf.getBoolean(HiveBigQueryConfig.FORCE_DROP_FAILURE, false)) {
+      // For integration testing only
+      throw new RuntimeException(HiveBigQueryConfig.FORCED_DROP_FAILURE_ERROR_MESSAGE);
+    }
     if (!HiveUtils.isExternalTable(table) && deleteData) {
       // This is a managed table, so let's delete the table in BigQuery
       Injector injector =

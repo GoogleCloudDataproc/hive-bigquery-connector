@@ -70,6 +70,7 @@ public class HiveBigQueryConfig
   public static final String IMPERSONATE_FOR_GROUP_PREFIX =
       "bq.impersonation.service.account.for.group.";
   public static final String IMPERSONATE_SERVICE_ACCOUNT = "bq.impersonation.service.account";
+  public static final String DESTINATION_TABLE_KMS_KEY_NAME = "bq.destination.table.kms.key.name";
   public static final String CREATE_DISPOSITION_KEY = "bq.create.disposition";
   public static final String VIEWS_ENABLED_KEY = "viewsEnabled";
   public static final String FAIL_ON_UNSUPPORTED_UDFS =
@@ -110,6 +111,13 @@ public class HiveBigQueryConfig
   public static final String JOB_DETAILS_FILE = "job-details.json";
   public static final String QUERY_ID = "bq.connector.query.id";
 
+  // For internal use only
+  public static final String CONNECTOR_IN_TEST = "hive.bq.connector.in.test";
+  public static final String FORCE_DROP_FAILURE = "hive.bq.connector.test.force.drop.failure";
+  public static final String FORCED_DROP_FAILURE_ERROR_MESSAGE = "Forced table drop failure";
+  public static final String FORCE_COMMIT_FAILURE = "hive.bq.connector.test.force.commit.failure";
+  public static final String FORCED_COMMIT_FAILURE_ERROR_MESSAGE = "Forced commit failure";
+
   TableId tableId;
   Optional<String> traceId = empty();
 
@@ -124,6 +132,9 @@ public class HiveBigQueryConfig
   Optional<String> impersonationServiceAccount;
   Optional<Map<String, String>> impersonationServiceAccountsForUsers;
   Optional<Map<String, String>> impersonationServiceAccountsForGroups;
+
+  // KMS
+  Optional<String> destinationTableKmsKeyName = empty();
 
   // Reading parameters
   DataFormat readDataFormat; // ARROW or AVRO
@@ -325,6 +336,10 @@ public class HiveBigQueryConfig
       opts.tableId = BigQueryUtil.parseTableId(bqTable.get());
     }
 
+    // KMS
+    opts.destinationTableKmsKeyName =
+        getOption(DESTINATION_TABLE_KMS_KEY_NAME, tableParameters, conf);
+
     // Partitioning and clustering
     opts.partitionType =
         getOption(TIME_PARTITION_TYPE_KEY, tableParameters, conf)
@@ -421,6 +436,10 @@ public class HiveBigQueryConfig
     return loadSchemaUpdateOptions;
   }
 
+  public void setLoadSchemaUpdateOptions(ImmutableList<SchemaUpdateOption> options) {
+    loadSchemaUpdateOptions = options;
+  }
+
   @Override
   public boolean getEnableModeCheckForSchemaFields() {
     return enableModeCheckForSchemaFields;
@@ -483,7 +502,7 @@ public class HiveBigQueryConfig
 
   @Override
   public java.util.Optional<String> getKmsKeyName() {
-    return java.util.Optional.empty();
+    return destinationTableKmsKeyName.toJavaUtil();
   }
 
   @Override

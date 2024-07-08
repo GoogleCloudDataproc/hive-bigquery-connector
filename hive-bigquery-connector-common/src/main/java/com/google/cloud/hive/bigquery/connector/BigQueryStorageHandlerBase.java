@@ -15,10 +15,12 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
-import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
+import com.google.cloud.bigquery.connector.common.BigQueryClient.CreateTableOptions;
 import com.google.cloud.bigquery.connector.common.BigQueryClientModule;
+import com.google.cloud.bigquery.connector.common.BigQueryConnectorException.InvalidSchemaException;
 import com.google.cloud.bigquery.connector.common.BigQueryCredentialsSupplier;
 import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
@@ -29,11 +31,14 @@ import com.google.cloud.hive.bigquery.connector.output.BigQueryOutputFormat;
 import com.google.cloud.hive.bigquery.connector.output.FailureExecHook;
 import com.google.cloud.hive.bigquery.connector.utils.JobUtils;
 import com.google.cloud.hive.bigquery.connector.utils.avro.AvroUtils;
+import com.google.cloud.hive.bigquery.connector.utils.bq.BigQuerySchemaConverter;
 import com.google.cloud.hive.bigquery.connector.utils.hcatalog.HCatalogUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
+import com.google.common.base.Preconditions;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
@@ -233,17 +238,8 @@ public abstract class BigQueryStorageHandlerBase
     // Set config for the GCS Connector
     setGCSAccessTokenProvider(conf);
 
-    Injector injector =
-        Guice.createInjector(
-            new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableProperties));
-
-    // Retrieve some info from the BQ table
-    TableId tableId =
-        BigQueryUtil.parseTableId(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY));
-    TableInfo bqTableInfo = injector.getInstance(BigQueryClient.class).getTable(tableId);
-    if (bqTableInfo == null) {
-      throw new RuntimeException("BigQuery table does not exist: " + tableId);
-    }
+    // Figure out the Hive table's corresponding BigQuery schema
+    Schema bigQuerySchema = BigQuerySchemaConverter.toBigQuerySchema(conf, tableDesc);
 
     // More special treatment for HCatalog
     if (HCatalogUtils.isHCatalogOutputJob(conf)) {
@@ -257,17 +253,59 @@ public abstract class BigQueryStorageHandlerBase
     JobDetails jobDetails = new JobDetails();
     HiveBigQueryConfig opts = HiveBigQueryConfig.from(conf, tableProperties);
     jobDetails.setWriteMethod(opts.getWriteMethod());
-    jobDetails.setBigquerySchema(bqTableInfo.getDefinition().getSchema());
+    jobDetails.setBigquerySchema(bigQuerySchema);
     jobDetails.setTableProperties(tableProperties);
-    jobDetails.setTableId(tableId);
+    jobDetails.setTableId(
+        BigQueryUtil.parseTableId(tableProperties.getProperty(HiveBigQueryConfig.TABLE_KEY)));
 
     if (opts.getWriteMethod().equals(HiveBigQueryConfig.WRITE_METHOD_INDIRECT)) {
+      Injector injector =
+          Guice.createInjector(
+              new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf, tableProperties));
       configureJobDetailsForIndirectWrite(
           opts, jobDetails, injector.getInstance(BigQueryCredentialsSupplier.class));
     }
 
+    try {
+      createBigQueryTableIfNotExist(jobDetails);
+    } catch (Exception e) {
+      throw new RuntimeException(e + ". The KMS key is: " + opts.getKmsKeyName());
+    }
+
     // Save the job details file to disk
     jobDetails.writeFile(conf);
+  }
+
+  /**
+   * This function determines whether the destination table exists: if it doesn't, then create it.
+   */
+  public void createBigQueryTableIfNotExist(JobDetails jobDetails) throws IllegalArgumentException {
+    Injector injector =
+        Guice.createInjector(new BigQueryClientModule(), new HiveBigQueryConnectorModule(conf));
+    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
+    HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
+    if (bqClient.tableExists(jobDetails.getTableId())) {
+      // Check that the destination table's schema matches that of the insert query
+      TableInfo destinationTable = bqClient.getTable(jobDetails.getTableId());
+      Schema destinationTableSchema = destinationTable.getDefinition().getSchema();
+      Preconditions.checkArgument(
+          BigQueryUtil.schemaWritable(
+              jobDetails.getBigquerySchema(),
+              destinationTableSchema,
+              false, /* regardFieldOrder */
+              opts.getEnableModeCheckForSchemaFields()),
+          new InvalidSchemaException(
+              "Destination table's schema is not compatible with query's schema"));
+      jobDetails.setDeleteTableOnAbort(false);
+    } else {
+      jobDetails.setDeleteTableOnAbort(true);
+      bqClient
+          .createTable(
+              jobDetails.getTableId(),
+              jobDetails.getBigquerySchema(),
+              CreateTableOptions.of(opts.getKmsKeyName(), Collections.emptyMap()))
+          .getTableId();
+    }
   }
 
   @Override

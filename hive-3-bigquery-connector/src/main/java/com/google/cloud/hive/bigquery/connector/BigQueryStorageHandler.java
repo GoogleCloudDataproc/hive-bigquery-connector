@@ -54,8 +54,8 @@ public class BigQueryStorageHandler extends BigQueryStorageHandlerBase {
         Guice.createInjector(
             new BigQueryClientModule(),
             new HiveBigQueryConnectorModule(conf, hmsTable.getParameters()));
-    BigQueryClient bqClient = injector.getInstance(BigQueryClient.class);
-    HiveBigQueryConfig config = injector.getInstance(HiveBigQueryConfig.class);
-    return BigQueryUtils.getBasicStatistics(bqClient, config.getTableId());
+    return BigQueryUtils.getBasicStatistics(
+        injector.getInstance(BigQueryClient.class),
+        injector.getInstance(HiveBigQueryConfig.class).getTableId());
   }
 }

@@ -278,17 +278,18 @@ You can use the following properties in the `TBLPROPERTIES` clause when you crea
 
 You can set the following Hive/Hadoop configuration properties in your environment:
 
-| Property                  | Default value       | Description                                                                                                                                                                                         |
-|---------------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                         |
-| `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                                |
-| `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temporary Avro files to GCS before loading into BigQuery). |
-| `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
-| `bq.work.dir.name.prefix` | `hive-bq-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
-| `materializationProject`  |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                     |
-| `materializationDataset`  |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                     |
-| `maxParallelism`          |                     | Maximum initial number of read streams                                                                                                                                                              |
-| `viewsEnabled`            | `false`             | Set it to `true` to enable reading views.                                                                                                                                                           |
+| Property                            | Default value       | Description                                                                                                                                                                                         |
+|-------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bq.read.data.format`               | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                         |
+| `bq.temp.gcs.path`                  |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                                |
+| `bq.write.method`                   | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temporary Avro files to GCS before loading into BigQuery). |
+| `bq.work.dir.parent.path`           | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
+| `bq.work.dir.name.prefix`           | `hive-bq-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
+| `bq.destination.table.kms.key.name` |                     | Cloud KMS encryption key used to protect the job's destination BigQuery table. Read more in the section on [customer-managed encryption keys](#customer-managed-encryption-keys)                    |
+| `materializationProject`            |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                     |
+| `materializationDataset`            |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                     |
+| `maxParallelism`                    |                     | Maximum initial number of read streams                                                                                                                                                              |
+| `viewsEnabled`                      | `false`             | Set it to `true` to enable reading views.                                                                                                                                                           |
 
 ## Data Type Mapping
 
@@ -713,6 +714,24 @@ There are multiple options to override the default behavior and to provide custo
   with the `bq.access.token` configuration property. You can generate an access token by running
   `gcloud auth application-default print-access-token`.
 
+## Customer-managed encryption key (CMEK)
+
+You can provide a Cloud KMS key to be used to encrypt the destination table, for example when you
+run a `CREATE TABLE` statement for a managed table, or when you insert data into a table that
+doesn't exist yet. To do so, set the `bq.destination.table.kms.key.name` property with the
+fully-qualified named of the desired Cloud KMS key in the form:
+
+```
+projects/<KMS_PROJECT_ID>/locations/<LOCATION>/keyRings/<KEY_RING>/cryptoKeys/<KEY>
+```
+
+The BigQuery service account associated with your project requires access to this encryption key.
+
+The table will be encrypted by the key only if it created by the connector. A pre-existing
+unencrypted table won't be encrypted just by setting this option.
+
+For further information about using customer-managed encryption keys (CMEK) with BigQuery, see [here](https://cloud.google.com/bigquery/docs/customer-managed-encryption#key_resource_id).
+
 ## Known issues and limitations
 
 * The `UPDATE`, `MERGE`, and `DELETE`, and `ALTER TABLE` statements are currently not supported.
@@ -766,7 +785,8 @@ Enable the following APIs:
 ```sh
 gcloud services enable \
   bigquerystorage.googleapis.com \
-  bigqueryconnection.googleapis.com
+  bigqueryconnection.googleapis.com \
+  cloudkms.googleapis.com
 ```
 
 #### BigLake setup
@@ -774,7 +794,7 @@ gcloud services enable \
 Define environment variables:
 
 ```sh
-export PROJECT=my-gcp-project
+export PROJECT=<my-gcp-project>
 export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
 export BIGLAKE_CONNECTION=hive-integration-tests
@@ -805,6 +825,41 @@ export BIGLAKE_SA=$(bq show --connection --format json "${PROJECT}.${BIGLAKE_LOC
   | jq -r .cloudResource.serviceAccountId)
 
 gsutil iam ch serviceAccount:${BIGLAKE_SA}:objectViewer gs://${BIGLAKE_BUCKET}
+```
+
+#### KMS setup
+
+Create a KMS keyring:
+
+```sh
+gcloud kms keyrings create \
+  integration_tests_keyring \
+  --location us
+```
+
+```sh
+gcloud kms keys create integration_tests_key \
+    --keyring integration_tests_keyring \
+    --location us \
+    --purpose "encryption"
+```
+
+Obtain the BigQuery service account name:
+
+```sh
+BQ_SERVICE_ACCOUNT=$(bq show --encryption_service_account --format json | jq -r ".ServiceAccountID")
+```
+
+Assign the Encrypter/Decrypter role to the BigQuery service account:
+
+```sh
+gcloud kms keys add-iam-policy-binding \
+  --project=${PROJECT} \
+  --member serviceAccount:${BQ_SERVICE_ACCOUNT} \
+  --role roles/cloudkms.cryptoKeyEncrypterDecrypter \
+  --location=us \
+  --keyring=integration_tests_keyring \
+  integration_tests_key
 ```
 
 #### Running the tests
