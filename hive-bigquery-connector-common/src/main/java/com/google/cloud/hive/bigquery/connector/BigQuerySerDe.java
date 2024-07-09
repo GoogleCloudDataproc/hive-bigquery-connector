@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector;
 
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.util.*;
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
@@ -39,7 +40,7 @@ public class BigQuerySerDe extends AbstractSerDe {
     String columnNameProperty = conf.get(serdeConstants.LIST_COLUMNS);
     String columnTypeProperty = conf.get(serdeConstants.LIST_COLUMN_TYPES);
     String columnNameDelimiter =
-        conf.get(serdeConstants.COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
+        conf.get(HiveBigQueryConfig.HIVE_COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
     return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter);
   }
 
@@ -48,7 +49,8 @@ public class BigQuerySerDe extends AbstractSerDe {
     String columnTypeProperty = (String) tableProperties.get(serdeConstants.LIST_COLUMN_TYPES);
     String columnNameDelimiter =
         String.valueOf(
-            tableProperties.getOrDefault(serdeConstants.COLUMN_NAME_DELIMITER, SerDeUtils.COMMA));
+            tableProperties.getOrDefault(
+                HiveBigQueryConfig.HIVE_COLUMN_NAME_DELIMITER, SerDeUtils.COMMA));
     return getRowObjectInspector(columnNameProperty, columnTypeProperty, columnNameDelimiter);
   }
 

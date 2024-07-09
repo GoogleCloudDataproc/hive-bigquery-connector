@@ -196,7 +196,7 @@ public class AvroUtils {
     GenericDatumWriter<GenericRecord> gdw = new GenericDatumWriter<>(schema);
     DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(gdw);
     int level =
-        jobConf.getInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, CodecFactory.DEFAULT_DEFLATE_LEVEL);
+        jobConf.getInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, 6); // 6 = XZCodec.DEFAULT_COMPRESSION
     String codecName = jobConf.get(AvroJob.OUTPUT_CODEC, "deflate");
     CodecFactory factory =
         codecName.equals(DataFileConstants.DEFLATE_CODEC)
