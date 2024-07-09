@@ -44,7 +44,6 @@ import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
@@ -91,6 +90,8 @@ public abstract class IntegrationTestsBase {
     } catch (StorageException e) {
       if (e.getCode() == 409) {
         // The bucket already exists, which is okay.
+      } else {
+        throw new RuntimeException(e);
       }
     }
 
@@ -313,13 +314,14 @@ public abstract class IntegrationTestsBase {
     System.getProperties().setProperty(HiveConf.ConfVars.HIVE_EXECUTION_ENGINE.varname, engine);
     System.getProperties().setProperty(HiveBigQueryConfig.READ_DATA_FORMAT_KEY, readDataFormat);
     System.getProperties().setProperty(HiveBigQueryConfig.TEMP_GCS_PATH_KEY, tempGcsPath);
+    System.getProperties().setProperty(HiveBigQueryConfig.CONNECTOR_IN_TEST, "true");
     System.getProperties()
         .setProperty(
             "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"); // GCS Connector
 
     // This is needed to avoid an odd exception when running the tests with Tez and Hadoop 3.
     // Similar issue to what's described in https://issues.apache.org/jira/browse/HIVE-24734
-    System.getProperties().setProperty(MRJobConfig.MAP_MEMORY_MB, "1024");
+    System.getProperties().setProperty("mapreduce.map.memory.mb", "1024");
 
     // Apply system properties to the Hive conf
     Enumeration<?> propertyNames = System.getProperties().propertyNames();

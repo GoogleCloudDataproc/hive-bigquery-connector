@@ -74,8 +74,9 @@ public class BigQueryUtils {
 
   /**
    * Returns a BigQuery service object. We need this instead of the BigQueryClient class from the
-   * bigquery-connector-common library because that class doesn't have a `create(TableInfo)` method.
-   * See more about this in {@link BigQueryMetaHook#commitCreateTable(Table)}
+   * bigquery-connector-common library because that class's `createTable()` method currently doesn't
+   * have a way to pass a table description. See more about this in {@link
+   * BigQueryMetaHook#commitCreateTable(Table)}
    */
   public static BigQuery getBigQueryService(
       HiveBigQueryConfig config,

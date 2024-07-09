@@ -17,19 +17,72 @@ package com.google.cloud.hive.bigquery.connector.utils.bq;
 
 import com.google.cloud.bigquery.*;
 import com.google.cloud.hive.bigquery.connector.HiveCompat;
+import com.google.cloud.hive.bigquery.connector.utils.hcatalog.HCatalogUtils;
+import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.KeyValueObjectInspector;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.serde2.objectinspector.*;
 import org.apache.hadoop.hive.serde2.typeinfo.*;
+import org.apache.hive.hcatalog.data.schema.HCatFieldSchema;
+import org.apache.hive.hcatalog.data.schema.HCatSchema;
 
 /** Converts Hive Schema to BigQuery schema. */
 public class BigQuerySchemaConverter {
 
+  public static Schema toBigQuerySchema(Configuration conf, TableDesc tableDesc) {
+    if (HCatalogUtils.isHCatalogOutputJob(conf)) {
+      HCatSchema hcatSchema = HCatalogUtils.getHCatalogOutputJobInfo(conf).getOutputSchema();
+      return toBigQuerySchema(hcatSchema);
+    }
+    // Fetch the Hive schema
+    Hive hive;
+    HiveConf hiveConf =
+        conf instanceof HiveConf ? (HiveConf) conf : new HiveConf(conf, HiveUtils.class);
+    try {
+      hive = Hive.get(hiveConf);
+    } catch (HiveException e) {
+      throw new RuntimeException(e);
+    }
+    String[] dbAndTableNames = tableDesc.getTableName().split("\\.");
+    if (dbAndTableNames.length != 2
+        || dbAndTableNames[0].isEmpty()
+        || dbAndTableNames[1].isEmpty()) {
+      throw new IllegalArgumentException(
+          "Invalid table name format. Expected format 'dbName.tblName'. Received: "
+              + tableDesc.getTableName());
+    }
+    Table table;
+    try {
+      table = hive.getTable(dbAndTableNames[0], dbAndTableNames[1]);
+    } catch (HiveException e) {
+      throw new RuntimeException(e);
+    }
+    // Convert the Hive schema to BigQuery schema
+    return toBigQuerySchema(table.getSd());
+  }
+
+  /** Converts the provided HCatalog schema to the corresponding BigQuery schema. */
+  public static Schema toBigQuerySchema(HCatSchema hcatSchema) {
+    List<Field> bigQueryFields = new ArrayList<>();
+    for (HCatFieldSchema hiveField : hcatSchema.getFields()) {
+      TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getTypeString());
+      bigQueryFields.add(buildBigQueryField(hiveField.getName(), typeInfo, hiveField.getComment()));
+    }
+    return Schema.of(bigQueryFields);
+  }
+
+  /** Converts the provided Hive schema to the corresponding BigQuery schema. */
   public static Schema toBigQuerySchema(StorageDescriptor sd) {
     List<Field> bigQueryFields = new ArrayList<>();
     for (FieldSchema hiveField : sd.getCols()) {

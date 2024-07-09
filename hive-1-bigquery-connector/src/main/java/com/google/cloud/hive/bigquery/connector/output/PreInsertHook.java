@@ -62,7 +62,17 @@ public class PreInsertHook implements ExecuteWithHookContext {
       return;
     }
 
-    // Parse and analyze the semantics of the Hive query
+    // Parse and analyze the semantics of the Hive query.
+    // We have to do this because unfortunately the WriteEntity objects in hookContext.getOutputs()
+    // are systematically marked as being of type INSERT_OVERWRITE, regardless of whether it is
+    // an "INSERT OVERWRITE" query or a regular "INSERT" query. This is apparently caused by the
+    // fact that Hive 1.x.x treats all "non native" tables (i.e. by Hive 1.x.x's definition all
+    // tables that have a storage handler defined:
+    // https://github.com/apache/hive/blob/release-1.2.1/ql/src/java/org/apache/hadoop/hive/ql/metadata/Table.java#L845)
+    // as INSERT_OVERWRITE:
+    // https://github.com/apache/hive/blob/release-1.2.1/ql/src/java/org/apache/hadoop/hive/ql/parse/SemanticAnalyzer.java#L12147
+    // To get around this issue, we parse the query ourselves and try to determine the proper type
+    // for our purposes (insert or insert overwrite).
     QBParseInfo parseInfo;
     try {
       Configuration conf = hookContext.getConf();
@@ -70,9 +80,9 @@ public class PreInsertHook implements ExecuteWithHookContext {
       context.setCmd(hookContext.getQueryPlan().getQueryString());
       ParseDriver parseDriver = new ParseDriver();
       ASTNode tree = parseDriver.parse(hookContext.getQueryPlan().getQueryString(), context);
-      HiveConf hiveConf = new HiveConf(conf, HiveConf.class);
+      HiveConf hiveConf = new HiveConf(conf, this.getClass());
       SemanticAnalyzer analyzer = new SemanticAnalyzer(hiveConf);
-      if (tree.getChildren().size() == 0 || tree.getChild(0).getType() != HiveParser.TOK_QUERY) {
+      if (tree.getChildren().isEmpty() || tree.getChild(0).getType() != HiveParser.TOK_QUERY) {
         return;
       }
       analyzer.analyze((ASTNode) tree.getChild(0), context);

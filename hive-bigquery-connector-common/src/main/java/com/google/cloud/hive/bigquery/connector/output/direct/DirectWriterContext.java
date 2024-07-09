@@ -16,20 +16,15 @@
 package com.google.cloud.hive.bigquery.connector.output.direct;
 
 import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.connector.common.BigQueryClient;
 import com.google.cloud.bigquery.connector.common.BigQueryClientFactory;
 import com.google.cloud.bigquery.connector.common.BigQueryConnectorException;
-import com.google.cloud.bigquery.connector.common.BigQueryUtil;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest.Builder;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
-import com.google.common.base.Preconditions;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,10 +37,8 @@ public class DirectWriterContext {
 
   private final TableId tableIdToWrite;
   private final TableId destinationTableId;
-  private final boolean enableModeCheckForSchemaFields;
-
   private final String tablePathForBigQueryStorage;
-  private boolean deleteTableOnAbort;
+  private final boolean deleteTableOnAbort;
 
   private final BigQueryWriteClient writeClient;
 
@@ -54,55 +47,19 @@ public class DirectWriterContext {
       BigQueryClientFactory bigQueryWriteClientFactory,
       TableId tableId,
       TableId destinationTableId,
-      Schema schema,
-      boolean enableModeCheckForSchemaFields)
+      boolean deleteTableOnAbort)
       throws IllegalArgumentException {
     this.bigQueryClient = bigQueryClient;
-    this.tableIdToWrite = getOrCreateTable(tableId, schema);
+    this.tableIdToWrite = tableId;
     this.destinationTableId = destinationTableId;
     this.tablePathForBigQueryStorage =
         bigQueryClient.createTablePathForBigQueryStorage(tableIdToWrite);
     this.writeClient = bigQueryWriteClientFactory.getBigQueryWriteClient();
-    this.enableModeCheckForSchemaFields = enableModeCheckForSchemaFields;
-  }
-
-  /**
-   * This function determines whether the destination table exists: if it doesn't, we will create a
-   * table and Hive will directly write to it.
-   *
-   * @param tableId the TableId, as was supplied by the user
-   * @param bigQuerySchema the bigQuery schema
-   * @return The TableId to which Hive will do the writing: whether that is the destination TableID
-   *     or a temporary TableId.
-   */
-  private TableId getOrCreateTable(TableId tableId, Schema bigQuerySchema)
-      throws IllegalArgumentException {
-    if (bigQueryClient.tableExists(tableId)) {
-      TableInfo destinationTable = bigQueryClient.getTable(tableId);
-      Schema tableSchema = destinationTable.getDefinition().getSchema();
-      Preconditions.checkArgument(
-          BigQueryUtil.schemaWritable(
-              tableSchema,
-              bigQuerySchema, /* regardFieldOrder */
-              false,
-              enableModeCheckForSchemaFields),
-          new BigQueryConnectorException.InvalidSchemaException(
-              "Destination table's schema is not compatible with query's" + " schema"));
-      deleteTableOnAbort = false;
-      return destinationTable.getTableId();
-    } else {
-      deleteTableOnAbort = true;
-      return bigQueryClient
-          .createTable(
-              tableId,
-              bigQuerySchema,
-              BigQueryClient.CreateTableOptions.of(Optional.empty(), Collections.emptyMap()))
-          .getTableId();
-    }
+    this.deleteTableOnAbort = deleteTableOnAbort;
   }
 
   public void commit(List<String> streamNames) {
-    BatchCommitWriteStreamsRequest.Builder batchCommitWriteStreamsRequest =
+    Builder batchCommitWriteStreamsRequest =
         BatchCommitWriteStreamsRequest.newBuilder().setParent(tablePathForBigQueryStorage);
     batchCommitWriteStreamsRequest.addAllWriteStreams(streamNames);
     BatchCommitWriteStreamsResponse batchCommitWriteStreamsResponse =
@@ -136,9 +93,8 @@ public class DirectWriterContext {
     }
   }
 
-  public void clean() {
-    // Special case for "INSERT OVERWRITE" statements: delete the temporary table.
-    if (deleteTableOnAbort
+  public void clean(boolean isAborting) {
+    if (isAborting && deleteTableOnAbort
         || (destinationTableId != null && !destinationTableId.equals(tableIdToWrite))) {
       LOG.info("Deleting BigQuery table {}", tableIdToWrite);
       try {
