@@ -110,7 +110,11 @@ public class HiveBigQueryConfig
   public static final String STREAM_FILE_EXTENSION = "stream";
   public static final String JOB_DETAILS_FILE = "job-details.json";
   public static final String QUERY_ID = "bq.connector.query.id";
-  public static final String HIVE_COLUMN_NAME_DELIMITER = ",";
+  // Normally this constant is defined in `serdeConstants.COLUMN_NAME_DELIMITER` but it's not
+  // available in Hive 1 (see:
+  // https://github.com/apache/hive/blob/release-1.2.1/serde/src/gen/thrift/gen-javabean/org/apache/hadoop/hive/serde/serdeConstants.java),
+  // so we redefine it here:
+  public static final String HIVE_COLUMN_NAME_DELIMITER = "column.name.delimiter";
 
   // For internal use only
   public static final String CONNECTOR_IN_TEST = "hive.bq.connector.in.test";
