@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.utils.hcatalog;
 
+import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConfig;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,7 +92,7 @@ public class HCatalogUtils {
   private static Properties createProperties(HCatTableInfo tableInfo) {
     Properties properties = new Properties();
     properties.put(hive_metastoreConstants.META_TABLE_LOCATION, tableInfo.getTableLocation());
-    properties.put(serdeConstants.COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
+    properties.put(HiveBigQueryConfig.HIVE_COLUMN_NAME_DELIMITER, String.valueOf(SerDeUtils.COMMA));
     properties.put(
         serdeConstants.LIST_COLUMNS,
         String.join(String.valueOf(SerDeUtils.COMMA), tableInfo.getDataColumns().getFieldNames()));
