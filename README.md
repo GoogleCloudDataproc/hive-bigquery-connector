@@ -909,17 +909,21 @@ To run the acceptance tests:
 ./mvnw verify -Pdataproc21,acceptance
 ```
 
-If you want to avoid rebuilding `shaded-dependencies` and `shaded-test-dependencies` when there is no changes in these
-modules, you can break it down into several steps, and only rerun the necessary steps:
+If you want to avoid rebuilding the `shaded-deps-dataproc21` and
+`shaded-acceptance-tests-dependencies` modules if they have no changes, you can break it down into
+the following steps:
 
 ```sh
-# Install hive-bigquery-parent/pom.xml to Maven local repo
+# Install hive-bigquery-parent/pom.xml to the Maven local repo
 ./mvnw install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
 
-# Build and install shaded-dependencies and shaded-test-dependencies jars to Maven local repo
+# Build and install the module JARs to the Maven local repo
 ./mvnw clean install -pl shaded-deps-dataproc21,shaded-acceptance-tests-dependencies -Pdataproc21 -DskipTests
+```
 
-# Build and test the connector
+At that point you can just run the tests without rebuilding the modules:
+
+```sh
 ./mvnw clean verify -pl hive-bigquery-connector-common,hive-3-bigquery-connector -Pdataproc21,acceptance
 ```
 

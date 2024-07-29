@@ -1,3 +1,4 @@
+
 # Hive-BigQuery Connector
 
 The Hive-BigQuery Connector is a Hive storage handler that enables Hive to interact with BigQuery's
@@ -15,9 +16,10 @@ This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.
 For Hadoop clusters other than Dataproc, the connector has been tested with the following
 software versions:
 
-* Hive 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
-* Hadoop 2.10.2, 3.2.3, and 3.3.3.
+* Hive 1.2.1, 2.3.6, 2.3.9, 3.1.2, and 3.1.3.
+* Hadoop 2.6.4, 2.7.0, 2.10.2, 3.2.3, and 3.3.3.
 * Tez 0.9.2 on Hadoop 2, and Tez 0.10.1 on Hadoop 3.
+* Pig 0.16.0, 0.17.0.
 
 ## Installation
 
@@ -44,11 +46,19 @@ Alternately, you can build a JAR from source:
 
 2. Compile and package the jar:
 
+  * For Hive 1:
+
+    ``` sh
+    ./mvnw package -DskipTests -P hive1-generic
+    ```
+
   * For Hive 2:
 
     ``` sh
     ./mvnw package -DskipTests -P hive2-generic
     ```
+
+    The packaged jar is now available at: `hive-2-bigquery-connector/target/hive-2-bigquery-connector-<version>.jar`
 
   * For Hive 3:
 
@@ -56,7 +66,7 @@ Alternately, you can build a JAR from source:
     ./mvnw package -DskipTests -P hive3-generic
     ```
 
-   The packaged jar is now available at: `connector/target/hive-bigquery-connector-<version>.jar`
+    The packaged jar is now available at: `hive-3-bigquery-connector/target/hive-3-bigquery-connector-<version>.jar`
 
 Once you have the connector JAR, deploy the JAR to the classpath of all nodes in your Hive cluster.
 
@@ -88,7 +98,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (word_count BIGINT, word STRING)
-  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable'
 );
@@ -187,7 +197,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (int_val BIGINT, ts TIMESTAMP)
-  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable',
     'bq.time.partition.field'='ts',
@@ -218,7 +228,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (int_val BIGINT)
-  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable',
     'bq.time.partition.type'='DAY'
@@ -241,7 +251,7 @@ Here's an example:
 
 ```sql
 CREATE TABLE mytable (int_val BIGINT, text STRING, purchase_date DATE)
-  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mytable',
     'bq.clustered.fields'='int_val,text'
@@ -268,17 +278,18 @@ You can use the following properties in the `TBLPROPERTIES` clause when you crea
 
 You can set the following Hive/Hadoop configuration properties in your environment:
 
-| Property                  | Default value       | Description                                                                                                                                                                                         |
-|---------------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bq.read.data.format`     | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                         |
-| `bq.temp.gcs.path`        |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                                |
-| `bq.write.method`         | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temporary Avro files to GCS before loading into BigQuery). |
-| `bq.work.dir.parent.path` | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
-| `bq.work.dir.name.prefix` | `hive-bq-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
-| `materializationProject`  |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                     |
-| `materializationDataset`  |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                     |
-| `maxParallelism`          |                     | Maximum initial number of read streams                                                                                                                                                              |
-| `viewsEnabled`            | `false`             | Set it to `true` to enable reading views.                                                                                                                                                           |
+| Property                            | Default value       | Description                                                                                                                                                                                         |
+|-------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bq.read.data.format`               | `arrow`             | Data format used for reads from BigQuery. Possible values: `arrow`, `avro`.                                                                                                                         |
+| `bq.temp.gcs.path`                  |                     | GCS location for storing temporary Avro files when using the `indirect` write method                                                                                                                |
+| `bq.write.method`                   | `direct`            | Indicates how to write data to BigQuery. Possible values: `direct` (to directly write to the BigQuery storage API), `indirect` (to stage temporary Avro files to GCS before loading into BigQuery). |
+| `bq.work.dir.parent.path`           | `${hadoop.tmp.dir}` | Parent path on HDFS where each job creates its temporary work directory                                                                                                                             |
+| `bq.work.dir.name.prefix`           | `hive-bq-`          | Prefix used for naming the jobs' temporary directories.                                                                                                                                             |
+| `bq.destination.table.kms.key.name` |                     | Cloud KMS encryption key used to protect the job's destination BigQuery table. Read more in the section on [customer-managed encryption keys](#customer-managed-encryption-keys)                    |
+| `materializationProject`            |                     | Project used to temporarily materialize data when reading views. Defaults to the same project as the read view.                                                                                     |
+| `materializationDataset`            |                     | Dataset used to temporarily materialize data when reading views. Defaults to the same dataset as the read view.                                                                                     |
+| `maxParallelism`                    |                     | Maximum initial number of read streams                                                                                                                                                              |
+| `viewsEnabled`                      | `false`             | Set it to `true` to enable reading views.                                                                                                                                                           |
 
 ## Data Type Mapping
 
@@ -456,7 +467,7 @@ To link a Hive table to a BigQuery table snapshot, simply specify the snapshot's
 
 ```sql
 CREATE TABLE mytable (abc BIGINT, xyz STRING)
-  STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
+STORED BY 'com.google.cloud.hive.bigquery.connector.BigQueryStorageHandler'
 TBLPROPERTIES (
     'bq.table'='myproject.mydataset.mysnapshot'
 );
@@ -471,6 +482,59 @@ consumers read based on a specific point in time. The snapshot time is based on 
 session creation time (i.e. when the `SELECT` query is initiated).
 
 Note that this consistency model currently only applies to the table data, not its metadata.
+
+## Spark SQL integration
+
+Dataproc uses a patched version of Spark that automatically detects a table that has the `bq.table`
+table property, in which case Spark will use the [`Spark-BigQuery Connector`](https://github.com/GoogleCloudDataproc/spark-bigquery-connector)
+to access the table's data. This means that on Dataproc you actually do not need to use the
+Hive-BigQuery Connector for Spark SQL.
+
+### Code samples
+
+Java example:
+
+```java
+SparkConf sparkConf = new SparkConf().setMaster("local");
+SparkSession spark =
+    SparkSession.builder()
+    .appName("example")
+    .config(sparkConf)
+    .enableHiveSupport()
+    .getOrCreate();
+Dataset<Row> ds = spark.sql("SELECT * FROM mytable");
+Row[] rows = ds.collect();
+```
+
+Python example:
+
+```python
+spark = SparkSession.builder \
+    .appName("example") \
+    .config("spark.master", "local") \
+    .enableHiveSupport() \
+    .getOrCreate()
+df = spark.sql("SELECT * FROM mytable")
+rows = df.collect()
+```
+
+## Apache Pig integration
+
+The connector supports Apache Pig via HCatalog.
+
+Here's an example reading from a BigQuery table and writing to another, assuming that
+`my-database.my-table` and `my-database.my-other-table` have been registered as BigQuery tables:
+
+```pig
+some_data = LOAD 'my-database.my-table' USING org.apache.hive.hcatalog.pig.HCatLoader();
+STORE some_data INTO 'my-database.my-other-table' USING org.apache.hive.hcatalog.pig.HCatStorer();
+```
+
+Notes:
+
+* Pig only supports `datetime` types with milliseconds precision, so you may encounter precision
+  loss if you have values with nanoseconds in Hive or BigQuery. Learn more in the HCatalog
+  documentation on [data type mappings](https://cwiki.apache.org/confluence/display/hive/hcatalog+loadstore#HCatalogLoadStore-DataTypeMappings).
 
 ## BigLake integration
 
@@ -650,6 +714,24 @@ There are multiple options to override the default behavior and to provide custo
   with the `bq.access.token` configuration property. You can generate an access token by running
   `gcloud auth application-default print-access-token`.
 
+## Customer-managed encryption key (CMEK)
+
+You can provide a Cloud KMS key to be used to encrypt the destination table, for example when you
+run a `CREATE TABLE` statement for a managed table, or when you insert data into a table that
+doesn't exist yet. To do so, set the `bq.destination.table.kms.key.name` property with the
+fully-qualified named of the desired Cloud KMS key in the form:
+
+```
+projects/<KMS_PROJECT_ID>/locations/<LOCATION>/keyRings/<KEY_RING>/cryptoKeys/<KEY>
+```
+
+The BigQuery service account associated with your project requires access to this encryption key.
+
+The table will be encrypted by the key only if it created by the connector. A pre-existing
+unencrypted table won't be encrypted just by setting this option.
+
+For further information about using customer-managed encryption keys (CMEK) with BigQuery, see [here](https://cloud.google.com/bigquery/docs/customer-managed-encryption#key_resource_id).
+
 ## Known issues and limitations
 
 * The `UPDATE`, `MERGE`, and `DELETE`, and `ALTER TABLE` statements are currently not supported.
@@ -659,10 +741,6 @@ There are multiple options to override the default behavior and to provide custo
   sections on [partitioning](#partitioning) and [clustering](#clustering).
 * CTAS (aka `CREATE TABLE AS SELECT`) and CTLT (`CREATE TABLE LIKE TABLE`) statements are currently
   not supported.
-* If a write job fails when using the Tez execution engine and the `indirect` write method, the
-  temporary avro files might not be automatically cleaned up from the GCS bucket. The MR execution
-  engine does not have this limitation. The temporary files are always cleaned up when the job is
-  successful, regardless of the execution engine in use.
 * If you use the Hive `MAP` type, then the map's key must be of `STRING` type if you use the Avro
   format for reading or the indirect method for writing. This is because Avro requires keys to be
   strings. If you use the Arrow format for reading (default) and the direct method for writing (also
@@ -707,7 +785,8 @@ Enable the following APIs:
 ```sh
 gcloud services enable \
   bigquerystorage.googleapis.com \
-  bigqueryconnection.googleapis.com
+  bigqueryconnection.googleapis.com \
+  cloudkms.googleapis.com
 ```
 
 #### BigLake setup
@@ -715,7 +794,7 @@ gcloud services enable \
 Define environment variables:
 
 ```sh
-export PROJECT=my-gcp-project
+export PROJECT=<my-gcp-project>
 export BIGLAKE_LOCATION=us
 export BIGLAKE_REGION=us-central1
 export BIGLAKE_CONNECTION=hive-integration-tests
@@ -746,6 +825,41 @@ export BIGLAKE_SA=$(bq show --connection --format json "${PROJECT}.${BIGLAKE_LOC
   | jq -r .cloudResource.serviceAccountId)
 
 gsutil iam ch serviceAccount:${BIGLAKE_SA}:objectViewer gs://${BIGLAKE_BUCKET}
+```
+
+#### KMS setup
+
+Create a KMS keyring:
+
+```sh
+gcloud kms keyrings create \
+  integration_tests_keyring \
+  --location us
+```
+
+```sh
+gcloud kms keys create integration_tests_key \
+    --keyring integration_tests_keyring \
+    --location us \
+    --purpose "encryption"
+```
+
+Obtain the BigQuery service account name:
+
+```sh
+BQ_SERVICE_ACCOUNT=$(bq show --encryption_service_account --format json | jq -r ".ServiceAccountID")
+```
+
+Assign the Encrypter/Decrypter role to the BigQuery service account:
+
+```sh
+gcloud kms keys add-iam-policy-binding \
+  --project=${PROJECT} \
+  --member serviceAccount:${BQ_SERVICE_ACCOUNT} \
+  --role roles/cloudkms.cryptoKeyEncrypterDecrypter \
+  --location=us \
+  --keyring=integration_tests_keyring \
+  integration_tests_key
 ```
 
 #### Running the tests
@@ -795,18 +909,22 @@ To run the acceptance tests:
 ./mvnw verify -Pdataproc21,acceptance
 ```
 
-If you want to avoid rebuilding `shaded-dependencies` and `shaded-test-dependencies` when there is no changes in these
-modules, you can break it down into several steps, and only rerun the necessary steps:
+If you want to avoid rebuilding the `shaded-deps-dataproc21` and
+`shaded-acceptance-tests-dependencies` modules if they have no changes, you can break it down into
+the following steps:
 
 ```sh
-# Install hive-bigquery-parent/pom.xml to Maven local repo
-mvn install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
+# Install hive-bigquery-parent/pom.xml to the Maven local repo
+./mvnw install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
 
-# Build and install shaded-dependencies and shaded-test-dependencies jars to Maven local repo
-mvn clean install -pl shaded-dependencies,shaded-test-dependencies -Pdataproc21 -DskipTests
+# Build and install the module JARs to the Maven local repo
+./mvnw clean install -pl shaded-deps-dataproc21,shaded-acceptance-tests-dependencies -Pdataproc21 -DskipTests
+```
 
-# Build and test connector
-mvn clean verify -pl connector -Pdataproc21,acceptance
+At that point you can just run the tests without rebuilding the modules:
+
+```sh
+./mvnw clean verify -pl hive-bigquery-connector-common,hive-3-bigquery-connector -Pdataproc21,acceptance
 ```
 
 ##### Running the tests for different Hadoop versions

@@ -55,7 +55,7 @@
     </scm>
 
     <properties>
-        <revision>2.0.0-SNAPSHOT</revision>
+        <revision>2.1.0-SNAPSHOT</revision>
 
         <!-- Dependencies -->
         <avro.version>1.11.3</avro.version>
