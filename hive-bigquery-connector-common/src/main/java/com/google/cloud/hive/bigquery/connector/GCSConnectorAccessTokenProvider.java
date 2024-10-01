@@ -23,6 +23,10 @@ import com.google.cloud.hive.bigquery.connector.config.HiveBigQueryConnectorModu
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Parameter;
+import java.time.Instant;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -30,9 +34,46 @@ import org.apache.hadoop.conf.Configuration;
  */
 public class GCSConnectorAccessTokenProvider implements AccessTokenProvider {
 
+  // New versions (>=3.0) of the GCS connector used in Dataproc >=2.2 have changed the
+  // signature of some constructors, so we use reflection to determine which constructor
+  // to use and remain compatible with all versions of Dataproc.
+  protected static boolean useNewGcsConnectorAPI;
+
+  static {
+    Constructor<?>[] constructors = AccessToken.class.getConstructors();
+    for (Constructor<?> constructor : constructors) {
+      Parameter[] parameters = constructor.getParameters();
+      if (parameters.length == 2
+          && parameters[0].getType() == String.class
+          && parameters[1].getType() == Instant.class) {
+        useNewGcsConnectorAPI = true;
+        break;
+      }
+    }
+  }
+
+  public static AccessToken instantiateAccessToken(String stringArg, long timestamp) {
+    try {
+      if (useNewGcsConnectorAPI) {
+        return AccessToken.class
+            .getConstructor(String.class, Instant.class)
+            .newInstance(stringArg, Instant.ofEpochMilli(timestamp));
+      } else {
+        return AccessToken.class
+            .getConstructor(String.class, Long.class)
+            .newInstance(stringArg, timestamp);
+      }
+    } catch (NoSuchMethodException
+        | InvocationTargetException
+        | IllegalAccessException
+        | InstantiationException e) {
+      throw new RuntimeException("Error instantiating AccessToken", e);
+    }
+  }
+
   Configuration conf;
   BigQueryCredentialsSupplier credentialsSupplier;
-  private static final AccessToken EXPIRED_TOKEN = new AccessToken("", -1L);
+  private static final AccessToken EXPIRED_TOKEN = instantiateAccessToken("", -1L);
   private AccessToken accessToken = EXPIRED_TOKEN;
   public static final String CLOUD_PLATFORM_SCOPE =
       "https://www.googleapis.com/auth/cloud-platform";
@@ -47,7 +88,8 @@ public class GCSConnectorAccessTokenProvider implements AccessTokenProvider {
     GoogleCredentials credentials = (GoogleCredentials) credentialsSupplier.getCredentials();
     com.google.auth.oauth2.AccessToken token =
         credentials.createScoped(CLOUD_PLATFORM_SCOPE).refreshAccessToken();
-    this.accessToken = new AccessToken(token.getTokenValue(), token.getExpirationTime().getTime());
+    this.accessToken =
+        instantiateAccessToken(token.getTokenValue(), token.getExpirationTime().getTime());
   }
 
   @Override

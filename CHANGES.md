@@ -2,6 +2,7 @@
 
 ## 2.1.0 - 2024-07-??
 
+* Added support for Dataproc 2.2.
 * Added support for customer-managed encryption key (CMEK).
 * Added support for Pig and HCatalog.
 * Added support for Hive 1.x.x and Hive 2.x.x.

@@ -11,7 +11,7 @@ See the details in [CHANGES.md](CHANGES.md).
 
 ## Version support
 
-This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0 and 2.1.
+This connector supports [Dataproc](https://cloud.google.com/dataproc) 2.0, 2.1, and 2.2.
 
 For Hadoop clusters other than Dataproc, the connector has been tested with the following
 software versions:
@@ -871,22 +871,22 @@ You must use Java version 8, as it's the version that Hive itself uses. Make sur
 
 * To run the integration tests:
   ```sh
-  ./mvnw verify -Pdataproc21,integration
+  ./mvnw verify -Pdataproc22,integration
   ```
 
 * To run a single integration test class:
   ```sh
-  ./mvnw verify -Pdataproc21,integration -Dit.test="BigLakeIntegrationTests"
+  ./mvnw verify -Pdataproc22,integration -Dit.test="BigLakeIntegrationTests"
   ```
 
 * To run a specific integration test method:
   ```sh
-  ./mvnw verify -Pdataproc21,integration -Dit.test="BigLakeIntegrationTests#testReadBigLakeTable"
+  ./mvnw verify -Pdataproc22,integration -Dit.test="BigLakeIntegrationTests#testReadBigLakeTable"
   ```
 
 * To debug the tests, add the `-Dmaven.failsafe.debug` property:
   ```sh
-  ./mvnw verify -Pdataproc21,integration -Dmaven.failsafe.debug
+  ./mvnw verify -Pdataproc22,integration -Dmaven.failsafe.debug
   ```
   ... then run a remote debugger in IntelliJ at port `5005`. Read more about debugging with FailSafe
   here: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/debugging.html
@@ -906,10 +906,10 @@ The following environment variables must be set and **exported** first.
 To run the acceptance tests:
 
 ```sh
-./mvnw verify -Pdataproc21,acceptance
+./mvnw verify -Pdataproc22,acceptance
 ```
 
-If you want to avoid rebuilding the `shaded-deps-dataproc21` and
+If you want to avoid rebuilding the `shaded-deps-dataproc22` and
 `shaded-acceptance-tests-dependencies` modules if they have no changes, you can break it down into
 the following steps:
 
@@ -918,13 +918,13 @@ the following steps:
 ./mvnw install:install-file -Dpackaging=pom -Dfile=hive-bigquery-parent/pom.xml -DpomFile=hive-bigquery-parent/pom.xml
 
 # Build and install the module JARs to the Maven local repo
-./mvnw clean install -pl shaded-deps-dataproc21,shaded-acceptance-tests-dependencies -Pdataproc21 -DskipTests
+./mvnw clean install -pl shaded-deps-dataproc22,shaded-acceptance-tests-dependencies -Pdataproc22 -DskipTests
 ```
 
 At that point you can just run the tests without rebuilding the modules:
 
 ```sh
-./mvnw clean verify -pl hive-bigquery-connector-common,hive-3-bigquery-connector -Pdataproc21,acceptance
+./mvnw clean verify -pl hive-bigquery-connector-common,hive-3-bigquery-connector -Pdataproc22,acceptance
 ```
 
 ##### Running the tests for different Hadoop versions

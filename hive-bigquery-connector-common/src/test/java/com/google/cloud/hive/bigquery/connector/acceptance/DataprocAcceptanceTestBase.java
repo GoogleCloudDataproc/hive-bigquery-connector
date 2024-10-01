@@ -177,6 +177,7 @@ public abstract class DataprocAcceptanceTestBase {
                     GceClusterConfig.newBuilder()
                         .setNetworkUri("default")
                         .setZoneUri(REGION + "-a")
+                        .setInternalIpOnly(false)
                         .putMetadata("hive-bigquery-connector-url", connectorJarUri))
                 .setMasterConfig(
                     InstanceGroupConfig.newBuilder()

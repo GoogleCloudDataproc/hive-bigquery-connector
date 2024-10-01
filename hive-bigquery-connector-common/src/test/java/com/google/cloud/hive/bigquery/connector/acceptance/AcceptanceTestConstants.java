@@ -15,7 +15,7 @@
  */
 package com.google.cloud.hive.bigquery.connector.acceptance;
 
-import org.apache.parquet.Strings;
+import com.google.common.base.Strings;
 
 public class AcceptanceTestConstants {
 
@@ -38,23 +38,5 @@ public class AcceptanceTestConstants {
   public static final String CONNECTOR_JAR_DIRECTORY = "target";
   public static final String CONNECTOR_JAR_PREFIX = "hive-3-bigquery-connector";
   public static final String CONNECTOR_INIT_ACTION_PATH = "/acceptance/connectors.sh";
-
-  public static final String MIN_BIG_NUMERIC =
-      "-578960446186580977117854925043439539266.34992332820282019728792003956564819968";
-  public static final String MAX_BIG_NUMERIC =
-      "578960446186580977117854925043439539266.34992332820282019728792003956564819967";
-  public static final String BIGNUMERIC_TABLE_QUERY_TEMPLATE =
-      "create table %s.%s (\n"
-          + "    min bignumeric,\n"
-          + "    max bignumeric\n"
-          + "    ) \n"
-          + "    as \n"
-          + "    select \n"
-          + "    cast(\""
-          + MIN_BIG_NUMERIC
-          + "\" as bignumeric) as min,\n"
-          + "    cast(\""
-          + MAX_BIG_NUMERIC
-          + "\" as bignumeric) as max";
   protected static final long ACCEPTANCE_TEST_TIMEOUT_IN_SECONDS = 600;
 }
