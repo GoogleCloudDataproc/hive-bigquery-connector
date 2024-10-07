@@ -1,6 +1,8 @@
 # Release Notes
 
-## 2.1.0 - 2024-07-??
+## Next
+
+## 2.1.0 - 2024-10-07
 
 * Added support for Dataproc 2.2.
 * Added support for customer-managed encryption key (CMEK).
