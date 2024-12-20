@@ -31,8 +31,7 @@ public class HiveBigQueryConnectorUserAgentProviderTest {
     conf.set("hive.query.id", "abcd");
     Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(conf));
     UserAgentProvider provider = injector.getInstance(UserAgentProvider.class);
-    assertThat(provider.getUserAgent())
-        .matches("hive-bigquery-connector/\\d+\\.\\d+\\.\\d+-SNAPSHOT");
+    assertThat(provider.getUserAgent()).matches("hive-bigquery-connector/test");
   }
 
   @Test
@@ -42,7 +41,6 @@ public class HiveBigQueryConnectorUserAgentProviderTest {
     conf.set("GPN", "abcd");
     Injector injector = Guice.createInjector(new HiveBigQueryConnectorModule(conf));
     UserAgentProvider provider = injector.getInstance(UserAgentProvider.class);
-    assertThat(provider.getUserAgent())
-        .matches("hive-bigquery-connector/\\d+\\.\\d+\\.\\d+-SNAPSHOT \\(GPN:abcd\\)");
+    assertThat(provider.getUserAgent()).matches("hive-bigquery-connector/test \\(GPN:abcd\\)");
   }
 }
