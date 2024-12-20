@@ -70,17 +70,6 @@ public abstract class BigQueryStorageHandlerBase
 
   Configuration conf;
 
-  /** Configure the GCS connector to use the Hive connector's credentials. */
-  public static void setGCSAccessTokenProvider(Configuration conf) {
-    conf.set("fs.gs.auth.type", "ACCESS_TOKEN_PROVIDER");
-    conf.set(
-        "fs.gs.auth.access.token.provider",
-        "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
-    conf.set(
-        "fs.gs.auth.access.token.provider.impl",
-        "com.google.cloud.hive.bigquery.connector.GCSConnectorAccessTokenProvider");
-  }
-
   @Override
   public Class<? extends InputFormat> getInputFormatClass() {
     return BigQueryInputFormat.class;
@@ -120,7 +109,6 @@ public abstract class BigQueryStorageHandlerBase
       // simulate `OutputCommitter.abortJob()`
       addExecHook(ConfVars.ONFAILUREHOOKS.varname, FailureExecHook.class);
     }
-    setGCSAccessTokenProvider(this.conf);
   }
 
   @Override
@@ -234,9 +222,6 @@ public abstract class BigQueryStorageHandlerBase
       // A workaround for mr mode, as MapRedTask.execute resets mapred.output.committer.class
       conf.set(HiveBigQueryConfig.THIS_IS_AN_OUTPUT_JOB, "true");
     }
-
-    // Set config for the GCS Connector
-    setGCSAccessTokenProvider(conf);
 
     // Figure out the Hive table's corresponding BigQuery schema
     Schema bigQuerySchema = BigQuerySchemaConverter.toBigQuerySchema(conf, tableDesc);

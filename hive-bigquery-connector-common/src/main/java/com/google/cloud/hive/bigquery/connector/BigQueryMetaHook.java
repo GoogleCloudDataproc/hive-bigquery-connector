@@ -141,8 +141,7 @@ public class BigQueryMetaHook {
       HiveBigQueryConfig opts,
       Table hmsTable) {
     // TODO: We currently can't use the `BigQueryClient.createTable()` because it doesn't have a way
-    // to
-    //  pass a TableInfo. This forces us to duplicate some code below from the existing
+    // to pass a TableInfo. This forces us to duplicate some code below from the existing
     //  `BigQueryClient.createTable()`. One better long-term solution would be to add a
     //  `createTable(TableInfo)` method to BigQueryClient. See:
     // https://github.com/GoogleCloudDataproc/spark-bigquery-connector/issues/1213
