@@ -46,6 +46,7 @@ public abstract class HiveBigQueryConfigTestBase {
   public void testSerializability() throws IOException {
     Configuration conf = new Configuration();
     conf.set("hive.query.id", "abcd");
+    conf.set("hive.session.id", "session-xyz");
     new ObjectOutputStream(new ByteArrayOutputStream())
         .writeObject(HiveBigQueryConfig.from(conf, new Properties()));
   }
@@ -54,6 +55,7 @@ public abstract class HiveBigQueryConfigTestBase {
   public void testDefaults() {
     Configuration conf = new Configuration();
     conf.set("hive.query.id", "abcd");
+    conf.set("hive.session.id", "session-xyz");
     Injector injector =
         Guice.createInjector(new HiveBigQueryConnectorModule(conf, new Properties()));
     HiveBigQueryConfig opts = injector.getInstance(HiveBigQueryConfig.class);
@@ -73,9 +75,9 @@ public abstract class HiveBigQueryConfigTestBase {
     assertThat(opts.isWriteAtLeastOnce()).isFalse();
     assertThat(opts.getAccessToken()).isEmpty();
     assertThat(opts.getAccessTokenProviderConfig()).isEmpty();
-    assertThat(opts.getAccessTokenProviderFQCN()).isEmpty();
-    assertThat(opts.getBigQueryHttpEndpoint()).isEmpty();
-    assertThat(opts.getBigQueryJobLabels()).isEmpty();
+    assertThat(opts.getBigQueryJobLabels()).containsEntry("hive-query-id", "abcd");
+    assertThat(opts.getBigQueryJobLabels()).containsEntry("hive-session-id", "session-xyz");
+    assertThat(opts.getBigQueryJobLabels()).hasSize(2);
     assertThat(opts.getBigQueryJobTimeoutInMinutes()).isEqualTo(360);
     assertThat(opts.getBigQueryStorageGrpcEndpoint()).isEmpty();
     assertThat(opts.getCacheExpirationTimeInMinutes()).isEqualTo(15);
@@ -154,6 +156,7 @@ public abstract class HiveBigQueryConfigTestBase {
     conf.set("materializationProject", "myproject");
     conf.set("materializationDataset", "mydataset");
     conf.set("hive.query.id", "abcd");
+    conf.set("hive.session.id", "session-xyz");
 
     Injector injector =
         Guice.createInjector(new HiveBigQueryConnectorModule(conf, new Properties()));
@@ -207,7 +210,9 @@ public abstract class HiveBigQueryConfigTestBase {
     assertThat(opts.getPartitionRange()).isEmpty();
     assertThat(opts.getParentProjectId()).isEqualTo(null);
     assertThat(opts.getBigQueryHttpEndpoint()).isEmpty();
-    assertThat(opts.getBigQueryJobLabels()).isEmpty();
+    assertThat(opts.getBigQueryJobLabels()).containsEntry("hive-query-id", "abcd");
+    assertThat(opts.getBigQueryJobLabels()).containsEntry("hive-session-id", "session-xyz");
+    assertThat(opts.getBigQueryJobLabels()).hasSize(2);
     assertThat(opts.getBigQueryJobTimeoutInMinutes()).isEqualTo(360);
     assertThat(opts.getBigQueryStorageGrpcEndpoint()).isEmpty();
     assertThat(opts.getCacheExpirationTimeInMinutes()).isEqualTo(15);

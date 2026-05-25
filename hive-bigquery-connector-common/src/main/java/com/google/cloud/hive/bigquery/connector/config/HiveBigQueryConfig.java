@@ -29,6 +29,7 @@ import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.connector.common.*;
 import com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions.CompressionCodec;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
+import com.google.cloud.hive.bigquery.connector.utils.bigquery.GCPLabelUtils;
 import com.google.cloud.hive.bigquery.connector.utils.hive.HiveUtils;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
@@ -191,7 +192,7 @@ public class HiveBigQueryConfig
   boolean enableModeCheckForSchemaFields = true;
   Optional<CreateDisposition> createDisposition = empty();
   ImmutableList<SchemaUpdateOption> loadSchemaUpdateOptions = ImmutableList.of();
-  private ImmutableMap<String, String> bigQueryJobLabels = ImmutableMap.of();
+  ImmutableMap<String, String> bigQueryJobLabels = ImmutableMap.of();
   String parentProjectId;
   boolean useParentProjectForMetadataOperations;
   int maxReadRowsRetries = 3;
@@ -370,6 +371,8 @@ public class HiveBigQueryConfig
             .transform(Priority::valueOf)
             .or(DEFAULT_JOB_PRIORITY);
     opts.gpn = getOption(GPN_ATTRIBUTION, conf);
+
+    opts.bigQueryJobLabels = ImmutableMap.copyOf(GCPLabelUtils.getHiveLabels(confAsMap));
 
     return opts;
   }
